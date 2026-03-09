@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -22,6 +24,8 @@ EXECUTABLE_EXTENSIONS = {".sh", ".bash", ".zsh", ".py", ".js", ".ts", ".rb", ".p
 MAX_DISPLAY_EXECUTABLES = 10
 MAX_DISPLAY_PENDING = 5
 SEMGREP_CONFIGS = ["auto", "p/secrets", "p/trailofbits"]
+UPSTREAM_TYPE_PLUGIN = "plugin"
+UPSTREAM_TYPE_RAW_SKILL = "raw-skill"
 
 
 def load_sources() -> dict:
@@ -159,39 +163,35 @@ def detect_dependencies(directory: Path) -> list[str]:
 # --- Import skill ---
 
 
-def _extract_upstream(repo_url: str, commit: str, upstream_path: str) -> Path:
-    """Clone upstream repo and extract the skill to a temp directory.
+@contextmanager
+def _extract_upstream(
+    repo_url: str, commit: str, upstream_path: str
+) -> Generator[Path, None, None]:
+    """Clone upstream repo and extract a path to a temp directory.
 
-    Returns the source directory path. Caller must manage cleanup via the
-    returned TemporaryDirectory objects stored as function attributes.
+    Yields the extracted source directory. Cleans up on exit.
     """
-    bare_td = clone_upstream_bare(repo_url)
-    extract_td = tempfile.TemporaryDirectory()
-
-    result = subprocess.run(
-        ["git", "archive", commit, "--", upstream_path],
-        check=False,
-        capture_output=True,
-        cwd=bare_td.name,
-    )
-    if result.returncode != 0:
-        print(
-            f"Error: Could not extract '{upstream_path}' from {repo_url}",
-            file=sys.stderr,
+    with clone_upstream_bare(repo_url) as bare_dir, tempfile.TemporaryDirectory() as extract_dir:
+        result = subprocess.run(
+            ["git", "archive", commit, "--", upstream_path],
+            check=False,
+            capture_output=True,
+            cwd=bare_dir,
         )
-        sys.exit(1)
-    subprocess.run(
-        ["tar", "xf", "-"],
-        check=False,
-        input=result.stdout,
-        capture_output=True,
-        cwd=extract_td.name,
-    )
-
-    # Store temp dirs for cleanup
-    _extract_upstream.bare_td = bare_td
-    _extract_upstream.extract_td = extract_td
-    return Path(extract_td.name) / upstream_path
+        if result.returncode != 0:
+            print(
+                f"Error: Could not extract '{upstream_path}' from {repo_url}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        subprocess.run(
+            ["tar", "xf", "-"],
+            check=False,
+            input=result.stdout,
+            capture_output=True,
+            cwd=extract_dir,
+        )
+        yield Path(extract_dir) / upstream_path
 
 
 def _resolve_frontmatter(
@@ -228,11 +228,8 @@ def _resolve_frontmatter(
     return frontmatter
 
 
-def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict) -> list[str]:
-    """Create plugin directory with wrapper and copy skill files.
-
-    Returns list of detected executable file paths.
-    """
+def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict) -> None:
+    """Create plugin directory with wrapper and copy skill files."""
     plugin_dir = REPO_ROOT / "plugins" / name
     if plugin_dir.exists():
         print(f"Error: Directory plugins/{name} already exists", file=sys.stderr)
@@ -256,8 +253,6 @@ def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict) -> l
             shutil.copytree(item, dest)
         else:
             shutil.copy2(item, dest)
-
-    return detect_executable_code(source_dir)
 
 
 def _print_executable_summary(executables: list[str], *, max_display: int) -> None:
@@ -286,36 +281,31 @@ def import_skill(args: argparse.Namespace) -> None:
         print(f"[dry-run] Validating '{args.name}' from {args.repo} @ {args.ref}\n")
 
     head = get_upstream_head(args.repo, args.ref)
-    source_dir = _extract_upstream(args.repo, head, args.path)
+    with _extract_upstream(args.repo, head, args.path) as source_dir:
+        frontmatter = _resolve_frontmatter(source_dir, args.path, args.name, force=args.force)
+        print(f"  Frontmatter: OK (name={frontmatter.get('name')!r})")
 
-    frontmatter = _resolve_frontmatter(source_dir, args.path, args.name, force=args.force)
-    print(f"  Frontmatter: OK (name={frontmatter.get('name')!r})")
+        deps = detect_dependencies(source_dir)
+        if deps:
+            print("  Dependencies detected (may need installation):")
+            for d in deps:
+                print(f"    {d}")
 
-    deps = detect_dependencies(source_dir)
-    if deps:
-        print("  Dependencies detected (may need installation):")
-        for d in deps:
-            print(f"    {d}")
+        executables = detect_executable_code(source_dir)
+        if executables:
+            _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+        else:
+            print("  Executable code: none detected")
 
-    executables = detect_executable_code(source_dir)
-    if executables:
-        _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
-    else:
-        print("  Executable code: none detected")
+        # Scan — in dry-run mode always scan and report without blocking
+        _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
-    # Scan — in dry-run mode always scan and report without blocking
-    _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
+        if dry_run:
+            print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
+            return
 
-    # Cleanup temp dirs
-    _extract_upstream.extract_td.cleanup()
-    _extract_upstream.bare_td.cleanup()
-
-    if dry_run:
-        print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
-        return
-
-    # Build plugin structure and register
-    _build_plugin_structure(args.name, source_dir, frontmatter)
+        # Build plugin structure and register
+        _build_plugin_structure(args.name, source_dir, frontmatter)
 
     description = frontmatter.get("description", "")
     version = frontmatter.get("version", "0.1.0")
@@ -324,7 +314,7 @@ def import_skill(args: argparse.Namespace) -> None:
         "upstream_repo": args.repo,
         "upstream_path": args.path,
         "upstream_ref": args.ref,
-        "upstream_type": "raw-skill",
+        "upstream_type": UPSTREAM_TYPE_RAW_SKILL,
         "last_synced_commit": head,
         "last_checked": now,
         "local_modifications": False,
@@ -397,33 +387,28 @@ def add_plugin(args: argparse.Namespace) -> None:
     head = get_upstream_head(args.repo, args.ref)
     print(f"  Upstream HEAD: {head[:12]}")
 
-    # Fetch upstream plugin
-    source_dir = _extract_upstream(args.repo, head, args.path)
-    metadata = _read_plugin_metadata(source_dir, args.name)
-    print(f"  Plugin: {metadata['name']} v{metadata['version']}")
-    if metadata["description"]:
-        print(f"  Description: {metadata['description']}")
+    with _extract_upstream(args.repo, head, args.path) as source_dir:
+        metadata = _read_plugin_metadata(source_dir, args.name)
+        print(f"  Plugin: {metadata['name']} v{metadata['version']}")
+        if metadata["description"]:
+            print(f"  Description: {metadata['description']}")
 
-    # Check for executable code
-    executables = detect_executable_code(source_dir)
-    if executables:
-        _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
-    else:
-        print("  Executable code: none detected")
+        # Check for executable code
+        executables = detect_executable_code(source_dir)
+        if executables:
+            _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+        else:
+            print("  Executable code: none detected")
 
-    # Scan
-    _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
+        # Scan
+        _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
-    # Cleanup temp dirs
-    _extract_upstream.extract_td.cleanup()
-    _extract_upstream.bare_td.cleanup()
+        if dry_run:
+            print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
+            return
 
-    if dry_run:
-        print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
-        return
-
-    # Copy plugin into plugins/
-    shutil.copytree(source_dir, plugin_dir)
+        # Copy plugin into plugins/
+        shutil.copytree(source_dir, plugin_dir)
 
     # Register in sources.json
     now = datetime.now(UTC).isoformat()
@@ -431,7 +416,7 @@ def add_plugin(args: argparse.Namespace) -> None:
         "upstream_repo": args.repo,
         "upstream_path": args.path,
         "upstream_ref": args.ref,
-        "upstream_type": "plugin",
+        "upstream_type": UPSTREAM_TYPE_PLUGIN,
         "last_synced_commit": head,
         "last_checked": now,
         "local_modifications": False,
@@ -461,13 +446,13 @@ def add_plugin(args: argparse.Namespace) -> None:
 # --- Diff and check ---
 
 
-def get_local_diff(plugin_name: str, info: dict) -> str:
+def get_local_diff(plugin_name: str, info: dict) -> str | None:
     """Diff local plugin directory against upstream at last_synced_commit.
 
     For raw-skill imports, compares only the skills/<name>/ subtree against upstream.
     For plugin imports, compares the full plugin directory.
     """
-    upstream_type = info.get("upstream_type", "plugin")
+    upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
 
     upstream_path = info["upstream_path"]
     commit = info["last_synced_commit"]
@@ -493,7 +478,7 @@ def get_local_diff(plugin_name: str, info: dict) -> str:
 
         upstream_dir = str(Path(extractdir) / upstream_path)
 
-        if upstream_type == "raw-skill":
+        if upstream_type == UPSTREAM_TYPE_RAW_SKILL:
             local_dir = str(REPO_ROOT / "plugins" / plugin_name / "skills" / plugin_name)
         else:
             local_dir = str(REPO_ROOT / "plugins" / plugin_name)
@@ -504,7 +489,7 @@ def get_local_diff(plugin_name: str, info: dict) -> str:
             capture_output=True,
             text=True,
         )
-        return result.stdout if result.stdout else "  No differences found."
+        return result.stdout or None
 
 
 def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
@@ -526,8 +511,7 @@ def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
     uncommitted = result.stdout.strip()
     # Compare actual content against upstream at synced commit
     diff_output = get_local_diff(plugin_name, info)
-    has_diff = diff_output != "  No differences found."
-    modified = bool(uncommitted) or has_diff
+    modified = bool(uncommitted) or diff_output is not None
     return modified, diff_output
 
 
@@ -571,10 +555,10 @@ def status_action(status: str) -> str:
 
 def check_single_plugin(name: str, info: dict, *, show_diff: bool = False) -> dict:
     """Check a single plugin against its upstream. Returns status dict."""
-    upstream_type = info.get("upstream_type", "plugin")
+    upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
     print(f"\n{name}:")
     print(f"  Upstream: {info['upstream_repo']} @ {info['upstream_ref']}")
-    if upstream_type == "raw-skill":
+    if upstream_type == UPSTREAM_TYPE_RAW_SKILL:
         print("  Type: raw-skill (wrapped)")
 
     current_head = get_upstream_head(info["upstream_repo"], info["upstream_ref"])
@@ -608,7 +592,7 @@ def check_single_plugin(name: str, info: dict, *, show_diff: bool = False) -> di
             for f in changed:
                 print(f"    M {f}")
 
-    if show_diff and local_modified:
+    if show_diff and local_diff:
         print("  Local diff:")
         print(local_diff)
 
@@ -713,7 +697,7 @@ def list_pending(_args: argparse.Namespace) -> None:
 
     print(f"Plugins pending verification ({len(pending)}):\n")
     for name, info, executables in pending:
-        upstream_type = info.get("upstream_type", "plugin")
+        upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
         repo = info["upstream_repo"]
         short_repo = repo.replace("https://github.com/", "").replace(".git", "")
 
@@ -756,31 +740,34 @@ def _run_semgrep(target: Path, semgrep_bin: str) -> tuple[int, str]:
     for config in SEMGREP_CONFIGS:
         config_args.extend(["--config", config])
 
-    # Get finding count from JSON output
-    json_result = subprocess.run(
-        [*base_cmd, *config_args, "--json", "--quiet", str(target)],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=300,
-    )
-    finding_count = 0
-    if json_result.stdout.strip():
-        try:
-            findings = json.loads(json_result.stdout)
-            finding_count = len(findings.get("results", []))
-        except json.JSONDecodeError:
-            pass
-
-    # Get human-readable output for display
-    text_result = subprocess.run(
+    # Single run with text output — count findings from exit code + parse output
+    result = subprocess.run(
         [*base_cmd, *config_args, "--quiet", str(target)],
         capture_output=True,
         text=True,
         check=False,
         timeout=300,
     )
-    output = text_result.stdout.strip()
+    output = result.stdout.strip()
+
+    # Run JSON only if text run indicated findings (exit code 1)
+    finding_count = 0
+    if result.returncode == 1:
+        json_result = subprocess.run(
+            [*base_cmd, *config_args, "--json", "--quiet", str(target)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+        )
+        if json_result.stdout.strip():
+            try:
+                findings = json.loads(json_result.stdout)
+                finding_count = len(findings.get("results", []))
+            except json.JSONDecodeError:
+                # Fallback: count non-empty lines as rough estimate
+                finding_count = 1
+
     return finding_count, output
 
 
@@ -844,7 +831,7 @@ def scan_plugins(args: argparse.Namespace) -> None:
             continue
 
         print(f"{name}:")
-        upstream_type = info.get("upstream_type", "plugin")
+        upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
         print(f"  Type: {upstream_type}")
         print(f"  Verified: {'yes' if info.get('verified', False) else 'no'}")
         print(f"  Scanning {plugin_dir}...")
