@@ -159,7 +159,7 @@ def detect_dependencies(directory: Path) -> list[str]:
 # --- Import skill ---
 
 
-def _extract_upstream_skill(repo_url: str, commit: str, upstream_path: str) -> Path:
+def _extract_upstream(repo_url: str, commit: str, upstream_path: str) -> Path:
     """Clone upstream repo and extract the skill to a temp directory.
 
     Returns the source directory path. Caller must manage cleanup via the
@@ -189,8 +189,8 @@ def _extract_upstream_skill(repo_url: str, commit: str, upstream_path: str) -> P
     )
 
     # Store temp dirs for cleanup
-    _extract_upstream_skill.bare_td = bare_td
-    _extract_upstream_skill.extract_td = extract_td
+    _extract_upstream.bare_td = bare_td
+    _extract_upstream.extract_td = extract_td
     return Path(extract_td.name) / upstream_path
 
 
@@ -286,7 +286,7 @@ def import_skill(args: argparse.Namespace) -> None:
         print(f"[dry-run] Validating '{args.name}' from {args.repo} @ {args.ref}\n")
 
     head = get_upstream_head(args.repo, args.ref)
-    source_dir = _extract_upstream_skill(args.repo, head, args.path)
+    source_dir = _extract_upstream(args.repo, head, args.path)
 
     frontmatter = _resolve_frontmatter(source_dir, args.path, args.name, force=args.force)
     print(f"  Frontmatter: OK (name={frontmatter.get('name')!r})")
@@ -307,8 +307,8 @@ def import_skill(args: argparse.Namespace) -> None:
     _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
     # Cleanup temp dirs
-    _extract_upstream_skill.extract_td.cleanup()
-    _extract_upstream_skill.bare_td.cleanup()
+    _extract_upstream.extract_td.cleanup()
+    _extract_upstream.bare_td.cleanup()
 
     if dry_run:
         print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
@@ -353,8 +353,28 @@ def import_skill(args: argparse.Namespace) -> None:
 # --- Add plugin (existing, updated with new fields) ---
 
 
+def _read_plugin_metadata(source_dir: Path, name: str) -> dict:
+    """Read plugin.json from an extracted plugin directory.
+
+    Returns dict with name, version, description. Falls back to defaults.
+    """
+    plugin_json_path = source_dir / ".claude-plugin" / "plugin.json"
+    if plugin_json_path.exists():
+        try:
+            meta = json.loads(plugin_json_path.read_text())
+            return {
+                "name": meta.get("name", name),
+                "version": meta.get("version", "0.1.0"),
+                "description": meta.get("description", ""),
+            }
+        except json.JSONDecodeError:
+            print("  Warning: malformed plugin.json, using defaults")
+
+    return {"name": name, "version": "0.1.0", "description": f"Plugin: {name}"}
+
+
 def add_plugin(args: argparse.Namespace) -> None:
-    """Add a new plugin to sources.json."""
+    """Fetch an upstream plugin, scan it, and add it to the marketplace."""
     if not all([args.name, args.repo, args.path]):
         print("Error: --add requires --name, --repo, and --path", file=sys.stderr)
         sys.exit(1)
@@ -366,33 +386,47 @@ def add_plugin(args: argparse.Namespace) -> None:
         print(f"Error: Plugin '{args.name}' already tracked", file=sys.stderr)
         sys.exit(1)
 
+    plugin_dir = REPO_ROOT / "plugins" / args.name
+    if plugin_dir.exists() and not dry_run:
+        print(f"Error: Directory plugins/{args.name} already exists", file=sys.stderr)
+        sys.exit(1)
+
     if dry_run:
         print(f"[dry-run] Validating '{args.name}' from {args.repo} @ {args.ref}\n")
 
     head = get_upstream_head(args.repo, args.ref)
     print(f"  Upstream HEAD: {head[:12]}")
 
-    plugin_dir = REPO_ROOT / "plugins" / args.name
-    if not plugin_dir.exists():
-        print(f"  Warning: plugins/{args.name} does not exist locally yet")
-    else:
-        # Detect executable code
-        executables = detect_executable_code(plugin_dir)
-        if executables:
-            _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
-        else:
-            print("  Executable code: none detected")
+    # Fetch upstream plugin
+    source_dir = _extract_upstream(args.repo, head, args.path)
+    metadata = _read_plugin_metadata(source_dir, args.name)
+    print(f"  Plugin: {metadata['name']} v{metadata['version']}")
+    if metadata["description"]:
+        print(f"  Description: {metadata['description']}")
 
-        # Scan
-        _gate_scan(plugin_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
+    # Check for executable code
+    executables = detect_executable_code(source_dir)
+    if executables:
+        _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+    else:
+        print("  Executable code: none detected")
+
+    # Scan
+    _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
+
+    # Cleanup temp dirs
+    _extract_upstream.extract_td.cleanup()
+    _extract_upstream.bare_td.cleanup()
 
     if dry_run:
         print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
         return
 
-    now = datetime.now(UTC).isoformat()
-    executables = detect_executable_code(plugin_dir) if plugin_dir.exists() else []
+    # Copy plugin into plugins/
+    shutil.copytree(source_dir, plugin_dir)
 
+    # Register in sources.json
+    now = datetime.now(UTC).isoformat()
     data["plugins"][args.name] = {
         "upstream_repo": args.repo,
         "upstream_path": args.path,
@@ -405,10 +439,23 @@ def add_plugin(args: argparse.Namespace) -> None:
         "verified": False,
     }
     save_sources(data)
-    print(f"Added '{args.name}' tracking {args.repo} @ {args.ref} ({head[:12]})")
+
+    # Register in marketplace.json
+    marketplace = load_marketplace()
+    marketplace["plugins"].append(
+        {
+            "name": args.name,
+            "version": metadata["version"],
+            "description": metadata["description"],
+            "source": f"./plugins/{args.name}",
+        }
+    )
+    save_marketplace(marketplace)
+
+    print(f"Added '{args.name}' from {args.repo} @ {args.ref} ({head[:12]})")
     if executables:
-        print(f"  Contains executable code ({len(executables)} file(s))")
-    print("  Verified: no")
+        _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+    print("  Verified: no (use --mark-verified to approve after review)")
 
 
 # --- Diff and check ---

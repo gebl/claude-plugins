@@ -24,27 +24,7 @@ All imports are automatically scanned with semgrep before anything is written to
 
 ### From an upstream plugin repo
 
-1. Copy the plugin into `plugins/`:
-
-```bash
-git clone --depth 1 https://github.com/org/repo.git /tmp/source
-cp -r /tmp/source/plugins/plugin-name plugins/
-rm -rf /tmp/source
-```
-
-2. Register in `.claude-plugin/marketplace.json`:
-
-```json
-{
-  "name": "plugin-name",
-  "version": "1.0.0",
-  "description": "What the plugin does",
-  "author": { "name": "Author Name" },
-  "source": "./plugins/plugin-name"
-}
-```
-
-3. Track the upstream source:
+Fetches the plugin, scans it with semgrep, copies it into `plugins/`, and registers it in both `marketplace.json` and `sources.json`:
 
 ```bash
 uv run scripts/sync-check.py --add \
@@ -54,7 +34,7 @@ uv run scripts/sync-check.py --add \
   --ref main
 ```
 
-4. Commit and push.
+Then commit and push.
 
 ### From a raw skill repo
 
