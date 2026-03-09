@@ -19,6 +19,98 @@
         "url": "https://github.com/trailofbits"
       },
       "source": "./plugins/ask-questions-if-underspecified"
+    },
+    {
+      "name": "git-cleanup",
+      "version": "1.0.0",
+      "description": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work.",
+      "author": {
+        "name": "Henrik Brodin",
+        "email": "opensource@trailofbits.com",
+        "url": "https://github.com/trailofbits"
+      },
+      "source": "./plugins/git-cleanup"
+    },
+    {
+      "name": "differential-review",
+      "version": "1.0.0",
+      "description": "Security-focused differential review of code changes with git history analysis and blast radius estimation",
+      "author": {
+        "name": "Omar Inuwa",
+        "email": "opensource@trailofbits.com",
+        "url": "https://github.com/trailofbits"
+      },
+      "source": "./plugins/differential-review"
+    },
+    {
+      "name": "modern-python",
+      "version": "1.5.0",
+      "description": "Modern Python best practices. Use when creating new Python projects, and writing Python scripts, or migrating existing projects from legacy tools.",
+      "author": {
+        "name": "William Tan",
+        "email": "opensource@trailofbits.com",
+        "url": "https://github.com/trailofbits"
+      },
+      "source": "./plugins/modern-python"
+    },
+    {
+      "name": "testing-handbook-skills",
+      "version": "1.0.1",
+      "description": "Skills from the Trail of Bits Application Security Testing Handbook (appsec.guide)",
+      "author": {
+        "name": "Paweł Płatek"
+      },
+      "source": "./plugins/testing-handbook-skills"
+    },
+    {
+      "name": "variant-analysis",
+      "version": "1.0.0",
+      "description": "Find similar vulnerabilities and bugs across codebases using pattern-based analysis",
+      "author": {
+        "name": "Axel Mierczuk"
+      },
+      "source": "./plugins/variant-analysis"
+    },
+    {
+      "name": "semgrep-rule-creator",
+      "version": "1.1.0",
+      "description": "Create custom Semgrep rules for detecting bug patterns and security vulnerabilities",
+      "author": {
+        "name": "Maciej Domanski"
+      },
+      "source": "./plugins/semgrep-rule-creator"
+    },
+    {
+      "name": "insecure-defaults",
+      "version": "1.0.0",
+      "description": "Detects insecure default configurations including hardcoded credentials, fallback secrets, weak authentication defaults, and dangerous values in production",
+      "author": {
+        "name": "Trail of Bits",
+        "email": "opensource@trailofbits.com",
+        "url": "https://github.com/trailofbits"
+      },
+      "source": "./plugins/insecure-defaults"
+    },
+    {
+      "name": "devcontainer-setup",
+      "version": "0.1.0",
+      "description": "Create pre-configured devcontainers with Claude Code and language-specific tooling",
+      "author": {
+        "name": "Alexis Challande",
+        "url": "https://github.com/trailofbits"
+      },
+      "source": "./plugins/devcontainer-setup"
+    },
+    {
+      "name": "workflow-skill-design",
+      "version": "1.0.1",
+      "description": "Teaches design patterns for workflow-based Claude Code skills and provides a review agent for auditing existing skills",
+      "author": {
+        "name": "Benjamin Samuels",
+        "email": "opensource@trailofbits.com",
+        "url": "https://github.com/trailofbits"
+      },
+      "source": "./plugins/workflow-skill-design"
     }
   ]
 }
