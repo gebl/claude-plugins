@@ -74,6 +74,13 @@ This will:
 
 Use `--force` to import even if the `SKILL.md` frontmatter is malformed or missing required fields.
 
+Both `--add` and `--import-skill` run a semgrep security scan before importing. If findings are detected, the import is blocked. Use `--skip-scan` to bypass:
+
+```bash
+uv run scripts/sync-check.py --import-skill --skip-scan \
+  --name skill-name --repo URL --path P --ref main
+```
+
 ### Creating your own plugin
 
 1. Create the plugin directory structure:
@@ -144,6 +151,20 @@ uv run scripts/sync-check.py --mark-verified --plugin plugin-name
 
 The `--pending` command rescans plugin directories for executable code (.sh, .bash, .zsh, .py, .js, .ts, .rb, .pl, files with shebangs, or executable permissions) and highlights which plugins need attention.
 
+### Security scanning with semgrep
+
+Run semgrep against unverified plugins to catch security issues before marking them as verified:
+
+```bash
+# Scan all unverified plugins
+uv run scripts/sync-check.py --scan
+
+# Scan a specific plugin
+uv run scripts/sync-check.py --scan --plugin plugin-name
+```
+
+Scans use three rulesets: `auto` (broad coverage), `p/secrets` (credential detection), and `p/trailofbits` (security-focused rules). Requires semgrep (`uv tool install semgrep`).
+
 ## Pointing to External Repos
 
 Plugins don't have to live in this monorepo. In `marketplace.json`, use a git URL source instead of a relative path:
@@ -193,5 +214,7 @@ uv run scripts/sync-check.py --import-skill --name N --repo URL --path P  # Impo
 
 # Verification
 uv run scripts/sync-check.py --pending                     # List unverified
+uv run scripts/sync-check.py --scan                        # Semgrep scan unverified
+uv run scripts/sync-check.py --scan --plugin NAME          # Scan one plugin
 uv run scripts/sync-check.py --mark-verified --plugin NAME  # Mark as reviewed
 ```

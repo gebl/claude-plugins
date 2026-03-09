@@ -21,6 +21,7 @@ MARKETPLACE_FILE = REPO_ROOT / ".claude-plugin" / "marketplace.json"
 EXECUTABLE_EXTENSIONS = {".sh", ".bash", ".zsh", ".py", ".js", ".ts", ".rb", ".pl"}
 MAX_DISPLAY_EXECUTABLES = 10
 MAX_DISPLAY_PENDING = 5
+SEMGREP_CONFIGS = ["auto", "p/secrets", "p/trailofbits"]
 
 
 def load_sources() -> dict:
@@ -284,6 +285,9 @@ def import_skill(args: argparse.Namespace) -> None:
 
     frontmatter = _resolve_frontmatter(source_dir, args.path, args.name, force=args.force)
 
+    # Scan before importing into our tree
+    _gate_scan(source_dir, args.name, skip_scan=args.skip_scan)
+
     deps = detect_dependencies(source_dir)
     if deps:
         print("Warning: Dependency files detected (may need installation):")
@@ -348,8 +352,12 @@ def add_plugin(args: argparse.Namespace) -> None:
     head = get_upstream_head(args.repo, args.ref)
     now = datetime.now(UTC).isoformat()
 
-    # Detect executable code in the local plugin directory
+    # Scan before registering in our tree
     plugin_dir = REPO_ROOT / "plugins" / args.name
+    if plugin_dir.exists():
+        _gate_scan(plugin_dir, args.name, skip_scan=args.skip_scan)
+
+    # Detect executable code in the local plugin directory
     executables = detect_executable_code(plugin_dir) if plugin_dir.exists() else []
 
     data["plugins"][args.name] = {
@@ -643,6 +651,134 @@ def list_pending(_args: argparse.Namespace) -> None:
         print()
 
 
+# --- Scan ---
+
+
+def _find_semgrep() -> str:
+    """Locate semgrep binary. Exits if not found."""
+    path = shutil.which("semgrep")
+    if path:
+        return path
+    print(
+        "Error: semgrep not found. Install with: uv tool install semgrep",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def _run_semgrep(target: Path, semgrep_bin: str) -> tuple[int, str]:
+    """Run semgrep with configured rulesets against a target directory.
+
+    Returns (finding_count, output_text).
+    """
+    base_cmd = [semgrep_bin, "scan", "--no-git-ignore"]
+    config_args = []
+    for config in SEMGREP_CONFIGS:
+        config_args.extend(["--config", config])
+
+    # Get finding count from JSON output
+    json_result = subprocess.run(
+        [*base_cmd, *config_args, "--json", "--quiet", str(target)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    finding_count = 0
+    if json_result.stdout.strip():
+        try:
+            findings = json.loads(json_result.stdout)
+            finding_count = len(findings.get("results", []))
+        except json.JSONDecodeError:
+            pass
+
+    # Get human-readable output for display
+    text_result = subprocess.run(
+        [*base_cmd, *config_args, "--quiet", str(target)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    output = text_result.stdout.strip()
+    return finding_count, output
+
+
+def _gate_scan(target: Path, name: str, *, skip_scan: bool = False) -> None:
+    """Run semgrep on a directory and abort if findings are detected.
+
+    Skips the scan if semgrep is not installed or --skip-scan was passed.
+    """
+    if skip_scan:
+        print(f"  Skipping semgrep scan for '{name}' (--skip-scan)")
+        return
+
+    semgrep_path = shutil.which("semgrep")
+    if not semgrep_path:
+        print("  Warning: semgrep not installed, skipping pre-import scan")
+        print("  Install with: uv tool install semgrep")
+        return
+
+    print(f"  Scanning '{name}' with semgrep before import...")
+    finding_count, output = _run_semgrep(target, semgrep_path)
+
+    if finding_count > 0:
+        print(output)
+        print(f"\n  Scan found {finding_count} finding(s) in '{name}'.")
+        print("  Use --skip-scan to import anyway.")
+        sys.exit(1)
+
+    print("  Scan clean — no findings.")
+
+
+def scan_plugins(args: argparse.Namespace) -> None:
+    """Run semgrep security scan on unverified plugins (or a specific plugin)."""
+    semgrep_bin = _find_semgrep()
+    data = load_sources()
+    plugins = data["plugins"]
+
+    if args.plugin:
+        if args.plugin not in plugins:
+            print(f"Error: Plugin '{args.plugin}' not tracked", file=sys.stderr)
+            sys.exit(1)
+        targets = {args.plugin: plugins[args.plugin]}
+    else:
+        targets = {name: info for name, info in plugins.items() if not info.get("verified", False)}
+
+    if not targets:
+        print("No unverified plugins to scan.")
+        return
+
+    print(f"Scanning {len(targets)} plugin(s) with semgrep...")
+    print(f"  Rulesets: {', '.join(SEMGREP_CONFIGS)}\n")
+
+    total_findings = 0
+    for name, info in targets.items():
+        plugin_dir = REPO_ROOT / "plugins" / name
+        if not plugin_dir.exists():
+            print(f"{name}: SKIP (directory not found)")
+            continue
+
+        print(f"{name}:")
+        upstream_type = info.get("upstream_type", "plugin")
+        print(f"  Type: {upstream_type}")
+        print(f"  Verified: {'yes' if info.get('verified', False) else 'no'}")
+        print(f"  Scanning {plugin_dir}...")
+
+        finding_count, output = _run_semgrep(plugin_dir, semgrep_bin)
+        total_findings += finding_count
+
+        if output:
+            print(output)
+        else:
+            print("  No findings.")
+        print()
+
+    print(f"Scan complete. Total findings across {len(targets)} plugin(s): {total_findings}")
+    if total_findings > 0:
+        print("Review findings before marking plugins as verified.")
+
+
 # --- Main ---
 
 
@@ -677,6 +813,11 @@ def main() -> None:
         action="store_true",
         help="List plugins pending verification",
     )
+    group.add_argument(
+        "--scan",
+        action="store_true",
+        help="Run semgrep security scan on unverified plugins",
+    )
 
     parser.add_argument("--name", help="Plugin name (for --add/--import-skill)")
     parser.add_argument("--repo", help="Upstream git repo URL (for --add/--import-skill)")
@@ -691,6 +832,11 @@ def main() -> None:
         action="store_true",
         help="Force import even with malformed SKILL.md frontmatter",
     )
+    parser.add_argument(
+        "--skip-scan",
+        action="store_true",
+        help="Skip semgrep scan during --add/--import-skill (import despite findings)",
+    )
     args = parser.parse_args()
 
     if args.add:
@@ -703,6 +849,8 @@ def main() -> None:
         mark_verified(args)
     elif args.pending:
         list_pending(args)
+    elif args.scan:
+        scan_plugins(args)
     else:
         check_plugins(args)
 
