@@ -37,15 +37,6 @@
       "local_modifications": false,
       "has_executable_code": true
     },
-    "testing-handbook-skills": {
-      "upstream_repo": "https://github.com/trailofbits/skills.git",
-      "upstream_path": "plugins/testing-handbook-skills",
-      "upstream_ref": "main",
-      "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
-      "local_modifications": false,
-      "has_executable_code": true
-    },
     "variant-analysis": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/variant-analysis",
@@ -91,13 +82,13 @@
       "local_modifications": false,
       "has_executable_code": false
     },
-    "webapp-testing": {
-      "upstream_repo": "https://github.com/ComposioHQ/awesome-claude-skills.git",
-      "upstream_path": "webapp-testing",
-      "upstream_ref": "master",
-      "upstream_type": "raw-skill",
-      "last_synced_commit": "27904475d1270d8395acf07691966267d5abda2d",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
+    "yt-transcript": {
+      "upstream_repo": "https://forgejo.bishop.landq.net/secondbrain/yt-transcript.git",
+      "upstream_path": ".",
+      "upstream_ref": "main",
+      "upstream_type": "plugin",
+      "last_synced_commit": "b651de24460ca759224ef5ac7765d05e61057b2c",
+      "last_checked": "2026-03-09T18:11:49.855479+00:00",
       "local_modifications": false,
       "has_executable_code": true,
       "verified": false
