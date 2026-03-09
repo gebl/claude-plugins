@@ -255,6 +255,17 @@ def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict) -> N
             shutil.copy2(item, dest)
 
 
+def _print_dry_run_summary(*, sources_entry: dict, marketplace_entry: dict) -> None:
+    """Print what would be written to sources.json and marketplace.json."""
+    print("\n  sources.json entry:")
+    for key, value in sources_entry.items():
+        print(f"    {key}: {value}")
+
+    print("\n  marketplace.json entry:")
+    for key, value in marketplace_entry.items():
+        print(f"    {key}: {value}")
+
+
 def _print_executable_summary(executables: list[str], *, max_display: int) -> None:
     """Print a summary of detected executable files."""
     print(f"  Contains executable code ({len(executables)} file(s)):")
@@ -301,6 +312,23 @@ def import_skill(args: argparse.Namespace) -> None:
         _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
         if dry_run:
+            _print_dry_run_summary(
+                sources_entry={
+                    "upstream_repo": args.repo,
+                    "upstream_path": args.path,
+                    "upstream_ref": args.ref,
+                    "upstream_type": UPSTREAM_TYPE_RAW_SKILL,
+                    "last_synced_commit": head,
+                    "has_executable_code": bool(executables),
+                    "verified": False,
+                },
+                marketplace_entry={
+                    "name": args.name,
+                    "version": frontmatter.get("version", "0.1.0"),
+                    "description": frontmatter.get("description", ""),
+                    "source": f"./plugins/{args.name}",
+                },
+            )
             print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
             return
 
@@ -404,6 +432,23 @@ def add_plugin(args: argparse.Namespace) -> None:
         _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
         if dry_run:
+            _print_dry_run_summary(
+                sources_entry={
+                    "upstream_repo": args.repo,
+                    "upstream_path": args.path,
+                    "upstream_ref": args.ref,
+                    "upstream_type": UPSTREAM_TYPE_PLUGIN,
+                    "last_synced_commit": head,
+                    "has_executable_code": bool(executables),
+                    "verified": False,
+                },
+                marketplace_entry={
+                    "name": args.name,
+                    "version": metadata["version"],
+                    "description": metadata["description"],
+                    "source": f"./plugins/{args.name}",
+                },
+            )
             print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
             return
 
