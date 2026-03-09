@@ -216,7 +216,9 @@ uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
 # Importing
 uv run scripts/sync-check.py --add --name N --repo URL --path P       # Track a plugin
 uv run scripts/sync-check.py --import-skill --name N --repo URL --path P  # Import raw skill
+uv run scripts/sync-check.py --add --dry-run --name N --repo URL --path P        # Validate only
 uv run scripts/sync-check.py --import-skill --dry-run --name N --repo URL --path P  # Validate only
+uv run scripts/sync-check.py --import-skill --skip-scan --name N --repo URL --path P  # Skip semgrep
 
 # Verification
 uv run scripts/sync-check.py --pending                     # List unverified
