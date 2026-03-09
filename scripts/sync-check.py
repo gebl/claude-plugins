@@ -571,6 +571,147 @@ def add_plugin(args: argparse.Namespace) -> None:
     print("  Verified: no (use --mark-verified to approve after review)")
 
 
+# --- Sync upstream changes ---
+
+
+def _replace_plugin_files(name: str, info: dict, source_dir: Path) -> None:
+    """Replace local plugin files with upstream source.
+
+    For raw-skill imports, only replaces the skills/<name>/ subtree.
+    For plugin imports, replaces the full plugin directory.
+    """
+    upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
+    plugin_dir = REPO_ROOT / "plugins" / name
+
+    if upstream_type == UPSTREAM_TYPE_RAW_SKILL:
+        target = plugin_dir / "skills" / name
+        if target.exists():
+            shutil.rmtree(target)
+        target.mkdir(parents=True)
+        for item in source_dir.iterdir():
+            dest = target / item.name
+            if item.is_dir():
+                shutil.copytree(item, dest)
+            else:
+                shutil.copy2(item, dest)
+    else:
+        if plugin_dir.exists():
+            shutil.rmtree(plugin_dir)
+        shutil.copytree(source_dir, plugin_dir)
+
+
+def _update_marketplace_entry(name: str, metadata: dict) -> None:
+    """Update the marketplace.json entry for a plugin (version/description)."""
+    marketplace = load_marketplace()
+    for entry in marketplace["plugins"]:
+        if entry.get("name") == name:
+            entry["version"] = metadata.get("version", entry.get("version", "0.1.0"))
+            entry["description"] = metadata.get("description", entry.get("description", ""))
+            break
+    save_marketplace(marketplace)
+
+
+def _sync_single_plugin(  # noqa: PLR0913
+    name: str,
+    info: dict,
+    data: dict,
+    *,
+    force: bool = False,
+    skip_scan: bool = False,
+    dry_run: bool = False,
+) -> str:
+    """Sync a single plugin from upstream. Returns status: 'synced', 'up-to-date', or 'skipped'."""
+    plugin_dir = REPO_ROOT / "plugins" / name
+    if not plugin_dir.exists():
+        print("  SKIP: plugin directory not found")
+        return "skipped"
+
+    head = get_upstream_head(info["upstream_repo"], info["upstream_ref"])
+    synced = info["last_synced_commit"]
+
+    if head == synced:
+        print("  Already up to date.")
+        return "up-to-date"
+
+    print(f"  {synced[:12]} -> {head[:12]}")
+
+    local_modified, local_diff = has_local_modifications(name, info)
+    if local_modified and not force:
+        print("  SKIP: local modifications detected (use --force to overwrite)")
+        if local_diff:
+            print("  Run with --diff to see local changes")
+        return "skipped"
+    if local_modified and force:
+        print("  Warning: overwriting local modifications (--force)")
+
+    upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
+    upstream_path = info["upstream_path"]
+
+    with _extract_upstream(info["upstream_repo"], head, upstream_path) as source_dir:
+        if upstream_type == UPSTREAM_TYPE_RAW_SKILL:
+            metadata = _resolve_frontmatter(source_dir, upstream_path, name, force=True)
+        else:
+            metadata = _read_plugin_metadata(source_dir, name)
+
+        executables = detect_executable_code(source_dir)
+        if executables:
+            _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+
+        _gate_scan(source_dir, name, skip_scan=skip_scan, dry_run=dry_run)
+
+        if dry_run:
+            print(f"  [dry-run] Would sync to {head[:12]}. No files modified.")
+            return "synced"
+
+        _replace_plugin_files(name, info, source_dir)
+
+    now = datetime.now(UTC).isoformat()
+    data["plugins"][name]["last_synced_commit"] = head
+    data["plugins"][name]["last_checked"] = now
+    data["plugins"][name]["local_modifications"] = False
+    data["plugins"][name]["has_executable_code"] = bool(executables)
+    _update_marketplace_entry(name, metadata)
+
+    print(f"  Synced to {head[:12]}")
+    return "synced"
+
+
+def sync_plugin(args: argparse.Namespace) -> None:
+    """Pull upstream changes for a plugin (or all outdated plugins)."""
+    data = load_sources()
+    plugins = data["plugins"]
+
+    if args.plugin:
+        if args.plugin not in plugins:
+            print(f"Error: Plugin '{args.plugin}' not tracked", file=sys.stderr)
+            sys.exit(1)
+        targets = {args.plugin: plugins[args.plugin]}
+    else:
+        targets = dict(plugins)
+
+    counts: dict[str, int] = {"synced": 0, "up-to-date": 0, "skipped": 0}
+    for name, info in targets.items():
+        print(f"\n{name}:")
+        status = _sync_single_plugin(
+            name,
+            info,
+            data,
+            force=args.force,
+            skip_scan=args.skip_scan,
+            dry_run=args.dry_run,
+        )
+        counts[status] += 1
+
+    save_sources(data)
+
+    total = len(targets)
+    print(
+        f"\nSync complete: {counts['synced']} synced, "
+        f"{counts['up-to-date']} up-to-date, "
+        f"{counts['skipped']} skipped (of {total})"
+    )
+
+
 # --- Diff and check ---
 
 
@@ -813,8 +954,8 @@ def remove_plugin(args: argparse.Namespace) -> None:
 
     if args.dry_run:
         print(f"[dry-run] Would remove plugin '{args.plugin}':")
-        print(f"  Remove from sources.json")
-        print(f"  Remove from marketplace.json")
+        print("  Remove from sources.json")
+        print("  Remove from marketplace.json")
         if plugin_dir.exists():
             print(f"  Delete directory: plugins/{args.plugin}/")
         else:
@@ -827,9 +968,7 @@ def remove_plugin(args: argparse.Namespace) -> None:
 
     # Remove from marketplace.json
     marketplace = load_marketplace()
-    marketplace["plugins"] = [
-        p for p in marketplace["plugins"] if p.get("name") != args.plugin
-    ]
+    marketplace["plugins"] = [p for p in marketplace["plugins"] if p.get("name") != args.plugin]
     save_marketplace(marketplace)
 
     # Remove plugin directory
@@ -837,7 +976,9 @@ def remove_plugin(args: argparse.Namespace) -> None:
         shutil.rmtree(plugin_dir)
         print(f"Removed '{args.plugin}' (directory, sources.json, marketplace.json)")
     else:
-        print(f"Removed '{args.plugin}' from sources.json and marketplace.json (no directory found)")
+        print(
+            f"Removed '{args.plugin}' from sources.json and marketplace.json (no directory found)"
+        )
 
 
 def list_pending(_args: argparse.Namespace) -> None:
@@ -1067,6 +1208,11 @@ def main() -> None:
         help="Import a raw skill and wrap it as a plugin",
     )
     group.add_argument(
+        "--sync",
+        action="store_true",
+        help="Pull upstream changes for a plugin (or all outdated plugins)",
+    )
+    group.add_argument(
         "--mark-synced",
         action="store_true",
         help="Mark plugin as synced to current upstream",
@@ -1123,6 +1269,8 @@ def main() -> None:
 
     if args.add:
         add_plugin(args)
+    elif args.sync:
+        sync_plugin(args)
     elif args.import_skill:
         import_skill(args)
     elif args.remove:
