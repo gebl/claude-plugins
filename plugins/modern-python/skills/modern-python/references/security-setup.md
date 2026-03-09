@@ -16,7 +16,7 @@ brew install prek
 cargo install prek
 
 # Standalone installer
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh  # nosemgrep: claude-pipe-to-shell
 ```
 
 ### Security tools

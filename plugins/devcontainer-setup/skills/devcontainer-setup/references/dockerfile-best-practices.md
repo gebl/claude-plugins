@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 When using pipes, prepend `set -o pipefail &&` to fail if any command fails:
 
 ```dockerfile
-RUN set -o pipefail && curl -fsSL https://example.com/install.sh | bash
+RUN set -o pipefail && curl -fsSL https://example.com/install.sh | bash  # nosemgrep: claude-pipe-to-shell
 ```
 
 Without this, a failed `curl` would be masked by a successful `bash`.

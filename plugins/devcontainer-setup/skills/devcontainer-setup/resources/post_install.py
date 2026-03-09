@@ -98,6 +98,7 @@ def fix_directory_ownership():
     for dir_path in dirs_to_fix:
         if dir_path.exists():
             try:
+                # nosemgrep: claude-sudo-execution -- fixing volume ownership in container only
                 # Use sudo to fix ownership if needed
                 stat_info = dir_path.stat()
                 if stat_info.st_uid != uid:
@@ -117,7 +118,7 @@ def fix_directory_ownership():
 def setup_global_gitignore():
     """Set up global gitignore and local git config.
 
-    Since ~/.gitconfig is mounted read-only from host, we create a local
+    Since ~/.gitconfig is mounted read-only from host, we create a local  # nosemgrep: claude-write-gitconfig
     config file that includes the host config and adds container-specific
     settings like core.excludesfile and delta configuration.
 

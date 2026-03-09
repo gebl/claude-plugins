@@ -279,23 +279,25 @@ Use AskUserQuestion with clear options:
 
 ### GATE 2: Final Confirmation with Exact Commands
 
-Show the EXACT commands that will run, with correct flags:
+**Before presenting commands, validate branch names:** Check each branch name against `^[a-zA-Z0-9._/-]+$`. If any branch name contains characters outside this set (semicolons, backticks, `$`, parentheses, spaces, quotes, pipes, ampersands, newlines), **warn the user prominently** — these are unusual in branch names and could indicate a crafted branch name designed to exploit shell expansion. Do not include suspicious branch names in the commands below without explicit user acknowledgment.
+
+Show the EXACT commands that will run, with correct flags. **Always quote branch names and use `--` to separate flags from arguments:**
 
 ```markdown
 I will execute:
 
 # Merged branches (safe delete)
-git branch -d fix/typo
+git branch -d -- "fix/typo"
 
 # Squash-merged branches (force delete - work is in main via PRs)
-git branch -D feature/login
-git branch -D feature/api
-git branch -D feature/api-v2
-git branch -D feature/api-refactor
-git branch -D feature/api-final
+git branch -D -- "feature/login"
+git branch -D -- "feature/api"
+git branch -D -- "feature/api-v2"
+git branch -D -- "feature/api-refactor"
+git branch -D -- "feature/api-final"
 
 # Worktrees
-git worktree remove ../proj-auth
+git worktree remove -- "../proj-auth"
 
 Confirm? (yes/no)
 ```
@@ -304,16 +306,16 @@ Confirm? (yes/no)
 
 ### Phase 5: Execute
 
-Run each deletion as a **separate command** so partial failures don't block remaining deletions. Report the result of each:
+Run each deletion as a **separate command** so partial failures don't block remaining deletions. Always quote branch names and use `--` to prevent injection. Report the result of each:
 
 ```bash
-git branch -d fix/typo
-git branch -D feature/login
-git branch -D feature/api
-git branch -D feature/api-v2
-git branch -D feature/api-refactor
-git branch -D feature/api-final
-git worktree remove ../proj-auth
+git branch -d -- "fix/typo"
+git branch -D -- "feature/login"
+git branch -D -- "feature/api"
+git branch -D -- "feature/api-v2"
+git branch -D -- "feature/api-refactor"
+git branch -D -- "feature/api-final"
+git worktree remove -- "../proj-auth"
 ```
 
 If a deletion fails, report the error and continue with remaining deletions.

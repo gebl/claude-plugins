@@ -45,10 +45,17 @@ After baseline analysis, checkout back to head commit to analyze changes.
 
 ## Phase 0: Intake & Triage
 
+**Input validation (do this first):** Before running any git commands, validate all user-provided inputs:
+- **Commit SHAs/refs** must match `^[a-zA-Z0-9._/^~{}-]+$`. Reject anything containing `;`, `|`, `&`, `$`, `` ` ``, `(`, `)`, newlines, or spaces.
+- **PR numbers** must be numeric only.
+- **File paths** from `git diff --name-only` output are generally safe, but quote them in subsequent commands.
+- Always use `--` to separate git options from ref/path arguments (e.g., `git diff -- <base>..<head>`).
+- Always quote variables in shell commands: `"$ref"`, not `$ref`.
+
 **Extract changes:**
 ```bash
 # For commit range
-git diff <base>..<head> --stat
+git diff <base>..<head> -- --stat
 git log <base>..<head> --oneline
 
 # For PR

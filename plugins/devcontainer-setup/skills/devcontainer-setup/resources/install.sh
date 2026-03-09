@@ -117,6 +117,7 @@ extract_mounts_to_file() {
         (contains("target=/commandhistory,") | not) and
         (contains("target=/home/vscode/.claude,") | not) and
         (contains("target=/home/vscode/.config/gh,") | not) and
+        # nosemgrep: claude-write-gitconfig -- filtering default gitconfig mount during rebuild
         (contains("target=/home/vscode/.gitconfig,") | not) and
         (contains("target=/workspace/.devcontainer,") | not)
       )

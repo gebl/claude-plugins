@@ -868,32 +868,33 @@ def _run_semgrep(target: Path, semgrep_bin: str) -> tuple[int, str]:
     for config in SEMGREP_CONFIGS:
         config_args.extend(["--config", config])
 
-    # Single run with text output — count findings from exit code + parse output
-    result = subprocess.run(
+    # Text run for human-readable output
+    text_result = subprocess.run(
         [*base_cmd, *config_args, "--quiet", str(target)],
         capture_output=True,
         text=True,
         check=False,
         timeout=300,
     )
-    output = result.stdout.strip()
+    output = text_result.stdout.strip()
 
-    # Run JSON only if text run indicated findings (exit code 1)
+    # Always run JSON to get accurate finding count — exit code alone is
+    # unreliable (semgrep returns 0 for WARNINGs even when findings exist).
     finding_count = 0
-    if result.returncode == 1:
-        json_result = subprocess.run(
-            [*base_cmd, *config_args, "--json", "--quiet", str(target)],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=300,
-        )
-        if json_result.stdout.strip():
-            try:
-                findings = json.loads(json_result.stdout)
-                finding_count = len(findings.get("results", []))
-            except json.JSONDecodeError:
-                # Fallback: count non-empty lines as rough estimate
+    json_result = subprocess.run(
+        [*base_cmd, *config_args, "--json", "--quiet", str(target)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    if json_result.stdout.strip():
+        try:
+            findings = json.loads(json_result.stdout)
+            finding_count = len(findings.get("results", []))
+        except json.JSONDecodeError:
+            # Fallback: if text run showed output, assume at least 1 finding
+            if output:
                 finding_count = 1
 
     return finding_count, output

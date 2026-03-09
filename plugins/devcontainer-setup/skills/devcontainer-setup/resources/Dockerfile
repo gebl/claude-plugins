@@ -74,6 +74,7 @@ USER vscode
 ENV PATH="/home/vscode/.local/bin:$PATH"
 
 # Install Claude Code natively with marketplace plugins
+# nosemgrep: claude-pipe-to-shell -- trusted installer for Claude Code binary
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
   claude plugin marketplace add anthropics/skills && \
   claude plugin marketplace add trailofbits/skills && \
@@ -88,6 +89,7 @@ RUN uv tool install ast-grep-cli
 # Install fnm (Fast Node Manager) and Node 22
 ARG NODE_VERSION=22
 ENV FNM_DIR="/home/vscode/.fnm"
+# nosemgrep: claude-pipe-to-shell -- trusted installer for fnm (Fast Node Manager)
 RUN curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "$FNM_DIR" --skip-shell && \
   export PATH="$FNM_DIR:$PATH" && \
   eval "$(fnm env)" && \
@@ -104,6 +106,7 @@ RUN sh -c "$(curl -fsSL https://github.com/deluan/zsh-in-docker/releases/downloa
 COPY --chown=vscode:vscode .zshrc /home/vscode/.zshrc.custom
 
 # Append custom zshrc to the main one
+# nosemgrep: claude-write-shell-rc -- container-only zshrc, not host
 RUN echo 'source ~/.zshrc.custom' >> /home/vscode/.zshrc
 
 # Copy post_install script
