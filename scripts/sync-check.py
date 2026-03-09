@@ -271,8 +271,8 @@ def _print_executable_summary(executables: list[str], *, max_display: int) -> No
 
 def import_skill(args: argparse.Namespace) -> None:
     """Import a raw skill from an upstream repo, wrapping it as a plugin."""
-    if not all([args.name, args.repo, args.path]):
-        print("Error: --import-skill requires --name, --repo, and --path", file=sys.stderr)
+    if not all([args.repo, args.path]):
+        print("Error: --import-skill requires --repo and --path", file=sys.stderr)
         sys.exit(1)
 
     dry_run = args.dry_run
@@ -375,8 +375,8 @@ def _read_plugin_metadata(source_dir: Path, name: str) -> dict:
 
 def add_plugin(args: argparse.Namespace) -> None:
     """Fetch an upstream plugin, scan it, and add it to the marketplace."""
-    if not all([args.name, args.repo, args.path]):
-        print("Error: --add requires --name, --repo, and --path", file=sys.stderr)
+    if not all([args.repo, args.path]):
+        print("Error: --add requires --repo and --path", file=sys.stderr)
         sys.exit(1)
 
     dry_run = args.dry_run
@@ -903,7 +903,7 @@ def main() -> None:
         help="Run semgrep security scan on unverified plugins",
     )
 
-    parser.add_argument("--name", help="Plugin name (for --add/--import-skill)")
+    parser.add_argument("--name", help="Plugin name (default: last component of --path)")
     parser.add_argument("--repo", help="Upstream git repo URL (for --add/--import-skill)")
     parser.add_argument("--path", help="Path within upstream repo (for --add/--import-skill)")
     parser.add_argument(
@@ -927,6 +927,10 @@ def main() -> None:
         help="Validate and scan without modifying any files (for --add/--import-skill)",
     )
     args = parser.parse_args()
+
+    # Infer --name from --path if not provided
+    if not args.name and args.path:
+        args.name = Path(args.path).name
 
     if args.add:
         add_plugin(args)

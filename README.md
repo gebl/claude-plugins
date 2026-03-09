@@ -28,13 +28,11 @@ Fetches the plugin, scans it with semgrep, copies it into `plugins/`, and regist
 
 ```bash
 uv run scripts/sync-check.py --add \
-  --name plugin-name \
   --repo https://github.com/org/repo.git \
-  --path plugins/plugin-name \
-  --ref main
+  --path plugins/plugin-name
 ```
 
-Then commit and push.
+The plugin name is inferred from `--path` (here: `plugin-name`). Use `--name` to override. Then commit and push.
 
 ### From a raw skill repo
 
@@ -42,10 +40,8 @@ For repos with standalone `SKILL.md` files without plugin packaging (e.g., Compo
 
 ```bash
 uv run scripts/sync-check.py --import-skill \
-  --name skill-name \
   --repo https://github.com/org/repo.git \
-  --path skill-name \
-  --ref main
+  --path skill-name
 ```
 
 Use `--force` if the `SKILL.md` frontmatter is malformed or missing required fields.
@@ -159,9 +155,9 @@ claude-plugins/
 ## Quick Reference
 
 ```bash
-# Importing
-uv run scripts/sync-check.py --add --name N --repo URL --path P          # Track upstream plugin
-uv run scripts/sync-check.py --import-skill --name N --repo URL --path P  # Import raw skill
+# Importing (name inferred from --path, override with --name)
+uv run scripts/sync-check.py --add --repo URL --path P          # Fetch upstream plugin
+uv run scripts/sync-check.py --import-skill --repo URL --path P  # Import raw skill
 #   Add --dry-run to validate without modifying files
 #   Add --skip-scan to bypass semgrep gate
 #   Add --force to ignore malformed SKILL.md frontmatter
