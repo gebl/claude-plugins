@@ -1,0 +1,13 @@
+[project]
+name = "yt-transcript"
+version = "0.1.0"
+description = "Fetch YouTube video transcripts and save as Markdown"
+requires-python = ">=3.12"
+dependencies = [
+    "click",
+    "youtube-transcript-api",
+    "yt-dlp",
+]
+
+[project.scripts]
+yt-transcript = "yt_transcript:main"
