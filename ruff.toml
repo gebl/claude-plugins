@@ -1,0 +1,18 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = ["ALL"]
+ignore = [
+    "D",        # docstring style — not needed for a CLI script
+    "COM812",   # trailing comma — conflicts with formatter
+    "ISC001",   # implicit string concat — conflicts with formatter
+    "T201",     # print() — this is a CLI tool, print is expected
+    "S603",     # subprocess untrusted input — we control the inputs
+    "S607",     # partial executable path — git is expected on PATH
+    "ANN",      # type annotations — stdlib script, not a library
+    "INP001",   # implicit namespace package — not a package
+    "ERA001",   # commented-out code
+    "FIX002",   # TODO comments
+    "TD",       # TODO format
+]

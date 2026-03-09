@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +19,8 @@ SOURCES_FILE = REPO_ROOT / "sources.json"
 MARKETPLACE_FILE = REPO_ROOT / ".claude-plugin" / "marketplace.json"
 
 EXECUTABLE_EXTENSIONS = {".sh", ".bash", ".zsh", ".py", ".js", ".ts", ".rb", ".pl"}
+MAX_DISPLAY_EXECUTABLES = 10
+MAX_DISPLAY_PENDING = 5
 
 
 def load_sources() -> dict:
@@ -67,6 +69,7 @@ def clone_upstream_bare(repo_url: str) -> tempfile.TemporaryDirectory:
     tmpdir = tempfile.TemporaryDirectory()
     subprocess.run(
         ["git", "clone", "--bare", "--filter=blob:none", repo_url, tmpdir.name],
+        check=False,
         capture_output=True,
         text=True,
         timeout=120,
@@ -101,7 +104,7 @@ def detect_executable_code(directory: Path) -> list[str]:
 
         # Check shebang
         try:
-            with open(path, "rb") as f:
+            with path.open("rb") as f:
                 first_bytes = f.read(64)
                 if first_bytes.startswith(b"#!"):
                     executables.append(rel)
@@ -123,9 +126,9 @@ def parse_skill_frontmatter(skill_md_path: Path) -> dict | None:
 
     frontmatter = {}
     for line in match.group(1).splitlines():
-        line = line.strip()
-        if ":" in line:
-            key, _, value = line.partition(":")
+        stripped = line.strip()
+        if ":" in stripped:
+            key, _, value = stripped.partition(":")
             key = key.strip().lower()
             value = value.strip().strip("\"'")
             if key in ("name", "description", "version"):
@@ -139,31 +142,136 @@ def parse_skill_frontmatter(skill_md_path: Path) -> dict | None:
 
 def detect_dependencies(directory: Path) -> list[str]:
     """Detect dependency files that may need installation."""
-    dep_files = []
-    patterns = [
+    patterns = {
         "requirements.txt",
         "pyproject.toml",
         "package.json",
         "Gemfile",
         "go.mod",
         "Cargo.toml",
-    ]
-    for path in directory.rglob("*"):
-        if path.name in patterns:
-            dep_files.append(str(path.relative_to(directory)))
-    return sorted(dep_files)
+    }
+    return sorted(
+        str(path.relative_to(directory)) for path in directory.rglob("*") if path.name in patterns
+    )
 
 
 # --- Import skill ---
 
 
+def _extract_upstream_skill(repo_url: str, commit: str, upstream_path: str) -> Path:
+    """Clone upstream repo and extract the skill to a temp directory.
+
+    Returns the source directory path. Caller must manage cleanup via the
+    returned TemporaryDirectory objects stored as function attributes.
+    """
+    bare_td = clone_upstream_bare(repo_url)
+    extract_td = tempfile.TemporaryDirectory()
+
+    result = subprocess.run(
+        ["git", "archive", commit, "--", upstream_path],
+        check=False,
+        capture_output=True,
+        cwd=bare_td.name,
+    )
+    if result.returncode != 0:
+        print(
+            f"Error: Could not extract '{upstream_path}' from {repo_url}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    subprocess.run(
+        ["tar", "xf", "-"],
+        check=False,
+        input=result.stdout,
+        capture_output=True,
+        cwd=extract_td.name,
+    )
+
+    # Store temp dirs for cleanup
+    _extract_upstream_skill.bare_td = bare_td
+    _extract_upstream_skill.extract_td = extract_td
+    return Path(extract_td.name) / upstream_path
+
+
+def _resolve_frontmatter(
+    source_dir: Path, upstream_path: str, name: str, *, force: bool = False
+) -> dict:
+    """Find SKILL.md in source_dir and parse its frontmatter.
+
+    Returns frontmatter dict. Exits on failure unless force is True.
+    """
+    skill_md = source_dir / "SKILL.md"
+    if not skill_md.exists():
+        for candidate in source_dir.rglob("SKILL.md"):
+            skill_md = candidate
+            break
+
+    if not skill_md.exists():
+        print(f"Error: No SKILL.md found in '{upstream_path}'", file=sys.stderr)
+        sys.exit(1)
+
+    frontmatter = parse_skill_frontmatter(skill_md)
+    if not frontmatter and not force:
+        print(
+            "Error: SKILL.md has malformed or missing frontmatter "
+            "(requires 'name' and 'description').\n"
+            "Use --force to import anyway with manual metadata.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if not frontmatter:
+        frontmatter = {"name": name, "description": f"Imported skill: {name}"}
+        print("Warning: Using fallback metadata due to --force")
+
+    return frontmatter
+
+
+def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict) -> list[str]:
+    """Create plugin directory with wrapper and copy skill files.
+
+    Returns list of detected executable file paths.
+    """
+    plugin_dir = REPO_ROOT / "plugins" / name
+    if plugin_dir.exists():
+        print(f"Error: Directory plugins/{name} already exists", file=sys.stderr)
+        sys.exit(1)
+
+    plugin_meta_dir = plugin_dir / ".claude-plugin"
+    plugin_meta_dir.mkdir(parents=True)
+
+    plugin_json = {
+        "name": name,
+        "version": frontmatter.get("version", "0.1.0"),
+        "description": frontmatter.get("description", ""),
+    }
+    (plugin_meta_dir / "plugin.json").write_text(json.dumps(plugin_json, indent=2) + "\n")
+
+    skill_dest = plugin_dir / "skills" / name
+    skill_dest.mkdir(parents=True)
+    for item in source_dir.iterdir():
+        dest = skill_dest / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
+
+    return detect_executable_code(source_dir)
+
+
+def _print_executable_summary(executables: list[str], *, max_display: int) -> None:
+    """Print a summary of detected executable files."""
+    print(f"  Contains executable code ({len(executables)} file(s)):")
+    for e in executables[:max_display]:
+        print(f"    {e}")
+    if len(executables) > max_display:
+        print(f"    ... and {len(executables) - max_display} more")
+
+
 def import_skill(args: argparse.Namespace) -> None:
     """Import a raw skill from an upstream repo, wrapping it as a plugin."""
     if not all([args.name, args.repo, args.path]):
-        print(
-            "Error: --import-skill requires --name, --repo, and --path",
-            file=sys.stderr,
-        )
+        print("Error: --import-skill requires --name, --repo, and --path", file=sys.stderr)
         sys.exit(1)
 
     data = load_sources()
@@ -172,110 +280,26 @@ def import_skill(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     head = get_upstream_head(args.repo, args.ref)
+    source_dir = _extract_upstream_skill(args.repo, head, args.path)
 
-    # Clone and extract the skill
-    with clone_upstream_bare(args.repo) as bare_dir:
-        with tempfile.TemporaryDirectory() as extractdir:
-            result = subprocess.run(
-                ["git", "archive", head, "--", args.path],
-                capture_output=True,
-                cwd=bare_dir,
-            )
-            if result.returncode != 0:
-                print(
-                    f"Error: Could not extract '{args.path}' from {args.repo}",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-            subprocess.run(
-                ["tar", "xf", "-"],
-                input=result.stdout,
-                capture_output=True,
-                cwd=extractdir,
-            )
+    frontmatter = _resolve_frontmatter(source_dir, args.path, args.name, force=args.force)
 
-            source_dir = Path(extractdir) / args.path
+    deps = detect_dependencies(source_dir)
+    if deps:
+        print("Warning: Dependency files detected (may need installation):")
+        for d in deps:
+            print(f"  {d}")
 
-            # Find SKILL.md
-            skill_md = source_dir / "SKILL.md"
-            if not skill_md.exists():
-                # Check one level down
-                for candidate in source_dir.rglob("SKILL.md"):
-                    skill_md = candidate
-                    break
+    executables = _build_plugin_structure(args.name, source_dir, frontmatter)
 
-            if not skill_md.exists():
-                print(
-                    f"Error: No SKILL.md found in '{args.path}'",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Parse frontmatter
-            frontmatter = parse_skill_frontmatter(skill_md)
-            if not frontmatter and not args.force:
-                print(
-                    "Error: SKILL.md has malformed or missing frontmatter "
-                    "(requires 'name' and 'description').\n"
-                    "Use --force to import anyway with manual metadata.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            if not frontmatter:
-                frontmatter = {
-                    "name": args.name,
-                    "description": f"Imported skill: {args.name}",
-                }
-                print("Warning: Using fallback metadata due to --force")
-
-            description = frontmatter.get("description", "")
-            version = frontmatter.get("version", "0.1.0")
-
-            # Check for dependencies
-            deps = detect_dependencies(source_dir)
-            if deps:
-                print("Warning: Dependency files detected (may need installation):")
-                for d in deps:
-                    print(f"  {d}")
-
-            # Detect executable code
-            executables = detect_executable_code(source_dir)
-
-            # Build plugin structure
-            plugin_dir = REPO_ROOT / "plugins" / args.name
-            if plugin_dir.exists():
-                print(
-                    f"Error: Directory plugins/{args.name} already exists",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
-
-            # Create plugin wrapper
-            plugin_meta_dir = plugin_dir / ".claude-plugin"
-            plugin_meta_dir.mkdir(parents=True)
-
-            plugin_json = {
-                "name": args.name,
-                "version": version,
-                "description": description,
-            }
-            (plugin_meta_dir / "plugin.json").write_text(
-                json.dumps(plugin_json, indent=2) + "\n"
-            )
-
-            # Copy skill files into skills/<name>/
-            skill_dest = plugin_dir / "skills" / args.name
-            skill_dest.mkdir(parents=True)
-            for item in source_dir.iterdir():
-                dest = skill_dest / item.name
-                if item.is_dir():
-                    shutil.copytree(item, dest)
-                else:
-                    shutil.copy2(item, dest)
+    # Cleanup temp dirs
+    _extract_upstream_skill.extract_td.cleanup()
+    _extract_upstream_skill.bare_td.cleanup()
 
     # Register in sources.json
-    now = datetime.now(timezone.utc).isoformat()
+    description = frontmatter.get("description", "")
+    version = frontmatter.get("version", "0.1.0")
+    now = datetime.now(UTC).isoformat()
     data["plugins"][args.name] = {
         "upstream_repo": args.repo,
         "upstream_path": args.path,
@@ -303,11 +327,7 @@ def import_skill(args: argparse.Namespace) -> None:
 
     print(f"Imported '{args.name}' as plugin from {args.repo} @ {args.ref}")
     if executables:
-        print(f"  Contains executable code ({len(executables)} file(s)):")
-        for e in executables[:10]:
-            print(f"    {e}")
-        if len(executables) > 10:
-            print(f"    ... and {len(executables) - 10} more")
+        _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
     print("  Verified: no (use --mark-verified to approve after review)")
 
 
@@ -326,7 +346,7 @@ def add_plugin(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     head = get_upstream_head(args.repo, args.ref)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Detect executable code in the local plugin directory
     plugin_dir = REPO_ROOT / "plugins" / args.name
@@ -361,40 +381,42 @@ def get_local_diff(plugin_name: str, info: dict) -> str:
     """
     upstream_type = info.get("upstream_type", "plugin")
 
-    with clone_upstream_bare(info["upstream_repo"]) as bare_dir:
-        upstream_path = info["upstream_path"]
-        commit = info["last_synced_commit"]
-        with tempfile.TemporaryDirectory() as extractdir:
-            result = subprocess.run(
-                ["git", "archive", commit, "--", upstream_path],
-                capture_output=True,
-                cwd=bare_dir,
-            )
-            if result.returncode != 0:
-                return "  Error: Could not extract upstream at synced commit."
-            subprocess.run(
-                ["tar", "xf", "-"],
-                input=result.stdout,
-                capture_output=True,
-                cwd=extractdir,
-            )
+    upstream_path = info["upstream_path"]
+    commit = info["last_synced_commit"]
+    with (
+        clone_upstream_bare(info["upstream_repo"]) as bare_dir,
+        tempfile.TemporaryDirectory() as extractdir,
+    ):
+        result = subprocess.run(
+            ["git", "archive", commit, "--", upstream_path],
+            check=False,
+            capture_output=True,
+            cwd=bare_dir,
+        )
+        if result.returncode != 0:
+            return "  Error: Could not extract upstream at synced commit."
+        subprocess.run(
+            ["tar", "xf", "-"],
+            check=False,
+            input=result.stdout,
+            capture_output=True,
+            cwd=extractdir,
+        )
 
-            upstream_dir = str(Path(extractdir) / upstream_path)
+        upstream_dir = str(Path(extractdir) / upstream_path)
 
-            if upstream_type == "raw-skill":
-                # Compare only the skill content, not the generated wrapper
-                local_dir = str(
-                    REPO_ROOT / "plugins" / plugin_name / "skills" / plugin_name
-                )
-            else:
-                local_dir = str(REPO_ROOT / "plugins" / plugin_name)
+        if upstream_type == "raw-skill":
+            local_dir = str(REPO_ROOT / "plugins" / plugin_name / "skills" / plugin_name)
+        else:
+            local_dir = str(REPO_ROOT / "plugins" / plugin_name)
 
-            result = subprocess.run(
-                ["diff", "-ruN", upstream_dir, local_dir],
-                capture_output=True,
-                text=True,
-            )
-            return result.stdout if result.stdout else "  No differences found."
+        result = subprocess.run(
+            ["diff", "-ruN", upstream_dir, local_dir],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout if result.stdout else "  No differences found."
 
 
 def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
@@ -408,6 +430,7 @@ def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
     # Check for uncommitted changes first
     result = subprocess.run(
         ["git", "status", "--porcelain", str(plugin_dir)],
+        check=False,
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -420,14 +443,13 @@ def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
     return modified, diff_output
 
 
-def get_upstream_diff(
-    repo_url: str, ref: str, path: str, old_commit: str, new_commit: str
-) -> list[str]:
+def get_upstream_diff(repo_url: str, path: str, old_commit: str, new_commit: str) -> list[str]:
     """Fetch upstream and diff between old and new commits for the plugin path."""
     changed_files = []
     with clone_upstream_bare(repo_url) as tmpdir:
         result = subprocess.run(
             ["git", "diff", "--name-only", old_commit, new_commit, "--", path],
+            check=False,
             capture_output=True,
             text=True,
             cwd=tmpdir,
@@ -437,7 +459,7 @@ def get_upstream_diff(
     return changed_files
 
 
-def determine_status(upstream_changed: bool, local_modified: bool) -> str:
+def determine_status(*, upstream_changed: bool, local_modified: bool) -> str:
     """Determine sync status from upstream/local state."""
     if upstream_changed and local_modified:
         return "both-changed"
@@ -459,7 +481,7 @@ def status_action(status: str) -> str:
     return actions[status]
 
 
-def check_single_plugin(name: str, info: dict, show_diff: bool = False) -> dict:
+def check_single_plugin(name: str, info: dict, *, show_diff: bool = False) -> dict:
     """Check a single plugin against its upstream. Returns status dict."""
     upstream_type = info.get("upstream_type", "plugin")
     print(f"\n{name}:")
@@ -478,7 +500,7 @@ def check_single_plugin(name: str, info: dict, show_diff: bool = False) -> dict:
     local_modified, local_diff = has_local_modifications(name, info)
     print(f"  Local modifications: {'yes' if local_modified else 'no'}")
 
-    status = determine_status(upstream_changed, local_modified)
+    status = determine_status(upstream_changed=upstream_changed, local_modified=local_modified)
     print(f"  Status: {status}")
     print(f"  Action: {status_action(status)}")
 
@@ -489,7 +511,6 @@ def check_single_plugin(name: str, info: dict, show_diff: bool = False) -> dict:
     if upstream_changed:
         changed = get_upstream_diff(
             info["upstream_repo"],
-            info["upstream_ref"],
             info["upstream_path"],
             synced,
             current_head,
@@ -524,7 +545,7 @@ def check_plugins(args: argparse.Namespace) -> None:
     print(f"Checking {len(plugins)} tracked plugin(s)...")
 
     show_diff = getattr(args, "diff", False)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for name, info in plugins.items():
         result = check_single_plugin(name, info, show_diff=show_diff)
         data["plugins"][name]["last_checked"] = now
@@ -549,7 +570,7 @@ def mark_synced(args: argparse.Namespace) -> None:
 
     info = data["plugins"][args.plugin]
     head = get_upstream_head(info["upstream_repo"], info["upstream_ref"])
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     data["plugins"][args.plugin]["last_synced_commit"] = head
     data["plugins"][args.plugin]["last_checked"] = now
@@ -577,7 +598,7 @@ def mark_verified(args: argparse.Namespace) -> None:
 # --- Pending verification ---
 
 
-def list_pending(args: argparse.Namespace) -> None:
+def list_pending(_args: argparse.Namespace) -> None:
     """List all plugins pending verification. Always rescans for executable code."""
     data = load_sources()
     pending = []
@@ -613,10 +634,10 @@ def list_pending(args: argparse.Namespace) -> None:
         print(f"    Type: {upstream_type}")
         if executables:
             print(f"    !! Contains executable code ({len(executables)} file(s)):")
-            for e in executables[:5]:
+            for e in executables[:MAX_DISPLAY_PENDING]:
                 print(f"       {e}")
-            if len(executables) > 5:
-                print(f"       ... and {len(executables) - 5} more")
+            if len(executables) > MAX_DISPLAY_PENDING:
+                print(f"       ... and {len(executables) - MAX_DISPLAY_PENDING} more")
         else:
             print("    Executable code: none detected")
         print()
@@ -658,12 +679,8 @@ def main() -> None:
     )
 
     parser.add_argument("--name", help="Plugin name (for --add/--import-skill)")
-    parser.add_argument(
-        "--repo", help="Upstream git repo URL (for --add/--import-skill)"
-    )
-    parser.add_argument(
-        "--path", help="Path within upstream repo (for --add/--import-skill)"
-    )
+    parser.add_argument("--repo", help="Upstream git repo URL (for --add/--import-skill)")
+    parser.add_argument("--path", help="Path within upstream repo (for --add/--import-skill)")
     parser.add_argument(
         "--ref",
         default="main",
