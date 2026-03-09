@@ -81,6 +81,17 @@
       "last_checked": "2026-03-09T03:40:51.620215+00:00",
       "local_modifications": false,
       "has_executable_code": false
+    },
+    "yt-transcript": {
+      "upstream_repo": "ssh://git@forgejo.bishop.landq.net:2222/secondbrain/yt-transcript.git",
+      "upstream_path": ".",
+      "upstream_ref": "main",
+      "upstream_type": "plugin",
+      "last_synced_commit": "acf2223f3847631c78457a28083c02b3bfe5e88d",
+      "last_checked": "2026-03-09T22:03:14.019375+00:00",
+      "local_modifications": false,
+      "has_executable_code": true,
+      "verified": false
     }
   }
 }
