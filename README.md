@@ -12,7 +12,7 @@ After adding, browse and install plugins with `/plugin`.
 
 ## Adding a New Plugin
 
-### From an upstream source (fork)
+### From an upstream plugin repo (fork)
 
 1. Copy the plugin into `plugins/`:
 
@@ -52,6 +52,28 @@ git commit -m "Add plugin-name from org/repo"
 git push origin main
 ```
 
+### From a raw skill repo (auto-wrapping)
+
+For repos that contain standalone `SKILL.md` files without plugin packaging (e.g., ComposioHQ/awesome-claude-skills):
+
+```bash
+uv run scripts/sync-check.py --import-skill \
+  --name skill-name \
+  --repo https://github.com/org/repo.git \
+  --path skill-name \
+  --ref main
+```
+
+This will:
+- Read `SKILL.md` frontmatter to extract metadata
+- Auto-generate the plugin wrapper (`.claude-plugin/plugin.json`)
+- Copy all skill files (scripts, examples, references)
+- Register in both `marketplace.json` and `sources.json`
+- Detect and flag any executable code
+- Warn about dependency files that may need installation
+
+Use `--force` to import even if the `SKILL.md` frontmatter is malformed or missing required fields.
+
 ### Creating your own plugin
 
 1. Create the plugin directory structure:
@@ -79,14 +101,16 @@ No need to add locally-authored plugins to `sources.json` — that's only for tr
 
 ## Checking for Upstream Updates
 
-Run the sync checker to see if any forked plugins have diverged from their upstream sources:
-
 ```bash
 # Check all tracked plugins
 uv run scripts/sync-check.py
 
 # Check a specific plugin
-uv run scripts/sync-check.py --plugin ask-questions-if-underspecified
+uv run scripts/sync-check.py --plugin plugin-name
+
+# Show full diff of changes
+uv run scripts/sync-check.py --diff
+uv run scripts/sync-check.py --diff --plugin plugin-name
 ```
 
 ### Status meanings
@@ -105,6 +129,20 @@ Mark the plugin as synced so future checks use the new baseline:
 ```bash
 uv run scripts/sync-check.py --mark-synced --plugin plugin-name
 ```
+
+## Verification Workflow
+
+All imported plugins start as unverified. This tracks whether you've reviewed the code — especially important for plugins containing executable scripts.
+
+```bash
+# List all plugins pending review
+uv run scripts/sync-check.py --pending
+
+# Mark a plugin as reviewed and verified
+uv run scripts/sync-check.py --mark-verified --plugin plugin-name
+```
+
+The `--pending` command rescans plugin directories for executable code (.sh, .bash, .zsh, .py, .js, .ts, .rb, .pl, files with shebangs, or executable permissions) and highlights which plugins need attention.
 
 ## Pointing to External Repos
 
@@ -128,7 +166,7 @@ claude-plugins/
 │   └── marketplace.json      # Plugin registry (what Claude Code reads)
 ├── sources.json               # Upstream provenance tracking
 ├── scripts/
-│   └── sync-check.py          # Upstream sync checker
+│   └── sync-check.py          # Plugin management tool
 ├── docs/plans/                 # Design documents
 └── plugins/
     └── <plugin-name>/         # One directory per plugin
@@ -138,4 +176,22 @@ claude-plugins/
         ├── agents/
         ├── commands/
         └── hooks/
+```
+
+## Quick Reference
+
+```bash
+# Sync checking
+uv run scripts/sync-check.py                      # Check all plugins
+uv run scripts/sync-check.py --diff                # Check with full diff
+uv run scripts/sync-check.py --plugin NAME         # Check one plugin
+uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
+
+# Importing
+uv run scripts/sync-check.py --add --name N --repo URL --path P       # Track a plugin
+uv run scripts/sync-check.py --import-skill --name N --repo URL --path P  # Import raw skill
+
+# Verification
+uv run scripts/sync-check.py --pending                     # List unverified
+uv run scripts/sync-check.py --mark-verified --plugin NAME  # Mark as reviewed
 ```
