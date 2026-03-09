@@ -74,9 +74,14 @@ This will:
 
 Use `--force` to import even if the `SKILL.md` frontmatter is malformed or missing required fields.
 
-Both `--add` and `--import-skill` run a semgrep security scan before importing. If findings are detected, the import is blocked. Use `--skip-scan` to bypass:
+Both `--add` and `--import-skill` run a semgrep security scan before importing. If findings are detected, the import is blocked. Use `--skip-scan` to bypass, or `--dry-run` to validate and scan without modifying any files:
 
 ```bash
+# Preview what would happen (validates, scans, but changes nothing)
+uv run scripts/sync-check.py --import-skill --dry-run \
+  --name skill-name --repo URL --path P --ref main
+
+# Import despite semgrep findings
 uv run scripts/sync-check.py --import-skill --skip-scan \
   --name skill-name --repo URL --path P --ref main
 ```
@@ -211,6 +216,7 @@ uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
 # Importing
 uv run scripts/sync-check.py --add --name N --repo URL --path P       # Track a plugin
 uv run scripts/sync-check.py --import-skill --name N --repo URL --path P  # Import raw skill
+uv run scripts/sync-check.py --import-skill --dry-run --name N --repo URL --path P  # Validate only
 
 # Verification
 uv run scripts/sync-check.py --pending                     # List unverified

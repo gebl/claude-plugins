@@ -275,32 +275,48 @@ def import_skill(args: argparse.Namespace) -> None:
         print("Error: --import-skill requires --name, --repo, and --path", file=sys.stderr)
         sys.exit(1)
 
+    dry_run = args.dry_run
+
     data = load_sources()
     if args.name in data["plugins"]:
         print(f"Error: Plugin '{args.name}' already tracked", file=sys.stderr)
         sys.exit(1)
 
+    if dry_run:
+        print(f"[dry-run] Validating '{args.name}' from {args.repo} @ {args.ref}\n")
+
     head = get_upstream_head(args.repo, args.ref)
     source_dir = _extract_upstream_skill(args.repo, head, args.path)
 
     frontmatter = _resolve_frontmatter(source_dir, args.path, args.name, force=args.force)
-
-    # Scan before importing into our tree
-    _gate_scan(source_dir, args.name, skip_scan=args.skip_scan)
+    print(f"  Frontmatter: OK (name={frontmatter.get('name')!r})")
 
     deps = detect_dependencies(source_dir)
     if deps:
-        print("Warning: Dependency files detected (may need installation):")
+        print("  Dependencies detected (may need installation):")
         for d in deps:
-            print(f"  {d}")
+            print(f"    {d}")
 
-    executables = _build_plugin_structure(args.name, source_dir, frontmatter)
+    executables = detect_executable_code(source_dir)
+    if executables:
+        _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+    else:
+        print("  Executable code: none detected")
+
+    # Scan — in dry-run mode always scan and report without blocking
+    _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
     # Cleanup temp dirs
     _extract_upstream_skill.extract_td.cleanup()
     _extract_upstream_skill.bare_td.cleanup()
 
-    # Register in sources.json
+    if dry_run:
+        print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
+        return
+
+    # Build plugin structure and register
+    _build_plugin_structure(args.name, source_dir, frontmatter)
+
     description = frontmatter.get("description", "")
     version = frontmatter.get("version", "0.1.0")
     now = datetime.now(UTC).isoformat()
@@ -317,7 +333,6 @@ def import_skill(args: argparse.Namespace) -> None:
     }
     save_sources(data)
 
-    # Register in marketplace.json
     marketplace = load_marketplace()
     marketplace["plugins"].append(
         {
@@ -344,20 +359,38 @@ def add_plugin(args: argparse.Namespace) -> None:
         print("Error: --add requires --name, --repo, and --path", file=sys.stderr)
         sys.exit(1)
 
+    dry_run = args.dry_run
+
     data = load_sources()
     if args.name in data["plugins"]:
         print(f"Error: Plugin '{args.name}' already tracked", file=sys.stderr)
         sys.exit(1)
 
+    if dry_run:
+        print(f"[dry-run] Validating '{args.name}' from {args.repo} @ {args.ref}\n")
+
     head = get_upstream_head(args.repo, args.ref)
-    now = datetime.now(UTC).isoformat()
+    print(f"  Upstream HEAD: {head[:12]}")
 
-    # Scan before registering in our tree
     plugin_dir = REPO_ROOT / "plugins" / args.name
-    if plugin_dir.exists():
-        _gate_scan(plugin_dir, args.name, skip_scan=args.skip_scan)
+    if not plugin_dir.exists():
+        print(f"  Warning: plugins/{args.name} does not exist locally yet")
+    else:
+        # Detect executable code
+        executables = detect_executable_code(plugin_dir)
+        if executables:
+            _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
+        else:
+            print("  Executable code: none detected")
 
-    # Detect executable code in the local plugin directory
+        # Scan
+        _gate_scan(plugin_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
+
+    if dry_run:
+        print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
+        return
+
+    now = datetime.now(UTC).isoformat()
     executables = detect_executable_code(plugin_dir) if plugin_dir.exists() else []
 
     data["plugins"][args.name] = {
@@ -704,31 +737,35 @@ def _run_semgrep(target: Path, semgrep_bin: str) -> tuple[int, str]:
     return finding_count, output
 
 
-def _gate_scan(target: Path, name: str, *, skip_scan: bool = False) -> None:
+def _gate_scan(target: Path, name: str, *, skip_scan: bool = False, dry_run: bool = False) -> None:
     """Run semgrep on a directory and abort if findings are detected.
 
+    In dry-run mode, reports findings without blocking.
     Skips the scan if semgrep is not installed or --skip-scan was passed.
     """
-    if skip_scan:
+    if skip_scan and not dry_run:
         print(f"  Skipping semgrep scan for '{name}' (--skip-scan)")
         return
 
     semgrep_path = shutil.which("semgrep")
     if not semgrep_path:
-        print("  Warning: semgrep not installed, skipping pre-import scan")
+        print("  Warning: semgrep not installed, skipping scan")
         print("  Install with: uv tool install semgrep")
         return
 
-    print(f"  Scanning '{name}' with semgrep before import...")
+    print(f"  Scanning '{name}' with semgrep...")
     finding_count, output = _run_semgrep(target, semgrep_path)
 
     if finding_count > 0:
         print(output)
         print(f"\n  Scan found {finding_count} finding(s) in '{name}'.")
-        print("  Use --skip-scan to import anyway.")
-        sys.exit(1)
-
-    print("  Scan clean — no findings.")
+        if dry_run:
+            print("  [dry-run] Findings reported above. Review before importing.")
+        else:
+            print("  Use --skip-scan to import anyway.")
+            sys.exit(1)
+    else:
+        print("  Scan clean — no findings.")
 
 
 def scan_plugins(args: argparse.Namespace) -> None:
@@ -836,6 +873,11 @@ def main() -> None:
         "--skip-scan",
         action="store_true",
         help="Skip semgrep scan during --add/--import-skill (import despite findings)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate and scan without modifying any files (for --add/--import-skill)",
     )
     args = parser.parse_args()
 
