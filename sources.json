@@ -5,80 +5,102 @@
       "upstream_path": "plugins/ask-questions-if-underspecified",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": false
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false
     },
     "git-cleanup": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/git-cleanup",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:56.406831+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": true
     },
     "differential-review": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/differential-review",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false
     },
     "modern-python": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/modern-python",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": true
     },
     "testing-handbook-skills": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/testing-handbook-skills",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": true
     },
     "variant-analysis": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/variant-analysis",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false
     },
     "semgrep-rule-creator": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/semgrep-rule-creator",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false
     },
     "insecure-defaults": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/insecure-defaults",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false
     },
     "devcontainer-setup": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/devcontainer-setup",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": true
     },
     "workflow-skill-design": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/workflow-skill-design",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T02:52:38.446378+00:00",
-      "local_modifications": true
+      "last_checked": "2026-03-09T02:53:07.946634+00:00",
+      "local_modifications": false,
+      "has_executable_code": false
+    },
+    "webapp-testing": {
+      "upstream_repo": "https://github.com/ComposioHQ/awesome-claude-skills.git",
+      "upstream_path": "webapp-testing",
+      "upstream_ref": "master",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "27904475d1270d8395acf07691966267d5abda2d",
+      "last_checked": "2026-03-09T03:31:16.574250+00:00",
+      "local_modifications": true,
+      "has_executable_code": true,
+      "verified": false
     }
   }
 }

@@ -58,7 +58,7 @@
       "version": "1.0.1",
       "description": "Skills from the Trail of Bits Application Security Testing Handbook (appsec.guide)",
       "author": {
-        "name": "Paweł Płatek"
+        "name": "Pawe\u0142 P\u0142atek"
       },
       "source": "./plugins/testing-handbook-skills"
     },
@@ -111,6 +111,12 @@
         "url": "https://github.com/trailofbits"
       },
       "source": "./plugins/workflow-skill-design"
+    },
+    {
+      "name": "webapp-testing",
+      "version": "0.1.0",
+      "description": "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.",
+      "source": "./plugins/webapp-testing"
     }
   ]
 }
