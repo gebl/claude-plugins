@@ -69,27 +69,39 @@ def add_plugin(args: argparse.Namespace) -> None:
     print(f"Added '{args.name}' tracking {args.repo} @ {args.ref} ({head[:12]})")
 
 
-def has_local_modifications(plugin_name: str, synced_commit: str) -> bool:
-    """Check if local plugin dir has modifications vs the last synced state."""
+def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
+    """Check if local plugin dir differs from upstream at last_synced_commit.
+
+    Returns (modified, diff_output) tuple to avoid cloning twice.
+    """
     plugin_dir = REPO_ROOT / "plugins" / plugin_name
     if not plugin_dir.exists():
-        return False
+        return False, ""
+    # Check for uncommitted changes first
     result = subprocess.run(
         ["git", "status", "--porcelain", str(plugin_dir)],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
     )
-    if result.stdout.strip():
-        return True
-    # Check committed changes since initial add
-    result = subprocess.run(
-        ["git", "log", "--oneline", "-1", "--", str(plugin_dir)],
+    uncommitted = result.stdout.strip()
+    # Compare actual content against upstream at synced commit
+    diff_output = get_local_diff(plugin_name, info)
+    has_diff = diff_output != "  No differences found."
+    modified = bool(uncommitted) or has_diff
+    return modified, diff_output
+
+
+def clone_upstream_bare(repo_url: str) -> tempfile.TemporaryDirectory:
+    """Clone upstream repo as bare with partial filter. Returns temp dir context."""
+    tmpdir = tempfile.TemporaryDirectory()
+    subprocess.run(
+        ["git", "clone", "--bare", "--filter=blob:none", repo_url, tmpdir.name],
         capture_output=True,
         text=True,
-        cwd=REPO_ROOT,
+        timeout=120,
     )
-    return bool(result.stdout.strip())
+    return tmpdir
 
 
 def get_upstream_diff(
@@ -97,13 +109,7 @@ def get_upstream_diff(
 ) -> list[str]:
     """Fetch upstream and diff between old and new commits for the plugin path."""
     changed_files = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        subprocess.run(
-            ["git", "clone", "--bare", "--filter=blob:none", repo_url, tmpdir],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
+    with clone_upstream_bare(repo_url) as tmpdir:
         result = subprocess.run(
             ["git", "diff", "--name-only", old_commit, new_commit, "--", path],
             capture_output=True,
@@ -113,6 +119,39 @@ def get_upstream_diff(
         if result.returncode == 0:
             changed_files = [f for f in result.stdout.strip().splitlines() if f]
     return changed_files
+
+
+def get_local_diff(plugin_name: str, info: dict) -> str:
+    """Diff local plugin directory against upstream at last_synced_commit."""
+    with clone_upstream_bare(info["upstream_repo"]) as tmpdir:
+        # Extract upstream version at synced commit to a temp dir
+        upstream_path = info["upstream_path"]
+        commit = info["last_synced_commit"]
+        with tempfile.TemporaryDirectory() as extractdir:
+            # Use git archive to extract the upstream plugin at the synced commit
+            result = subprocess.run(
+                ["git", "archive", commit, "--", upstream_path],
+                capture_output=True,
+                cwd=tmpdir,
+            )
+            if result.returncode != 0:
+                return "  Error: Could not extract upstream at synced commit."
+            # Extract the archive
+            subprocess.run(
+                ["tar", "xf", "-"],
+                input=result.stdout,
+                capture_output=True,
+                cwd=extractdir,
+            )
+            # Diff local vs extracted upstream
+            local_dir = str(REPO_ROOT / "plugins" / plugin_name)
+            upstream_dir = str(Path(extractdir) / upstream_path)
+            result = subprocess.run(
+                ["diff", "-ruN", upstream_dir, local_dir],
+                capture_output=True,
+                text=True,
+            )
+            return result.stdout if result.stdout else "  No differences found."
 
 
 def determine_status(upstream_changed: bool, local_modified: bool) -> str:
@@ -137,7 +176,7 @@ def status_action(status: str) -> str:
     return actions[status]
 
 
-def check_single_plugin(name: str, info: dict) -> dict:
+def check_single_plugin(name: str, info: dict, show_diff: bool = False) -> dict:
     """Check a single plugin against its upstream. Returns status dict."""
     print(f"\n{name}:")
     print(f"  Upstream: {info['upstream_repo']} @ {info['upstream_ref']}")
@@ -150,7 +189,7 @@ def check_single_plugin(name: str, info: dict) -> dict:
     if upstream_changed:
         print(f"  Current upstream: {current_head[:12]}")
 
-    local_modified = has_local_modifications(name, synced)
+    local_modified, local_diff = has_local_modifications(name, info)
     print(f"  Local modifications: {'yes' if local_modified else 'no'}")
 
     status = determine_status(upstream_changed, local_modified)
@@ -169,6 +208,10 @@ def check_single_plugin(name: str, info: dict) -> dict:
             print("  Files changed upstream:")
             for f in changed:
                 print(f"    M {f}")
+
+    if show_diff and local_modified:
+        print("  Local diff:")
+        print(local_diff)
 
     return {
         "status": status,
@@ -190,9 +233,10 @@ def check_plugins(args: argparse.Namespace) -> None:
 
     print(f"Checking {len(plugins)} tracked plugin(s)...")
 
+    show_diff = getattr(args, "diff", False)
     now = datetime.now(timezone.utc).isoformat()
     for name, info in plugins.items():
-        result = check_single_plugin(name, info)
+        result = check_single_plugin(name, info, show_diff=show_diff)
         data["plugins"][name]["last_checked"] = now
         data["plugins"][name]["local_modifications"] = result["local_modified"]
 
@@ -226,6 +270,9 @@ def main() -> None:
         description="Check upstream plugin sources for updates"
     )
     parser.add_argument("--plugin", help="Check a specific plugin only")
+    parser.add_argument(
+        "--diff", action="store_true", help="Show full diff for local/upstream changes"
+    )
     parser.add_argument("--add", action="store_true", help="Add a new tracked plugin")
     parser.add_argument(
         "--mark-synced",
