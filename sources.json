@@ -81,17 +81,6 @@
       "last_checked": "2026-03-09T03:40:51.620215+00:00",
       "local_modifications": false,
       "has_executable_code": false
-    },
-    "yt-transcript": {
-      "upstream_repo": "https://forgejo.bishop.landq.net/secondbrain/yt-transcript.git",
-      "upstream_path": ".",
-      "upstream_ref": "main",
-      "upstream_type": "plugin",
-      "last_synced_commit": "b651de24460ca759224ef5ac7765d05e61057b2c",
-      "last_checked": "2026-03-09T18:11:49.855479+00:00",
-      "local_modifications": false,
-      "has_executable_code": true,
-      "verified": false
     }
   }
 }

@@ -798,6 +798,48 @@ def mark_verified(args: argparse.Namespace) -> None:
 # --- Pending verification ---
 
 
+def remove_plugin(args: argparse.Namespace) -> None:
+    """Remove a tracked plugin from sources, marketplace, and disk."""
+    if not args.plugin:
+        print("Error: --remove requires --plugin", file=sys.stderr)
+        sys.exit(1)
+
+    data = load_sources()
+    if args.plugin not in data["plugins"]:
+        print(f"Error: Plugin '{args.plugin}' not tracked", file=sys.stderr)
+        sys.exit(1)
+
+    plugin_dir = REPO_ROOT / "plugins" / args.plugin
+
+    if args.dry_run:
+        print(f"[dry-run] Would remove plugin '{args.plugin}':")
+        print(f"  Remove from sources.json")
+        print(f"  Remove from marketplace.json")
+        if plugin_dir.exists():
+            print(f"  Delete directory: plugins/{args.plugin}/")
+        else:
+            print(f"  Directory plugins/{args.plugin}/ does not exist (skip)")
+        return
+
+    # Remove from sources.json
+    del data["plugins"][args.plugin]
+    save_sources(data)
+
+    # Remove from marketplace.json
+    marketplace = load_marketplace()
+    marketplace["plugins"] = [
+        p for p in marketplace["plugins"] if p.get("name") != args.plugin
+    ]
+    save_marketplace(marketplace)
+
+    # Remove plugin directory
+    if plugin_dir.exists():
+        shutil.rmtree(plugin_dir)
+        print(f"Removed '{args.plugin}' (directory, sources.json, marketplace.json)")
+    else:
+        print(f"Removed '{args.plugin}' from sources.json and marketplace.json (no directory found)")
+
+
 def list_pending(_args: argparse.Namespace) -> None:
     """List all plugins pending verification. Always rescans for executable code."""
     data = load_sources()
@@ -1040,6 +1082,11 @@ def main() -> None:
         help="List plugins pending verification",
     )
     group.add_argument(
+        "--remove",
+        action="store_true",
+        help="Remove a tracked plugin (sources, marketplace, and directory)",
+    )
+    group.add_argument(
         "--scan",
         action="store_true",
         help="Run semgrep security scan on unverified plugins",
@@ -1078,6 +1125,8 @@ def main() -> None:
         add_plugin(args)
     elif args.import_skill:
         import_skill(args)
+    elif args.remove:
+        remove_plugin(args)
     elif args.mark_synced:
         mark_synced(args)
     elif args.mark_verified:

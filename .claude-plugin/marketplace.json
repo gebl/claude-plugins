@@ -102,12 +102,6 @@
         "url": "https://github.com/trailofbits"
       },
       "source": "./plugins/workflow-skill-design"
-    },
-    {
-      "name": "yt-transcript",
-      "version": "0.1.0",
-      "description": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
-      "source": "./plugins/yt-transcript"
     }
   ]
 }
