@@ -2,17 +2,27 @@
 
 Private plugin marketplace for Claude Code, hosted on Forgejo.
 
-## Adding This Marketplace to Claude Code
+## Setup
+
+Add the marketplace to Claude Code:
 
 ```
 /plugin marketplace add git@forgejo.bishop.landq.net:Anvil/claude-plugins.git
 ```
 
-After adding, browse and install plugins with `/plugin`.
+Browse and install plugins with `/plugin`.
 
-## Adding a New Plugin
+**Optional:** Install semgrep for automatic security scanning during imports:
 
-### From an upstream plugin repo (fork)
+```bash
+uv tool install semgrep
+```
+
+## Adding Plugins
+
+All imports are automatically scanned with semgrep before anything is written to disk. If findings are detected, the import is blocked. Use `--dry-run` to validate without modifying files, or `--skip-scan` to bypass the scan.
+
+### From an upstream plugin repo
 
 1. Copy the plugin into `plugins/`:
 
@@ -22,7 +32,7 @@ cp -r /tmp/source/plugins/plugin-name plugins/
 rm -rf /tmp/source
 ```
 
-2. Register it in `.claude-plugin/marketplace.json` — add an entry to the `plugins` array:
+2. Register in `.claude-plugin/marketplace.json`:
 
 ```json
 {
@@ -34,7 +44,7 @@ rm -rf /tmp/source
 }
 ```
 
-3. Track the upstream source for future sync checks:
+3. Track the upstream source:
 
 ```bash
 uv run scripts/sync-check.py --add \
@@ -44,17 +54,11 @@ uv run scripts/sync-check.py --add \
   --ref main
 ```
 
-4. Commit and push:
+4. Commit and push.
 
-```bash
-git add plugins/plugin-name .claude-plugin/marketplace.json sources.json
-git commit -m "Add plugin-name from org/repo"
-git push origin main
-```
+### From a raw skill repo
 
-### From a raw skill repo (auto-wrapping)
-
-For repos that contain standalone `SKILL.md` files without plugin packaging (e.g., ComposioHQ/awesome-claude-skills):
+For repos with standalone `SKILL.md` files without plugin packaging (e.g., ComposioHQ/awesome-claude-skills). This auto-generates the plugin wrapper, copies all files, and registers everything:
 
 ```bash
 uv run scripts/sync-check.py --import-skill \
@@ -64,38 +68,18 @@ uv run scripts/sync-check.py --import-skill \
   --ref main
 ```
 
-This will:
-- Read `SKILL.md` frontmatter to extract metadata
-- Auto-generate the plugin wrapper (`.claude-plugin/plugin.json`)
-- Copy all skill files (scripts, examples, references)
-- Register in both `marketplace.json` and `sources.json`
-- Detect and flag any executable code
-- Warn about dependency files that may need installation
-
-Use `--force` to import even if the `SKILL.md` frontmatter is malformed or missing required fields.
-
-Both `--add` and `--import-skill` run a semgrep security scan before importing. If findings are detected, the import is blocked. Use `--skip-scan` to bypass, or `--dry-run` to validate and scan without modifying any files:
-
-```bash
-# Preview what would happen (validates, scans, but changes nothing)
-uv run scripts/sync-check.py --import-skill --dry-run \
-  --name skill-name --repo URL --path P --ref main
-
-# Import despite semgrep findings
-uv run scripts/sync-check.py --import-skill --skip-scan \
-  --name skill-name --repo URL --path P --ref main
-```
+Use `--force` if the `SKILL.md` frontmatter is malformed or missing required fields.
 
 ### Creating your own plugin
 
-1. Create the plugin directory structure:
+1. Create the directory structure:
 
 ```bash
 mkdir -p plugins/my-plugin/.claude-plugin
 mkdir -p plugins/my-plugin/skills/my-skill
 ```
 
-2. Add a `plugins/my-plugin/.claude-plugin/plugin.json`:
+2. Add `plugins/my-plugin/.claude-plugin/plugin.json`:
 
 ```json
 {
@@ -105,74 +89,15 @@ mkdir -p plugins/my-plugin/skills/my-skill
 }
 ```
 
-3. Add skills, agents, commands, or hooks as needed under the plugin directory.
+3. Add skills, agents, commands, or hooks under the plugin directory.
 
-4. Register it in `.claude-plugin/marketplace.json` and commit.
+4. Register in `.claude-plugin/marketplace.json` and commit.
 
-No need to add locally-authored plugins to `sources.json` — that's only for tracking upstream forks.
+Locally-authored plugins don't need a `sources.json` entry — that's only for upstream forks.
 
-## Checking for Upstream Updates
+### External repos
 
-```bash
-# Check all tracked plugins
-uv run scripts/sync-check.py
-
-# Check a specific plugin
-uv run scripts/sync-check.py --plugin plugin-name
-
-# Show full diff of changes
-uv run scripts/sync-check.py --diff
-uv run scripts/sync-check.py --diff --plugin plugin-name
-```
-
-### Status meanings
-
-| Status | Meaning | Action |
-|--------|---------|--------|
-| `up-to-date` | No changes anywhere | Nothing to do |
-| `upstream-changed` | Upstream has new commits | Safe to pull changes |
-| `local-modified` | You've made local changes | Upstream unchanged |
-| `both-changed` | Both sides diverged | Manual merge needed |
-
-### After merging upstream changes
-
-Mark the plugin as synced so future checks use the new baseline:
-
-```bash
-uv run scripts/sync-check.py --mark-synced --plugin plugin-name
-```
-
-## Verification Workflow
-
-All imported plugins start as unverified. This tracks whether you've reviewed the code — especially important for plugins containing executable scripts.
-
-```bash
-# List all plugins pending review
-uv run scripts/sync-check.py --pending
-
-# Mark a plugin as reviewed and verified
-uv run scripts/sync-check.py --mark-verified --plugin plugin-name
-```
-
-The `--pending` command rescans plugin directories for executable code (.sh, .bash, .zsh, .py, .js, .ts, .rb, .pl, files with shebangs, or executable permissions) and highlights which plugins need attention.
-
-### Security scanning with semgrep
-
-Run semgrep against unverified plugins to catch security issues before marking them as verified:
-
-```bash
-# Scan all unverified plugins
-uv run scripts/sync-check.py --scan
-
-# Scan a specific plugin
-uv run scripts/sync-check.py --scan --plugin plugin-name
-```
-
-Scans use three rulesets: `auto` (broad coverage), `p/secrets` (credential detection), and `p/trailofbits` (security-focused rules). Requires semgrep (`uv tool install semgrep`).
-
-## Pointing to External Repos
-
-Plugins don't have to live in this monorepo. In `marketplace.json`, use a git URL source instead of a relative path:
+Plugins don't have to live in this monorepo. Use a git URL in `marketplace.json`:
 
 ```json
 {
@@ -184,6 +109,52 @@ Plugins don't have to live in this monorepo. In `marketplace.json`, use a git UR
 }
 ```
 
+## Upstream Sync
+
+Check if upstream repos have new changes:
+
+```bash
+uv run scripts/sync-check.py                # All tracked plugins
+uv run scripts/sync-check.py --plugin NAME   # One plugin
+uv run scripts/sync-check.py --diff          # Include full diffs
+```
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `up-to-date` | No changes | Nothing to do |
+| `upstream-changed` | Upstream has new commits | Safe to pull |
+| `local-modified` | Local changes only | Upstream unchanged |
+| `both-changed` | Both sides diverged | Manual merge needed |
+
+After merging upstream changes, update the baseline:
+
+```bash
+uv run scripts/sync-check.py --mark-synced --plugin NAME
+```
+
+## Verification Workflow
+
+Imported plugins start unverified. The recommended workflow:
+
+```
+1. --pending        List what needs review
+2. --scan           Run semgrep on unverified plugins
+3. Review code      Read the findings and source
+4. --mark-verified  Mark as reviewed
+```
+
+```bash
+# List unverified plugins (rescans for executable code)
+uv run scripts/sync-check.py --pending
+
+# Run semgrep security scan (auto + p/secrets + p/trailofbits rulesets)
+uv run scripts/sync-check.py --scan
+uv run scripts/sync-check.py --scan --plugin NAME
+
+# Mark as reviewed after inspection
+uv run scripts/sync-check.py --mark-verified --plugin NAME
+```
+
 ## Repository Structure
 
 ```
@@ -191,11 +162,12 @@ claude-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json      # Plugin registry (what Claude Code reads)
 ├── sources.json               # Upstream provenance tracking
+├── ruff.toml                  # Linter config for scripts/
 ├── scripts/
-│   └── sync-check.py          # Plugin management tool
+│   └── sync-check.py          # Plugin management CLI
 ├── docs/plans/                 # Design documents
 └── plugins/
-    └── <plugin-name>/         # One directory per plugin
+    └── <plugin-name>/
         ├── .claude-plugin/
         │   └── plugin.json
         ├── skills/
@@ -207,22 +179,20 @@ claude-plugins/
 ## Quick Reference
 
 ```bash
-# Sync checking
-uv run scripts/sync-check.py                      # Check all plugins
-uv run scripts/sync-check.py --diff                # Check with full diff
-uv run scripts/sync-check.py --plugin NAME         # Check one plugin
-uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
-
 # Importing
-uv run scripts/sync-check.py --add --name N --repo URL --path P       # Track a plugin
+uv run scripts/sync-check.py --add --name N --repo URL --path P          # Track upstream plugin
 uv run scripts/sync-check.py --import-skill --name N --repo URL --path P  # Import raw skill
-uv run scripts/sync-check.py --add --dry-run --name N --repo URL --path P        # Validate only
-uv run scripts/sync-check.py --import-skill --dry-run --name N --repo URL --path P  # Validate only
-uv run scripts/sync-check.py --import-skill --skip-scan --name N --repo URL --path P  # Skip semgrep
+#   Add --dry-run to validate without modifying files
+#   Add --skip-scan to bypass semgrep gate
+#   Add --force to ignore malformed SKILL.md frontmatter
+
+# Sync checking
+uv run scripts/sync-check.py                              # Check all
+uv run scripts/sync-check.py --diff --plugin NAME         # Full diff for one
+uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
 
 # Verification
 uv run scripts/sync-check.py --pending                     # List unverified
 uv run scripts/sync-check.py --scan                        # Semgrep scan unverified
-uv run scripts/sync-check.py --scan --plugin NAME          # Scan one plugin
-uv run scripts/sync-check.py --mark-verified --plugin NAME  # Mark as reviewed
+uv run scripts/sync-check.py --mark-verified --plugin NAME  # Approve after review
 ```
