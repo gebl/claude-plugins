@@ -23,7 +23,19 @@ MARKETPLACE_FILE = REPO_ROOT / ".claude-plugin" / "marketplace.json"
 EXECUTABLE_EXTENSIONS = {".sh", ".bash", ".zsh", ".py", ".js", ".ts", ".rb", ".pl"}
 MAX_DISPLAY_EXECUTABLES = 10
 MAX_DISPLAY_PENDING = 5
-SEMGREP_CONFIGS = ["auto", "p/secrets", "p/trailofbits"]
+SEMGREP_CONFIGS = [
+    "auto",
+    "p/secrets",
+    "p/gitleaks",
+    "p/trailofbits",
+    "p/command-injection",
+    "p/supply-chain",
+    "p/security-audit",
+    "p/owasp-top-ten",
+    "p/bash",
+    "p/docker",
+    str(Path(__file__).resolve().parent / "claude-plugin-rules.yaml"),
+]
 UPSTREAM_TYPE_PLUGIN = "plugin"
 UPSTREAM_TYPE_RAW_SKILL = "raw-skill"
 
@@ -143,6 +155,77 @@ def parse_skill_frontmatter(skill_md_path: Path) -> dict | None:
         return None
 
     return frontmatter
+
+
+# Tools that grant code execution or write access — flag when declared
+DANGEROUS_TOOLS = {"Bash", "Write", "Edit", "NotebookEdit"}
+# Tools that are always safe
+SAFE_TOOLS = {
+    "Read",
+    "Grep",
+    "Glob",
+    "Agent",
+    "WebSearch",
+    "WebFetch",
+    "LSP",
+    "AskUserQuestion",
+    "TodoRead",
+    "TodoWrite",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskUpdate",
+    "Skill",
+    "ToolSearch",
+}
+
+
+def parse_allowed_tools(skill_md_path: Path) -> list[str] | None:
+    """Extract allowed-tools list from SKILL.md YAML frontmatter.
+
+    Returns list of tool names, or None if no allowed-tools declared.
+    """
+    text = skill_md_path.read_text()
+    match = re.match(r"^---\s*\n(.*?)\n---\s*\n", text, re.DOTALL)
+    if not match:
+        return None
+
+    tools: list[str] = []
+    in_allowed_tools = False
+    for line in match.group(1).splitlines():
+        stripped = line.strip()
+        if stripped.startswith("allowed-tools:"):
+            in_allowed_tools = True
+            continue
+        if in_allowed_tools:
+            if stripped.startswith("- "):
+                tools.append(stripped[2:].strip().strip("\"'"))
+            else:
+                break
+    return tools if tools else None
+
+
+def check_allowed_tools_policy(target: Path) -> list[str]:
+    """Check all SKILL.md files under target for dangerous tool declarations.
+
+    Returns a list of warning strings for each finding.
+    """
+    warnings: list[str] = []
+    for skill_md in target.rglob("SKILL.md"):
+        rel = skill_md.relative_to(target)
+        tools = parse_allowed_tools(skill_md)
+        if tools is None:
+            continue
+
+        dangerous_found = [t for t in tools if t in DANGEROUS_TOOLS]
+        if dangerous_found:
+            warnings.append(f"  {rel}: declares dangerous tools: {', '.join(dangerous_found)}")
+
+        unknown = [t for t in tools if t not in DANGEROUS_TOOLS and t not in SAFE_TOOLS]
+        if unknown:
+            warnings.append(f"  {rel}: declares unknown tools: {', '.join(unknown)}")
+
+    return warnings
 
 
 def detect_dependencies(directory: Path) -> list[str]:
@@ -835,6 +918,14 @@ def _gate_scan(target: Path, name: str, *, skip_scan: bool = False, dry_run: boo
     print(f"  Scanning '{name}' with semgrep...")
     finding_count, output = _run_semgrep(target, semgrep_path)
 
+    # Check allowed-tools policy
+    tool_warnings = check_allowed_tools_policy(target)
+    if tool_warnings:
+        print(f"\n  Allowed-tools policy warnings for '{name}':")
+        for w in tool_warnings:
+            print(w)
+        finding_count += len(tool_warnings)
+
     if finding_count > 0:
         print(output)
         print(f"\n  Scan found {finding_count} finding(s) in '{name}'.")
@@ -845,6 +936,31 @@ def _gate_scan(target: Path, name: str, *, skip_scan: bool = False, dry_run: boo
             sys.exit(1)
     else:
         print("  Scan clean — no findings.")
+
+
+def _scan_single_plugin(
+    plugin_dir: Path,
+    semgrep_bin: str,
+) -> int:
+    """Run semgrep and allowed-tools policy on a single plugin directory.
+
+    Returns the total finding count.
+    """
+    finding_count, output = _run_semgrep(plugin_dir, semgrep_bin)
+
+    tool_warnings = check_allowed_tools_policy(plugin_dir)
+    if tool_warnings:
+        print("  Allowed-tools policy warnings:")
+        for w in tool_warnings:
+            print(w)
+        finding_count += len(tool_warnings)
+
+    if output:
+        print(output)
+    elif not tool_warnings:
+        print("  No findings.")
+    print()
+    return finding_count
 
 
 def scan_plugins(args: argparse.Namespace) -> None:
@@ -881,14 +997,7 @@ def scan_plugins(args: argparse.Namespace) -> None:
         print(f"  Verified: {'yes' if info.get('verified', False) else 'no'}")
         print(f"  Scanning {plugin_dir}...")
 
-        finding_count, output = _run_semgrep(plugin_dir, semgrep_bin)
-        total_findings += finding_count
-
-        if output:
-            print(output)
-        else:
-            print("  No findings.")
-        print()
+        total_findings += _scan_single_plugin(plugin_dir, semgrep_bin)
 
     print(f"Scan complete. Total findings across {len(targets)} plugin(s): {total_findings}")
     if total_findings > 0:

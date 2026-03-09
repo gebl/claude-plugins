@@ -1,0 +1,238 @@
+rules:
+  # --- Prompt Injection in Markdown ---
+
+  - id: claude-prompt-injection-override
+    patterns:
+      - pattern-regex: (?i)(ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules?|guidelines?))
+    message: >
+      Possible prompt injection: instruction override detected.
+      This text attempts to make Claude ignore its existing instructions.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: prompt-injection
+      confidence: HIGH
+
+  - id: claude-prompt-injection-identity
+    patterns:
+      - pattern-regex: (?i)(you\s+are\s+now\s+(a|an|the)\s+\w+|your\s+new\s+(role|identity|persona)\s+is|pretend\s+(you\s+are|to\s+be)|act\s+as\s+(a|an|if))
+    message: >
+      Possible prompt injection: identity manipulation detected.
+      This text attempts to override Claude's identity or role.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: prompt-injection
+      confidence: MEDIUM
+
+  - id: claude-prompt-injection-disregard
+    patterns:
+      - pattern-regex: (?i)(disregard\s+(your|all|the|any)\s+(system|safety|previous|prior|instructions?|prompts?|rules?|guidelines?|constraints?)|forget\s+(everything|all|your)\s+(above|previous|prior|instructions?))
+    message: >
+      Possible prompt injection: instruction disregard directive detected.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: prompt-injection
+      confidence: HIGH
+
+  - id: claude-prompt-injection-jailbreak
+    patterns:
+      - pattern-regex: (?i)(do\s+not\s+(follow|obey|listen\s+to)\s+(your|the|any)\s+(rules|instructions|guidelines|constraints|safety)|bypass\s+(safety|security|content)\s+(filters?|checks?|restrictions?)|enable\s+(developer|debug|unrestricted|jailbreak)\s+mode)
+    message: >
+      Possible prompt injection: jailbreak attempt detected.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: prompt-injection
+      confidence: HIGH
+
+  - id: claude-prompt-injection-hidden-instruction
+    patterns:
+      - pattern-regex: (?i)(IMPORTANT:\s*do\s+not\s+(reveal|share|disclose|mention)|<\s*system\s*>|<\s*\/\s*system\s*>|\[INST\]|\[\/INST\]|<<\s*SYS\s*>>)
+    message: >
+      Possible prompt injection: hidden instruction or fake system tags detected.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: prompt-injection
+      confidence: HIGH
+
+  # --- Pipe-to-Shell Patterns ---
+
+  - id: claude-pipe-to-shell
+    patterns:
+      - pattern-regex: (curl|wget|fetch)\s+.*\|\s*(ba)?sh
+    message: >
+      Dangerous pipe-to-shell pattern: downloading and executing remote code.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: code-execution
+      confidence: HIGH
+
+  - id: claude-pipe-to-interpreter
+    patterns:
+      - pattern-regex: (curl|wget|fetch)\s+.*\|\s*(python|ruby|perl|node|php)
+    message: >
+      Dangerous pattern: piping remote content to an interpreter.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: code-execution
+      confidence: HIGH
+
+  # --- Sensitive Path Writes ---
+
+  - id: claude-write-ssh-dir
+    patterns:
+      - pattern-regex: (~\/\.ssh|\/home\/[^\/]+\/\.ssh|\$HOME\/\.ssh|%HOME%\/\.ssh)
+    message: >
+      Reference to SSH directory detected. Plugin should not access ~/.ssh.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: sensitive-paths
+      confidence: MEDIUM
+
+  - id: claude-write-shell-rc
+    patterns:
+      - pattern-regex: (~\/\.(bash_profile|bashrc|zshrc|profile|zprofile|bash_login|zshenv)|>>?\s*.*\.(bashrc|zshrc|profile|bash_profile))
+    message: >
+      Reference to shell configuration file detected.
+      Plugins should not modify shell startup files.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: sensitive-paths
+      confidence: MEDIUM
+
+  - id: claude-write-claude-config
+    patterns:
+      - pattern-regex: (~\/\.claude\/(settings|credentials|config)|\/home\/[^\/]+\/\.claude\/(settings|credentials|config)|\$HOME\/\.claude\/(settings|credentials|config))
+    message: >
+      Reference to Claude configuration files detected.
+      Plugins should not access Claude's settings or credentials.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: sensitive-paths
+      confidence: HIGH
+
+  - id: claude-write-gitconfig
+    patterns:
+      - pattern-regex: (~\/\.gitconfig|\/home\/[^\/]+\/\.gitconfig|\$HOME\/\.gitconfig)
+    message: >
+      Reference to .gitconfig detected. Plugins should not modify git configuration.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: sensitive-paths
+      confidence: MEDIUM
+
+  # --- Obfuscated Execution ---
+
+  - id: claude-base64-exec
+    patterns:
+      - pattern-regex: (base64\s+(--decode|-d)|b64decode|atob)\s*.*\|\s*(ba)?sh
+    message: >
+      Base64-decoded content piped to shell — possible obfuscated command execution.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: obfuscation
+      confidence: HIGH
+
+  - id: claude-base64-exec-python
+    patterns:
+      - pattern-regex: (exec|eval)\s*\(\s*(base64\.|b64decode|codecs\.decode)
+    message: >
+      Executing base64-decoded content — possible obfuscated code execution.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: obfuscation
+      confidence: HIGH
+
+  - id: claude-eval-constructed-string
+    patterns:
+      - pattern-regex: (eval|exec)\s*\(\s*[f"']+.*\{.*\}
+    message: >
+      eval/exec with string interpolation — possible code injection.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: obfuscation
+      confidence: MEDIUM
+
+  # --- Environment Variable Exfiltration ---
+
+  - id: claude-env-exfiltration
+    patterns:
+      - pattern-regex: (curl|wget|fetch|nc|ncat)\s+.*(\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)\w*\}?)
+    message: >
+      Possible credential exfiltration: sending environment variables to a remote host.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: exfiltration
+      confidence: HIGH
+
+  - id: claude-env-dump-to-network
+    patterns:
+      - pattern-regex: (printenv|env|set)\s*\|.*\s*(curl|wget|nc|ncat|tee\s+/dev/tcp)
+    message: >
+      Possible environment dump to network — credential exfiltration attempt.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: exfiltration
+      confidence: HIGH
+
+  # --- Reverse Shell / Network Backdoor ---
+
+  - id: claude-reverse-shell
+    patterns:
+      - pattern-regex: (/dev/tcp/|mkfifo\s+/tmp|nc\s+(-e|-c)|ncat\s+(-e|-c)|bash\s+-i\s+>&\s*/dev/tcp)
+    message: >
+      Possible reverse shell pattern detected.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: backdoor
+      confidence: HIGH
+
+  - id: claude-python-reverse-shell
+    patterns:
+      - pattern-regex: (socket\.connect|subprocess\.call.*socket|os\.dup2.*socket)
+    message: >
+      Possible Python reverse shell pattern detected.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: backdoor
+      confidence: MEDIUM
+
+  # --- Privilege Escalation ---
+
+  - id: claude-sudo-execution
+    patterns:
+      - pattern-regex: sudo\s+(--|\w)
+    message: >
+      Plugin attempts to use sudo — plugins should not require elevated privileges.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: privilege-escalation
+      confidence: MEDIUM
+
+  - id: claude-chmod-dangerous
+    patterns:
+      - pattern-regex: chmod\s+(777|a\+rwx|\+s|u\+s|g\+s|4[0-7]{3}|2[0-7]{3})
+    message: >
+      Dangerous chmod detected (world-writable, setuid, or setgid).
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: privilege-escalation
+      confidence: HIGH
