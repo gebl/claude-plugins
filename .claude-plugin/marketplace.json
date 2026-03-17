@@ -108,6 +108,12 @@
       "version": "0.1.0",
       "description": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
       "source": "./plugins/yt-transcript"
+    },
+    {
+      "name": "taskmanager-agent",
+      "version": "0.1.0",
+      "description": "Backend-agnostic task management agent. Pulls issues from your task tracker (Linear, etc.), creates execution plans, works through them via git worktrees and PRs, and updates statuses. Use /tm-health to set up, /work-backlog to process the backlog, /tm-assign to work a specific issue.",
+      "source": "./plugins/taskmanager-agent"
     }
   ]
 }

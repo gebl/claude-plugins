@@ -92,6 +92,17 @@
       "local_modifications": true,
       "has_executable_code": true,
       "verified": false
+    },
+    "taskmanager-agent": {
+      "upstream_repo": "ssh://git@forgejo.bishop.landq.net:2222/Anvil/taskmanager-agent.git",
+      "upstream_path": ".",
+      "upstream_ref": "main",
+      "upstream_type": "plugin",
+      "last_synced_commit": "be1683b6887d3a762dbb944cb5dde2129f08903d",
+      "last_checked": "2026-03-17T18:04:01.774156+00:00",
+      "local_modifications": false,
+      "has_executable_code": true,
+      "verified": false
     }
   }
 }
