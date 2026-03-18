@@ -9,7 +9,7 @@ from taskmanager.backends import get_backend
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="List issues from the task backend")
-    parser.add_argument("--status", help="Filter by status name")
+    parser.add_argument("--status", action="append", help="Filter by status name (repeatable)")
     parser.add_argument("--project", help="Filter by project name")
     args = parser.parse_args()
 

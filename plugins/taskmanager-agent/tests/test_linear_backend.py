@@ -158,6 +158,26 @@ class TestListIssues:
         assert issue.project_id is None
         assert issue.project_name is None
 
+    def test_single_status_uses_eq(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"issues": {"nodes": [self._issue_node()]}}),
+        )
+        backend.list_issues(status="Todo")
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert body["variables"]["filter"]["state"]["name"]["eq"] == "Todo"
+
+    def test_multi_status_uses_in(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"issues": {"nodes": [self._issue_node()]}}),
+        )
+        backend.list_issues(status=["Todo", "Backlog"])
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert body["variables"]["filter"]["state"]["name"]["in"] == ["Todo", "Backlog"]
+
 
 class TestSaveComment:
     def test_create_comment(self, backend: LinearBackend, httpx_mock: HTTPXMock):

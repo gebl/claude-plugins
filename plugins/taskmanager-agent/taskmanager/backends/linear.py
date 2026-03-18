@@ -221,10 +221,13 @@ class LinearBackend:
     # Issues
     # ------------------------------------------------------------------
 
-    def list_issues(self, status: str | None = None, project: str | None = None) -> list[Issue]:
+    def list_issues(self, status: str | list[str] | None = None, project: str | None = None) -> list[Issue]:
         filters: dict = {}
         if status:
-            filters["state"] = {"name": {"eq": status}}
+            if isinstance(status, list):
+                filters["state"] = {"name": {"in": status}}
+            else:
+                filters["state"] = {"name": {"eq": status}}
         if project:
             filters["project"] = {"name": {"eq": project}}
 
