@@ -225,9 +225,9 @@ class LinearBackend:
         filters: dict = {}
         if status:
             if isinstance(status, list):
-                filters["state"] = {"name": {"in": status}}
+                filters["state"] = {"name": {"in": [s.replace("_", " ").title() for s in status]}}
             else:
-                filters["state"] = {"name": {"eq": status}}
+                filters["state"] = {"name": {"eq": status.replace("_", " ").title()}}
         if project:
             filters["project"] = {"name": {"eq": project}}
 
