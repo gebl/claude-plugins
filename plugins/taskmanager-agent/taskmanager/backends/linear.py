@@ -39,7 +39,7 @@ class LinearBackend:
         resp = httpx.post(
             API_URL,
             json=payload,
-            headers={"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"},
+            headers={"Authorization": self._token, "Content-Type": "application/json"},
         )
         resp.raise_for_status()
         body = resp.json()

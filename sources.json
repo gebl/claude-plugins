@@ -98,8 +98,8 @@
       "upstream_path": ".",
       "upstream_ref": "main",
       "upstream_type": "plugin",
-      "last_synced_commit": "0c7b0bd2ca9f309f34f9f9850ed856a42dd08843",
-      "last_checked": "2026-03-18T03:00:17.213770+00:00",
+      "last_synced_commit": "7a4b21d4affe07cf7bfd9e7e878458e6c203cc90",
+      "last_checked": "2026-03-18T03:26:14.860642+00:00",
       "local_modifications": false,
       "has_executable_code": true,
       "verified": true
