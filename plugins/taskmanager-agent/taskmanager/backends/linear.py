@@ -39,7 +39,7 @@ class LinearBackend:
         resp = httpx.post(
             API_URL,
             json=payload,
-            headers={"Authorization": self._token, "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"},
         )
         resp.raise_for_status()
         body = resp.json()
@@ -76,7 +76,7 @@ class LinearBackend:
 
     def list_statuses(self, team_id: str) -> list[Status]:
         data = self._request(
-            "query($teamId: String!) { workflowStates(filter: { team: { id: { eq: $teamId } } }) { nodes { id name type } } }",
+            "query($teamId: ID!) { workflowStates(filter: { team: { id: { eq: $teamId } } }) { nodes { id name type } } }",
             {"teamId": team_id},
         )
         return [Status(id=s["id"], name=s["name"], type=s["type"]) for s in data["workflowStates"]["nodes"]]
@@ -128,7 +128,7 @@ class LinearBackend:
         if label:
             query = """
                 query($label: String!) {
-                    projects(filter: { projectLabels: { name: { eq: $label } } }) {
+                    projects(filter: { labels: { name: { eq: $label } } }) {
                         nodes { id name url labels { nodes { id name color } } }
                     }
                 }
@@ -144,7 +144,7 @@ class LinearBackend:
         if description:
             inp["description"] = description
         if labels:
-            inp["projectLabelIds"] = labels
+            inp["labelIds"] = labels
         data = self._request(
             "mutation($input: ProjectCreateInput!) { projectCreate(input: $input) { project { id name url labels { nodes { id name color } } } } }",
             {"input": inp},
@@ -241,8 +241,8 @@ class LinearBackend:
         if links:
             for link in links:
                 self._request(
-                    'mutation($input: EntityExternalLinkCreateInput!) { entityExternalLinkCreate(input: $input) { entityExternalLink { id } } }',
-                    {"input": {"issueId": issue.id, "label": link["label"], "url": link["url"]}},
+                    'mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { attachment { id } } }',
+                    {"input": {"issueId": issue.id, "title": link["label"], "url": link["url"]}},
                 )
         return issue
 

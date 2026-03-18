@@ -2,6 +2,10 @@
 name: tm-project-create
 description: "Create a new project and mark it as active for the task manager. Optionally attach a git repository URL."
 argument-hint: "<name> [--repo <url>] [--description <text>]"
+allowed-tools:
+  - Read
+  - Write
+  - Bash
 ---
 
 # /tm-project-create — Create a New Active Project

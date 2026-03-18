@@ -2,6 +2,13 @@
 name: work-backlog
 description: "Process the backlog autonomously. Loops through Todo issues by priority, plans each one, executes the work, and creates PRs or documents. Confirms every 3 issues."
 argument-hint: "[--project <name>] [--limit <n>]"
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # /work-backlog — Autonomous Backlog Processing

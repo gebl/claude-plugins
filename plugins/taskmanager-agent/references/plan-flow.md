@@ -26,10 +26,8 @@
 
 4. **Code mode:**
    - Navigate to `local_path` for the project.
-   - If the repo has not been cloned yet:
-     ```bash
-     git clone <repo> <clone_base>/<name>
-     ```
+   - If `local_path` is not set or the directory does not exist, inform the user:
+     > "Project '<name>' has a repo but no `local_path` configured. Clone the repo and set `local_path` in `~/.claude/taskmanager.yaml`, then re-run."
    - Pull latest: `git pull`
    - Explore the codebase to understand relevant structure.
    - Create a checklist-style execution plan.

@@ -265,7 +265,7 @@ class TestAuthHeader:
         )
         backend.list_teams()
         request = httpx_mock.get_requests()[0]
-        assert request.headers["authorization"] == "test-token"
+        assert request.headers["authorization"] == "Bearer test-token"
 
 
 class TestGraphQLErrors:

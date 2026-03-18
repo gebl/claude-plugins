@@ -2,6 +2,9 @@
 name: tm-update
 description: "Manually update an issue's status with an optional comment. Useful for re-queuing blocked issues or manual status changes."
 argument-hint: "<issue-id> <status> [--comment <message>]"
+allowed-tools:
+  - Read
+  - Bash
 ---
 
 # /tm-update — Manually Update Issue Status

@@ -2,6 +2,11 @@
 name: tm-plan
 description: "Analyze an issue and create an execution plan. Posts the plan as a checklist comment on the issue. Creates review sub-issues if clarification is needed."
 argument-hint: "<issue-id>"
+allowed-tools:
+  - Read
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # /tm-plan — Analyze Issue and Create Execution Plan

@@ -5,7 +5,7 @@
       "upstream_path": "plugins/ask-questions-if-underspecified",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -14,8 +14,8 @@
       "upstream_path": "plugins/git-cleanup",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:51:05.288332+00:00",
-      "local_modifications": false,
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "local_modifications": true,
       "has_executable_code": false,
       "verified": true
     },
@@ -24,8 +24,8 @@
       "upstream_path": "plugins/differential-review",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
-      "local_modifications": false,
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "local_modifications": true,
       "has_executable_code": false
     },
     "modern-python": {
@@ -33,16 +33,16 @@
       "upstream_path": "plugins/modern-python",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
-      "local_modifications": false,
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "local_modifications": true,
       "has_executable_code": true
     },
     "variant-analysis": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/variant-analysis",
       "upstream_ref": "main",
-      "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
+      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
+      "last_checked": "2026-03-18T02:56:11.858984+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -50,8 +50,8 @@
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/semgrep-rule-creator",
       "upstream_ref": "main",
-      "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
+      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
+      "last_checked": "2026-03-18T03:01:25.896504+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -59,8 +59,8 @@
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/insecure-defaults",
       "upstream_ref": "main",
-      "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
+      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
+      "last_checked": "2026-03-18T03:02:21.134489+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -69,8 +69,8 @@
       "upstream_path": "plugins/devcontainer-setup",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
-      "local_modifications": false,
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "local_modifications": true,
       "has_executable_code": true
     },
     "workflow-skill-design": {
@@ -78,7 +78,7 @@
       "upstream_path": "plugins/workflow-skill-design",
       "upstream_ref": "main",
       "last_synced_commit": "c6097699e4553f0dda4db615330f4a5097c4ff99",
-      "last_checked": "2026-03-09T03:40:51.620215+00:00",
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -88,8 +88,8 @@
       "upstream_ref": "main",
       "upstream_type": "plugin",
       "last_synced_commit": "ea9d8d315222a66119d8c2567251becd471a5ac4",
-      "last_checked": "2026-03-09T22:53:36.299574+00:00",
-      "local_modifications": true,
+      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "local_modifications": false,
       "has_executable_code": true,
       "verified": false
     },
@@ -98,8 +98,8 @@
       "upstream_path": ".",
       "upstream_ref": "main",
       "upstream_type": "plugin",
-      "last_synced_commit": "be1683b6887d3a762dbb944cb5dde2129f08903d",
-      "last_checked": "2026-03-17T18:04:01.774156+00:00",
+      "last_synced_commit": "0c7b0bd2ca9f309f34f9f9850ed856a42dd08843",
+      "last_checked": "2026-03-18T03:00:17.213770+00:00",
       "local_modifications": false,
       "has_executable_code": true,
       "verified": true

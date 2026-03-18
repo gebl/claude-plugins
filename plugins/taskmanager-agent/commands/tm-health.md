@@ -17,13 +17,42 @@ All script invocations use the pattern:
 ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/<script>.py <args>
 ```
 
+> **Note:** The `.venv` is created and validated in Step 0 below. If any script invocation fails with a `ModuleNotFoundError`, re-run Step 0 to repair the environment.
+
+---
+
+## Step 0: Ensure Python Environment
+
+**Goal:** Make sure the plugin's virtual environment and dependencies are installed so scripts can run.
+
+1. Check if `${CLAUDE_PLUGIN_ROOT}/.venv/bin/python` exists.
+   - **If yes:** skip to step 2.
+   - **If no:** create it (uv will download Python 3.12+ automatically if needed):
+     ```bash
+     uv venv --python ">=3.12" ${CLAUDE_PLUGIN_ROOT}/.venv
+     ```
+     If this fails, stop and report:
+     > "Failed to create virtual environment. Check that `uv` is installed (`pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)."
+
+2. Verify dependencies are installed:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python -c "import httpx, click, yaml"
+   ```
+   - **If the import succeeds:** the environment is ready.
+   - **If it fails:** install dependencies:
+     ```bash
+     uv pip install --python ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python -e "${CLAUDE_PLUGIN_ROOT}"
+     ```
+     Then re-run the import check. If it still fails, stop and report:
+     > "Failed to install plugin dependencies. Run `/tm-health` again or manually run: `uv pip install -e <plugin-path>`"
+
 ---
 
 ## Step 1: Discover Team
 
 **Goal:** Confirm Linear connectivity and resolve the team to operate against.
 
-1. Run `tm_get_user.py --query me` to verify API connectivity and retrieve the operator's user info (id, name, email). If this fails, stop and report: "Cannot connect to Linear. Check your LINEAR_API_KEY."
+1. Run `tm_get_user.py --query me` to verify API connectivity and retrieve the operator's user info (id, name, email). If this fails, stop and report: "Cannot connect to Linear. Check your LINEAR_TOKEN environment variable."
 
 2. Check if `~/.claude/taskmanager.yaml` already exists and contains a `team.id` field.
    - **If yes:** use that team ID for all subsequent steps. Display: "Using cached team: <team.name> (<team.id>)".

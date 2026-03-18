@@ -2,6 +2,9 @@
 name: tm-next
 description: "Pull the next highest-priority Todo issue from the backlog. Filters to active projects, skips blocked issues, and lets you choose whether to start working on it."
 argument-hint: "[--project <name>]"
+allowed-tools:
+  - Read
+  - Bash
 ---
 
 # /tm-next — Pull Next Priority Issue

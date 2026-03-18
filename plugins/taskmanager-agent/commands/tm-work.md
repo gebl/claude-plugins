@@ -2,6 +2,13 @@
 name: tm-work
 description: "Execute the plan for an issue. For code tasks: creates a git worktree, works through the checklist, creates a PR. For non-code tasks: creates documents. Updates plan comment as items complete."
 argument-hint: "<issue-id>"
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # /tm-work — Execute Issue Plan

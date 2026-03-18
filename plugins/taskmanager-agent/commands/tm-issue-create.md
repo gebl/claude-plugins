@@ -2,6 +2,9 @@
 name: tm-issue-create
 description: "Create a new issue in an active project. Sets status to Todo so it's ready to be picked up."
 argument-hint: "<title> --project <name> [--priority <level>] [--description <text>]"
+allowed-tools:
+  - Read
+  - Bash
 ---
 
 # /tm-issue-create — Create a New Issue

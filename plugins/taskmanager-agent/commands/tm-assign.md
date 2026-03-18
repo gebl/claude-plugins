@@ -2,6 +2,13 @@
 name: tm-assign
 description: "Assign a specific issue to Claude and begin working on it. Automatically determines the next action: plan if no plan exists, execute if plan exists. This is the 'point Claude at a specific issue' entry point."
 argument-hint: "<issue-id>"
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
 ---
 
 # /tm-assign — Assign and Work a Specific Issue

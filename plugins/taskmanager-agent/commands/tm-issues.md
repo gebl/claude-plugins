@@ -2,6 +2,9 @@
 name: tm-issues
 description: "Show issues from active projects. Defaults to Todo and Backlog status. Filter by project or status."
 argument-hint: "[--project <name>] [--status <status>]"
+allowed-tools:
+  - Read
+  - Bash
 ---
 
 # /tm-issues — List Issues from Active Projects
