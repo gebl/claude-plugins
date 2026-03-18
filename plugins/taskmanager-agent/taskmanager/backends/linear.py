@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import re
 
 import httpx
+
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 
 from taskmanager.models import Comment, Document, Issue, Label, Project, ProjectLink, Status, Team, User
 
@@ -46,6 +49,51 @@ class LinearBackend:
         if "errors" in body:
             raise RuntimeError(f"GraphQL errors: {body['errors']}")
         return body["data"]
+
+    # ------------------------------------------------------------------
+    # Name-to-UUID resolvers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_uuid(value: str) -> bool:
+        return bool(_UUID_RE.match(value))
+
+    def _resolve_state_id(self, name_or_id: str, team_id: str | None = None) -> str:
+        """Resolve a workflow state name to its UUID, or pass through if already a UUID."""
+        if self._is_uuid(name_or_id):
+            return name_or_id
+        tid = team_id or self._config.get("team", {}).get("id", "")
+        if not tid:
+            raise ValueError(f"Cannot resolve state '{name_or_id}': no team ID in config")
+        statuses = self.list_statuses(tid)
+        for s in statuses:
+            if s.name.lower() == name_or_id.lower():
+                return s.id
+        raise ValueError(f"No workflow state matching '{name_or_id}'")
+
+    def _resolve_label_id(self, name_or_id: str, scope: str = "issue") -> str:
+        """Resolve a label name to its UUID, or pass through if already a UUID."""
+        if self._is_uuid(name_or_id):
+            return name_or_id
+        labels = self.list_issue_labels() if scope == "issue" else self.list_project_labels()
+        for label in labels:
+            if label.name.lower() == name_or_id.lower():
+                return label.id
+        raise ValueError(f"No {scope} label matching '{name_or_id}'")
+
+    def _resolve_label_ids(self, names_or_ids: list[str], scope: str = "issue") -> list[str]:
+        """Resolve a list of label names/UUIDs to UUIDs."""
+        return [self._resolve_label_id(v, scope) for v in names_or_ids]
+
+    def _resolve_project_id(self, name_or_id: str) -> str:
+        """Resolve a project name to its UUID, or pass through if already a UUID."""
+        if self._is_uuid(name_or_id):
+            return name_or_id
+        projects = self.list_projects()
+        for p in projects:
+            if p.name.lower() == name_or_id.lower():
+                return p.id
+        raise ValueError(f"No project matching '{name_or_id}'")
 
     # ------------------------------------------------------------------
     # Teams
@@ -144,7 +192,7 @@ class LinearBackend:
         if description:
             inp["description"] = description
         if labels:
-            inp["labelIds"] = labels
+            inp["labelIds"] = self._resolve_label_ids(labels, scope="project")
         data = self._request(
             "mutation($input: ProjectCreateInput!) { projectCreate(input: $input) { project { id name url labels { nodes { id name color } } } } }",
             {"input": inp},
@@ -215,15 +263,15 @@ class LinearBackend:
         if team is not None:
             inp["teamId"] = team
         if state is not None:
-            inp["stateId"] = state
+            inp["stateId"] = self._resolve_state_id(state)
         if labels is not None:
-            inp["labelIds"] = labels
+            inp["labelIds"] = self._resolve_label_ids(labels)
         if priority is not None:
             inp["priority"] = priority
         if description is not None:
             inp["description"] = description
         if project is not None:
-            inp["projectId"] = project
+            inp["projectId"] = self._resolve_project_id(project)
         if parent_id is not None:
             inp["parentId"] = parent_id
         if assignee is not None:

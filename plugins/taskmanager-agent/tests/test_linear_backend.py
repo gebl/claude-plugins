@@ -257,6 +257,154 @@ class TestGetIssueWithRelations:
         assert issue.blocked_by == []
 
 
+class TestResolveStateId:
+    def test_uuid_passes_through(self, backend: LinearBackend):
+        result = backend._resolve_state_id("264dc49d-d819-4d66-8c3a-9025c2386fd8")
+        assert result == "264dc49d-d819-4d66-8c3a-9025c2386fd8"
+
+    def test_resolves_name(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        backend._config["team"] = {"id": "t1"}
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "workflowStates": {
+                    "nodes": [
+                        {"id": "s1", "name": "Backlog", "type": "backlog"},
+                        {"id": "s2", "name": "In Progress", "type": "started"},
+                    ]
+                }
+            }),
+        )
+        assert backend._resolve_state_id("In Progress") == "s2"
+
+    def test_case_insensitive(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        backend._config["team"] = {"id": "t1"}
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "workflowStates": {"nodes": [{"id": "s1", "name": "Todo", "type": "unstarted"}]}
+            }),
+        )
+        assert backend._resolve_state_id("todo") == "s1"
+
+    def test_unknown_name_raises(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        backend._config["team"] = {"id": "t1"}
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"workflowStates": {"nodes": []}}),
+        )
+        with pytest.raises(ValueError, match="No workflow state"):
+            backend._resolve_state_id("Nonexistent")
+
+
+class TestResolveLabelId:
+    def test_uuid_passes_through(self, backend: LinearBackend):
+        result = backend._resolve_label_id("97fd595b-bc14-4e86-8541-64fd6e863517")
+        assert result == "97fd595b-bc14-4e86-8541-64fd6e863517"
+
+    def test_resolves_issue_label_name(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "issueLabels": {"nodes": [{"id": "l1", "name": "Claude", "color": "#6366F1"}]}
+            }),
+        )
+        assert backend._resolve_label_id("Claude") == "l1"
+
+    def test_resolves_project_label_name(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "projectLabels": {"nodes": [{"id": "pl1", "name": "Claude Active", "color": "#6366F1"}]}
+            }),
+        )
+        assert backend._resolve_label_id("Claude Active", scope="project") == "pl1"
+
+    def test_unknown_label_raises(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"issueLabels": {"nodes": []}}),
+        )
+        with pytest.raises(ValueError, match="No issue label"):
+            backend._resolve_label_id("Nonexistent")
+
+
+class TestResolveProjectId:
+    def test_uuid_passes_through(self, backend: LinearBackend):
+        result = backend._resolve_project_id("bcbc588f-1127-4691-91a2-881c4ae12a33")
+        assert result == "bcbc588f-1127-4691-91a2-881c4ae12a33"
+
+    def test_resolves_name(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "projects": {"nodes": [{"id": "p1", "name": "Claude Plugins", "url": "", "labels": {"nodes": []}}]}
+            }),
+        )
+        assert backend._resolve_project_id("Claude Plugins") == "p1"
+
+    def test_unknown_project_raises(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"projects": {"nodes": []}}),
+        )
+        with pytest.raises(ValueError, match="No project matching"):
+            backend._resolve_project_id("Nonexistent")
+
+
+class TestSaveIssueResolution:
+    """Test that save_issue resolves names to UUIDs."""
+
+    def test_resolves_state_name(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        backend._config["team"] = {"id": "t1"}
+        # First call: resolve state name -> list_statuses
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "workflowStates": {"nodes": [{"id": "s1", "name": "Todo", "type": "unstarted"}]}
+            }),
+        )
+        # Second call: the actual mutation
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "issueUpdate": {
+                    "issue": {
+                        "id": "i1", "identifier": "ENG-1", "title": "Test",
+                        "description": "", "priority": 0, "url": "", "branchName": None,
+                        "state": {"id": "s1", "name": "Todo", "type": "unstarted"},
+                        "project": None, "labels": {"nodes": []}, "parent": None,
+                    }
+                }
+            }),
+        )
+        backend.save_issue(id="i1", state="Todo")
+        # Verify the mutation used the UUID
+        requests = httpx_mock.get_requests()
+        import json
+        mutation_body = json.loads(requests[1].content)
+        assert mutation_body["variables"]["input"]["stateId"] == "s1"
+
+    def test_uuid_state_skips_resolution(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        # Only one call needed: the mutation (no resolution)
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({
+                "issueUpdate": {
+                    "issue": {
+                        "id": "i1", "identifier": "ENG-1", "title": "Test",
+                        "description": "", "priority": 0, "url": "", "branchName": None,
+                        "state": {"id": "s1", "name": "Todo", "type": "unstarted"},
+                        "project": None, "labels": {"nodes": []}, "parent": None,
+                    }
+                }
+            }),
+        )
+        backend.save_issue(id="i1", state="264dc49d-d819-4d66-8c3a-9025c2386fd8")
+        # Only 1 request (no resolution query)
+        assert len(httpx_mock.get_requests()) == 1
+
+
 class TestAuthHeader:
     def test_sends_token_in_header(self, backend: LinearBackend, httpx_mock: HTTPXMock):
         httpx_mock.add_response(
