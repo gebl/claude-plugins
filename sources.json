@@ -5,7 +5,7 @@
       "upstream_path": "plugins/ask-questions-if-underspecified",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -14,7 +14,7 @@
       "upstream_path": "plugins/git-cleanup",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T03:05:12.201478+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": true,
       "has_executable_code": false,
       "verified": true
@@ -24,7 +24,7 @@
       "upstream_path": "plugins/differential-review",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T03:05:27.939495+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": true,
       "has_executable_code": false
     },
@@ -33,7 +33,7 @@
       "upstream_path": "plugins/modern-python",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T03:05:31.803273+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": true,
       "has_executable_code": true
     },
@@ -42,7 +42,7 @@
       "upstream_path": "plugins/variant-analysis",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T02:56:11.858984+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -51,7 +51,7 @@
       "upstream_path": "plugins/semgrep-rule-creator",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T03:01:25.896504+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -60,7 +60,7 @@
       "upstream_path": "plugins/insecure-defaults",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T03:02:21.134489+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -69,7 +69,7 @@
       "upstream_path": "plugins/devcontainer-setup",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T03:05:37.601570+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": true,
       "has_executable_code": true
     },
@@ -78,7 +78,7 @@
       "upstream_path": "plugins/workflow-skill-design",
       "upstream_ref": "main",
       "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": false,
       "has_executable_code": false
     },
@@ -88,7 +88,7 @@
       "upstream_ref": "main",
       "upstream_type": "plugin",
       "last_synced_commit": "ea9d8d315222a66119d8c2567251becd471a5ac4",
-      "last_checked": "2026-03-18T02:43:21.481958+00:00",
+      "last_checked": "2026-03-18T19:03:11.439457+00:00",
       "local_modifications": false,
       "has_executable_code": true,
       "verified": false
@@ -98,8 +98,8 @@
       "upstream_path": ".",
       "upstream_ref": "main",
       "upstream_type": "plugin",
-      "last_synced_commit": "85f6970ec5dc08f2dc1f6263971e3bccd5b30315",
-      "last_checked": "2026-03-18T04:19:51.801402+00:00",
+      "last_synced_commit": "90d42d69c11006eda48eaebe9c6add7a1d582cbf",
+      "last_checked": "2026-03-18T20:52:11.939316+00:00",
       "local_modifications": false,
       "has_executable_code": true,
       "verified": true

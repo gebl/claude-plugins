@@ -1,0 +1,11 @@
+[
+  {
+    "event": "SessionStart",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "if ! command -v uv >/dev/null 2>&1; then echo 'ERROR: taskmanager-agent requires uv (Python package manager). Install it: curl -LsSf https://astral.sh/uv/install.sh | sh — then restart your session.'; exit 1; fi && cd ${CLAUDE_PLUGIN_ROOT} && uv sync --frozen --quiet 2>&1 && ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_user.py --help >/dev/null 2>&1 || echo 'WARNING: taskmanager-agent: Python environment setup incomplete. Run /tm-health to repair.'"
+      }
+    ]
+  }
+]

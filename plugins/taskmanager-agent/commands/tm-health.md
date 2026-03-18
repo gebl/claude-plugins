@@ -25,26 +25,29 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/<script>.py
 
 **Goal:** Make sure the plugin's virtual environment and dependencies are installed so scripts can run.
 
-1. Check if `${CLAUDE_PLUGIN_ROOT}/.venv/bin/python` exists.
-   - **If yes:** skip to step 2.
-   - **If no:** create it (uv will download Python 3.12+ automatically if needed):
-     ```bash
-     uv venv --python ">=3.12" ${CLAUDE_PLUGIN_ROOT}/.venv
-     ```
-     If this fails, stop and report:
-     > "Failed to create virtual environment. Check that `uv` is installed (`pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)."
+> **Note:** A SessionStart hook runs `uv sync --frozen` automatically when a session begins. This step repairs the environment if something went wrong.
 
-2. Verify dependencies are installed:
+1. Verify `uv` is available:
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python -c "import httpx, click, yaml"
+   command -v uv
    ```
-   - **If the import succeeds:** the environment is ready.
-   - **If it fails:** install dependencies:
-     ```bash
-     uv pip install --python ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python -e "${CLAUDE_PLUGIN_ROOT}"
-     ```
-     Then re-run the import check. If it still fails, stop and report:
-     > "Failed to install plugin dependencies. Run `/tm-health` again or manually run: `uv pip install -e <plugin-path>`"
+   If this fails (no output / non-zero exit), stop and report:
+   > "`uv` (Python package manager) is required but not installed. Install it with: `curl -LsSf https://astral.sh/uv/install.sh | sh` — then restart your shell and re-run `/tm-health`."
+
+2. Run from the plugin root:
+   ```bash
+   cd ${CLAUDE_PLUGIN_ROOT} && uv sync
+   ```
+   This creates the `.venv` (if missing), installs all dependencies, and installs the `taskmanager` package — all in one command. Unlike the SessionStart hook (which uses `--frozen` for speed), the health check omits `--frozen` so it can self-heal if dependencies changed.
+
+   If this fails, stop and report:
+   > "Failed to sync Python environment. Check that `uv.lock` exists in the plugin root."
+
+3. Verify by running an actual script (not `python -c`, which can pass falsely due to CWD on `sys.path`):
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_user.py --help
+   ```
+   If this fails after `uv sync` succeeded, the `taskmanager` package was not installed — check that `uv.lock` contains `source = { editable = "." }` for the taskmanager-agent entry.
 
 ---
 
@@ -54,12 +57,18 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/<script>.py
 
 1. Run `tm_get_user.py --query me` to verify API connectivity and retrieve the operator's user info (id, name, email). If this fails, stop and report: "Cannot connect to Linear. Check your LINEAR_TOKEN environment variable."
 
-2. Check if `~/.claude/taskmanager.yaml` already exists and contains a `team.id` field.
-   - **If yes:** use that team ID for all subsequent steps. Display: "Using cached team: <team.name> (<team.id>)".
-   - **If no config or no team entry:** the team ID cannot be auto-discovered in v1 (there is no `tm_list_teams.py`). Inform the user:
-     > "No team configured. Please provide your Linear team ID. You can find it in Linear → Settings → General, or via the Linear API. Re-run `/tm-health` with the team ID set in `~/.claude/taskmanager.yaml` under `team.id`."
+2. Auto-discover the team by running:
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_teams.py
+   ```
+   This returns all teams in the workspace as a JSON array of `{id, name, key}` objects.
 
-     Then stop. Do not proceed until the team ID is available.
+   - **If exactly one team is returned:** use it automatically. Display: "Auto-discovered team: <team.name> (<team.key>)".
+   - **If multiple teams are returned:** check if `~/.claude/taskmanager.yaml` already has a `team.id` that matches one of the returned teams. If so, use that team. Otherwise, present the list and ask the user to choose:
+     > "Multiple teams found. Which team should Claude operate against?"
+     > 1. <team.name> (<team.key>)
+     > 2. <team.name> (<team.key>)
+   - **If no teams are returned:** stop and report: "No teams found in your Linear workspace."
 
 3. Once a team ID is confirmed, store it in memory as `<team-id>` for use in subsequent steps.
 
