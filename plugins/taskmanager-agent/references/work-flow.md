@@ -77,7 +77,7 @@ Then:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --id <issue-id> \
-     --links '[{"url":"<pr-url>","title":"Pull Request"}]'
+     --links '[{"url":"<pr-url>","label":"Pull Request"}]'
    ```
 3. Set status to "In Review":
    ```bash
@@ -85,11 +85,11 @@ Then:
      --id <issue-id> \
      --state "In Review"
    ```
-4. Post a summary comment:
+4. Post an actionable comment telling the creator what to do next:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <issue-id> \
-     --body "<summary of work done>"
+     --body "PR submitted: <pr-url>\n\n<summary of work done>\n\n**Action needed:** Please review the PR and either merge it or leave comments for changes needed."
    ```
 
 ---
@@ -115,9 +115,9 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_create_d
      --id <issue-id> \
      --state "In Review"
    ```
-2. Post a summary comment:
+2. Post an actionable comment:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <issue-id> \
-     --body "<summary of work done>"
+     --body "Work complete.\n\n<summary of work done>\n\n**Action needed:** Please review and close, or leave comments for changes needed."
    ```

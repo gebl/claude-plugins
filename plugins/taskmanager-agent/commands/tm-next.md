@@ -103,7 +103,7 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_com
 
 Scan for a comment whose body starts with `## Execution Plan`:
 
-- **No plan found** → Display: `"Starting: <issue-id> — <title> (creating plan...)"` then follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` to create a plan. After the plan is posted, continue to execute it.
+- **No plan found** → Display: `"Starting: <issue-id> — <title> (creating plan...)"` then follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` to create a plan. The plan-flow will post the plan, create a review sub-issue, block the issue, and **stop** — do not auto-execute. The creator must review and approve the plan first.
 - **Plan found with unchecked items** (`- [ ]`) → Display: `"Resuming: <issue-id> — <title> (executing plan...)"` then follow `${CLAUDE_PLUGIN_ROOT}/references/work-flow.md` with `<issue-id>`.
 - **Plan found, all items checked** (`- [x]`, no `- [ ]` remaining) → Set status to "In Review" and post a summary comment:
   ```

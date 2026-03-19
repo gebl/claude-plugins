@@ -42,7 +42,7 @@
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <parent_id> \
-     --body "Blocked — waiting for human input on <review_key>: <question>"
+     --body "Blocked — waiting for human input on <review_key>: <question>\n\n**Action needed:** Please answer the question on the review sub-issue (<review_key>), then mark it as Done to unblock this issue."
    ```
 
 4. **Stop execution** and return to the caller. Do not continue working on the parent issue until the review issue is resolved.

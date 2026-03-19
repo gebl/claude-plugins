@@ -85,7 +85,7 @@ Scan the results for any comment whose body starts with `## Execution Plan`. Not
 Follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` to create an execution plan for this issue.
 
 - If the issue is vague or missing detail, follow the review-issue-flow as directed by plan-flow.md and **stop** — do not proceed to execution until the issue is clarified.
-- If planning succeeds and a plan comment is posted, continue to Step 7.
+- If planning succeeds and a plan comment is posted, the plan-flow will block the issue and create a review sub-issue for the creator. **Stop here** — do not proceed to Step 7. Report: `"Plan posted for <issue-id>. Waiting for creator review."` The creator must review and approve before execution begins.
 
 ---
 

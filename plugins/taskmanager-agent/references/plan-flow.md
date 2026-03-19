@@ -48,12 +48,38 @@
    - [ ] Step 2: <description>
    ```
 
-7. **Vague issue:** If the issue lacks sufficient detail to plan, follow:
+7. **Wait for creator review:** After posting the plan, **do not auto-execute**. Instead:
+   a. Create a review sub-issue asking the creator to approve the plan:
+      ```bash
+      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
+        --title "Review plan for <issue-key>: <issue-title>" \
+        --team <team> \
+        --parent-id <issue-id> \
+        --state Todo \
+        --labels Review \
+        --assignee <creator-id> \
+        --description "Please review the execution plan posted on <issue-key>.\n\n**Action needed:** Mark this sub-issue as Done to approve the plan, or add a comment with changes needed."
+      ```
+   b. Set the parent issue to Blocked:
+      ```bash
+      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
+        --id <issue-id> \
+        --state Blocked
+      ```
+   c. Post a comment on the parent issue:
+      ```bash
+      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
+        --issue-id <issue-id> \
+        --body "Plan posted — blocked until reviewed.\n\n**Action needed:** Review the execution plan above. To approve, mark the review sub-issue as Done. To request changes, comment on the review sub-issue."
+      ```
+   d. Report to the user: `"Plan posted for <issue-key>. Blocked — waiting for creator to review and approve."` then **stop**.
+
+8. **Vague issue:** If the issue lacks sufficient detail to plan, follow:
    ```
    ${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md
    ```
 
-8. **Out-of-scope work discovered:** Create sub-issues for anything found during planning that is out of scope. Max depth is 1 level (no sub-sub-issues).
+9. **Out-of-scope work discovered:** Create sub-issues for anything found during planning that is out of scope. Max depth is 1 level (no sub-sub-issues).
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --title "<title>" \
