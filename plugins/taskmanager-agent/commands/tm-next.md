@@ -1,6 +1,6 @@
 ---
 name: tm-next
-description: "Pull the next work item. First unblocks issues whose review sub-issues are resolved, then resumes In Progress issues with the Claude label, then falls back to the highest-priority Todo issue. Filters to active projects, skips blocked issues."
+description: "Pull the next work item. First processes In Review issues (checks PR merge/comments), then unblocks resolved review sub-issues, resumes In Progress issues, then falls back to the highest-priority Todo issue. Filters to active projects, skips blocked issues."
 argument-hint: "[--project <name>]"
 allowed-tools:
   - Read
@@ -14,6 +14,7 @@ allowed-tools:
 # /tm-next — Pull Next Work Item
 
 Pull the next work item. Priority order:
+0. Process In Review issues — check PR status (merged → close + cleanup, comments → resume work)
 1. Unblock issues whose review sub-issues have been resolved
 2. Resume In Progress issues already claimed by Claude (plan or work as needed)
 3. Pick the highest-priority Todo issue from the backlog
@@ -43,10 +44,11 @@ If `--project <name>` was provided, validate that the named project appears in t
 
 Follow the issue selection flow in `${CLAUDE_PLUGIN_ROOT}/references/next-flow.md` with `interactive: true`.
 
-The flow has three phases:
+The flow has four phases:
+0. **Process In Review issues:** Check PR status for Claude-labeled issues in "In Review". If PR was merged → close issue + clean up worktree/branch. If PR has review comments → move back to In Progress and present as next work item. If PR is open with no comments → skip.
 1. **Resolve completed reviews first:** Find Review-labeled sub-issues that are Done. For each, unblock the parent issue, reassign it to the operator, and prioritize it as the next work item.
 2. **Resume In Progress issues:** Find issues with the Claude label that are In Progress. These are issues Claude previously started but didn't finish. Route to plan or work based on whether a plan exists.
-3. **Fall back to Todo backlog:** If nothing from phases 1–2, select the highest-priority Todo issue from active projects (or the filtered project if `--project` was given). Skip blocked issues.
+3. **Fall back to Todo backlog:** If nothing from phases 0–2, select the highest-priority Todo issue from active projects (or the filtered project if `--project` was given). Skip blocked issues.
 
 If no eligible issues are found in any phase, report: "No eligible issues found. All issues may be blocked or the backlog is empty." and stop.
 
