@@ -1,15 +1,22 @@
 ---
 name: tm-next
-description: "Pull the next work item. First unblocks issues whose review sub-issues are resolved, then falls back to the highest-priority Todo issue. Filters to active projects, skips blocked issues."
+description: "Pull the next work item. First unblocks issues whose review sub-issues are resolved, then resumes In Progress issues with the Claude label, then falls back to the highest-priority Todo issue. Filters to active projects, skips blocked issues."
 argument-hint: "[--project <name>]"
 allowed-tools:
   - Read
+  - Write
+  - Edit
   - Bash
+  - Glob
+  - Grep
 ---
 
 # /tm-next — Pull Next Work Item
 
-Pull the next work item. Prioritizes unblocking issues whose review sub-issues have been resolved by the creator, then falls back to the highest-priority Todo issue from the backlog.
+Pull the next work item. Priority order:
+1. Unblock issues whose review sub-issues have been resolved
+2. Resume In Progress issues already claimed by Claude (plan or work as needed)
+3. Pick the highest-priority Todo issue from the backlog
 
 All script invocations use the pattern:
 ```
@@ -36,11 +43,12 @@ If `--project <name>` was provided, validate that the named project appears in t
 
 Follow the issue selection flow in `${CLAUDE_PLUGIN_ROOT}/references/next-flow.md` with `interactive: true`.
 
-The flow has two phases:
+The flow has three phases:
 1. **Resolve completed reviews first:** Find Review-labeled sub-issues that are Done. For each, unblock the parent issue, reassign it to the operator, and prioritize it as the next work item.
-2. **Fall back to Todo backlog:** If no reviews were resolved, select the highest-priority Todo issue from active projects (or the filtered project if `--project` was given). Skip blocked issues.
+2. **Resume In Progress issues:** Find issues with the Claude label that are In Progress. These are issues Claude previously started but didn't finish. Route to plan or work based on whether a plan exists.
+3. **Fall back to Todo backlog:** If nothing from phases 1–2, select the highest-priority Todo issue from active projects (or the filtered project if `--project` was given). Skip blocked issues.
 
-If no eligible issues are found in either phase, report: "No eligible issues found. All issues may be blocked or the backlog is empty." and stop.
+If no eligible issues are found in any phase, report: "No eligible issues found. All issues may be blocked or the backlog is empty." and stop.
 
 ---
 
@@ -68,7 +76,7 @@ Ask the user: "Start working on this issue? (yes / no / skip)"
 
 ## Step 5: Claim the Issue
 
-Apply the **"Claude"** label and set status to **"In Progress"**:
+If the issue is not already In Progress with the Claude label, claim it:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
@@ -77,21 +85,39 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_iss
   --label "Claude"
 ```
 
+If the issue came from Phase 1.5 (already In Progress + Claude label), skip the save — it's already claimed.
+
 If the script returns an error, report it and stop.
 
 ---
 
-## Step 6: Report & Suggest Next Steps
+## Step 6: Determine Next Action
 
-Display a confirmation:
+Check if a plan already exists for the issue by fetching comments:
 
 ```
-Started: <issue-id> — <title>
-Status:  In Progress
-Label:   Claude
+${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <issue-id>
 ```
 
-Suggest next commands:
-- `/tm-plan <issue-id>` — analyze the issue and create an execution plan
-- `/tm-work <issue-id>` — begin executing the plan
-- `/tm-update <issue-id> blocked --comment "<reason>"` — mark blocked if needed
+Scan for a comment whose body starts with `## Execution Plan`:
+
+- **No plan found** → Display: `"Starting: <issue-id> — <title> (creating plan...)"` then follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` to create a plan. After the plan is posted, continue to execute it.
+- **Plan found with unchecked items** (`- [ ]`) → Display: `"Resuming: <issue-id> — <title> (executing plan...)"` then follow `${CLAUDE_PLUGIN_ROOT}/references/work-flow.md` with `<issue-id>`.
+- **Plan found, all items checked** (`- [x]`, no `- [ ]` remaining) → Set status to "In Review" and post a summary comment:
+  ```
+  ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
+    --id <issue-id> \
+    --state "In Review"
+  ```
+  Report: `"Issue <issue-id> — all plan items complete. Moved to In Review."`
+
+### Using Review Response Context
+
+If the issue was selected from Phase 1 (review resolution), a `review_response` is available. This contains the human's answer to the question that blocked the issue. Use it to inform the next action:
+
+- **Read the review response carefully** before resuming work. It may answer a design question, clarify requirements, approve/reject an approach, or provide missing information.
+- **When resuming plan-flow or work-flow**, incorporate the review response as context. The response may mean:
+  - **Continue with the current plan step** — the answer confirms the approach or provides the missing detail needed to proceed.
+  - **Modify the plan** — the answer changes direction, requiring plan updates before continuing.
+  - **Ask further clarification** — the answer is incomplete or raises new questions. Create another review sub-issue via `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` and stop.
+- **Do not ignore the response.** It is the reason the issue was unblocked — treat it as the primary input for deciding what to do next.

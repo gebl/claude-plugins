@@ -26,26 +26,58 @@ Before looking for new work, check if any previously blocked issues can be unblo
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_issue.py <parent_id>
       ```
    c. If the parent is **not** in Blocked status, skip — it was already unblocked.
-   d. **Unblock the parent** — set it to Todo and reassign to the operator:
+   d. **Read the review response.** Fetch comments on the review sub-issue to find the human's answer:
+      ```bash
+      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <review-sub-issue-id>
+      ```
+      Also read the review sub-issue's own description and title for context on what was asked. The human may have answered via a comment, or by updating the description. Collect all of this as the `review_response`.
+   e. **Unblock the parent** — set it to In Progress and reassign to the operator:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
         --id <parent_id> \
-        --state Todo \
+        --state "In Progress" \
         --assignee <operator>
       ```
-   e. **Post a comment on the parent:**
+   f. **Post a summary comment on the parent** that includes the review response so the context is preserved on the parent issue:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
         --issue-id <parent_id> \
-        --body "Review sub-issue resolved — unblocked and ready to resume."
+        --body "Review resolved (<review-sub-issue-key>). Response:\n\n<review_response summary>\n\nResuming work with this input."
       ```
-   f. **Return the parent issue as the selected issue** and skip Phase 2. This parent takes priority because it was already in progress and has a plan.
+   g. **Return the parent issue as the selected issue** along with the `review_response` context. Skip to Phase 3. This parent takes priority because it was already in progress and has a plan.
 
-   If multiple review sub-issues are resolved, process all of them (unblock all parents), but select the highest-priority parent as the issue to work on.
+   If multiple review sub-issues are resolved, process all of them (unblock all parents), but select the highest-priority parent as the issue to work on. Carry forward all review responses.
+
+#### Phase 1.5: Resume In Progress Issues
+
+If no resolved review sub-issues were found (or all parents were already unblocked), check for issues already claimed by Claude that need continuation.
+
+2b. **Fetch In Progress issues with the Claude label:**
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_issues.py --status "In Progress" --label Claude
+   ```
+
+2c. **Filter to active projects:** Keep only issues whose project appears in the `projects` section of config.
+
+2d. **Apply project filter:** If `project_filter` was provided, further narrow the list to that project only.
+
+2e. **Sort by priority** (same as Phase 2 sorting: 1=Urgent first, 0=None last).
+
+2f. **For each candidate, determine routing:**
+   Fetch comments to check for a plan:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <issue-id>
+   ```
+   Scan for a comment whose body starts with `## Execution Plan`:
+   - **No plan found** → route to plan-flow
+   - **Plan found with unchecked items** (`- [ ]`) → route to work-flow
+   - **Plan found, all items checked** → route to wrap-up
+
+2g. **Return the first qualifying issue** along with its routing action (plan, work, or wrap-up). Skip to Phase 3.
 
 #### Phase 2: Select Next Todo Issue
 
-If no resolved review sub-issues were found (or all parents were already unblocked), fall through to normal selection.
+If no In Progress issues were found with the Claude label, fall through to normal selection.
 
 3. **Fetch Todo issues:**
    ```bash
