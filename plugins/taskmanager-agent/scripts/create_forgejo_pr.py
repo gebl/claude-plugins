@@ -1,22 +1,52 @@
 """Create a pull request on a Forgejo instance."""
+
 import argparse
 import json
 import os
+import re
 import sys
 from urllib.parse import urlparse
 
 import httpx
 
+# Matches short SSH format: git@host:owner/repo.git
+_SHORT_SSH_RE = re.compile(r"^[\w.-]+@([\w.-]+):(.+)$")
+
 
 def parse_repo_url(url: str) -> tuple[str, str]:
-    """Extract owner and repo name from a Forgejo/Gitea repo URL."""
-    path = urlparse(url).path.strip("/")
-    if path.endswith(".git"):
-        path = path[:-4]
-    parts = path.split("/")
+    """Extract owner and repo name from a Forgejo/Gitea repo URL.
+
+    Handles https://, ssh://, and short SSH (git@host:path) formats.
+    """
+    short = _SHORT_SSH_RE.match(url)
+    if short:
+        path = short.group(2)
+    else:
+        path = urlparse(url).path.strip("/")
+    path = path.removesuffix(".git")
+    parts = path.strip("/").split("/")
     if len(parts) < 2:
         raise ValueError(f"Cannot parse owner/repo from URL: {url}")
     return parts[0], parts[1]
+
+
+def repo_url_to_https_base(url: str) -> str:
+    """Convert any git repo URL to an HTTPS base URL for API calls.
+
+    Supports:
+      - https://host[:port]/...
+      - ssh://[user@]host[:port]/...
+      - git@host:owner/repo.git  (short SSH)
+    """
+    short = _SHORT_SSH_RE.match(url)
+    if short:
+        return f"https://{short.group(1)}"
+
+    parsed = urlparse(url)
+    base = f"https://{parsed.hostname}"
+    if parsed.port:
+        base += f":{parsed.port}"
+    return base
 
 
 def main() -> None:
@@ -33,10 +63,7 @@ def main() -> None:
     parser.add_argument("--base", default="main", help="Base branch (default: main)")
     args = parser.parse_args()
 
-    parsed = urlparse(args.repo_url)
-    base_url = f"{parsed.scheme}://{parsed.hostname}"
-    if parsed.port:
-        base_url += f":{parsed.port}"
+    base_url = repo_url_to_https_base(args.repo_url)
 
     try:
         owner, repo = parse_repo_url(args.repo_url)
