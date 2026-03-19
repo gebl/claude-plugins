@@ -11,6 +11,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="List issues from the task backend")
     parser.add_argument("--status", action="append", help="Filter by status name (repeatable)")
     parser.add_argument("--project", help="Filter by project name")
+    parser.add_argument("--label", help="Filter by label name")
     args = parser.parse_args()
 
     try:
@@ -20,7 +21,7 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        result = backend.list_issues(status=args.status, project=args.project)
+        result = backend.list_issues(status=args.status, project=args.project, label=args.label)
         print(json.dumps([asdict(r) for r in result]))
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

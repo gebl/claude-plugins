@@ -24,12 +24,19 @@
    ```
    Note the returned issue key (e.g. `ENG-43`) as `<review_key>`.
 
-2. **Block the parent issue:**
+2. **Block and reassign the parent issue to its creator:**
+   First, fetch the parent issue to get the creator ID:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_issue.py <parent_id>
+   ```
+   Note the `creator_id` from the response. Then update the issue:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --id <parent_id> \
-     --state Blocked
+     --state Blocked \
+     --assignee <creator_id>
    ```
+   This ensures the issue creator is notified that their input is needed. If `creator_id` is not available, skip the `--assignee` flag.
 
 3. **Post a comment on the parent issue:**
    ```bash

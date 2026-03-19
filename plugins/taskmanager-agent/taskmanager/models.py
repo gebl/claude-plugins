@@ -47,6 +47,7 @@ class Issue:
     project_name: str | None
     labels: list[Label]
     parent_id: str | None
+    creator_id: str | None = None
     blocked_by: list[str] = field(default_factory=list)
     url: str = ""
     branch_name: str | None = None

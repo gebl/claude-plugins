@@ -1,15 +1,15 @@
 ---
 name: tm-next
-description: "Pull the next highest-priority Todo issue from the backlog. Filters to active projects, skips blocked issues, and lets you choose whether to start working on it."
+description: "Pull the next work item. First unblocks issues whose review sub-issues are resolved, then falls back to the highest-priority Todo issue. Filters to active projects, skips blocked issues."
 argument-hint: "[--project <name>]"
 allowed-tools:
   - Read
   - Bash
 ---
 
-# /tm-next — Pull Next Priority Issue
+# /tm-next — Pull Next Work Item
 
-Pull the next highest-priority issue from the backlog and optionally start working on it.
+Pull the next work item. Prioritizes unblocking issues whose review sub-issues have been resolved by the creator, then falls back to the highest-priority Todo issue from the backlog.
 
 All script invocations use the pattern:
 ```
@@ -36,12 +36,11 @@ If `--project <name>` was provided, validate that the named project appears in t
 
 Follow the issue selection flow in `${CLAUDE_PLUGIN_ROOT}/references/next-flow.md` with `interactive: true`.
 
-Key selection rules:
-- Only consider issues in **Todo** or **Backlog** status.
-- Only consider issues belonging to active projects (or the filtered project if `--project` was given).
-- Skip any issues whose status is **Blocked**.
-- Sort by priority ascending (1 = urgent, 4 = low), then by creation date ascending (oldest first) as a tiebreaker.
-- If no eligible issues are found, report: "No eligible issues found. All issues may be blocked or the backlog is empty." and stop.
+The flow has two phases:
+1. **Resolve completed reviews first:** Find Review-labeled sub-issues that are Done. For each, unblock the parent issue, reassign it to the operator, and prioritize it as the next work item.
+2. **Fall back to Todo backlog:** If no reviews were resolved, select the highest-priority Todo issue from active projects (or the filtered project if `--project` was given). Skip blocked issues.
+
+If no eligible issues are found in either phase, report: "No eligible issues found. All issues may be blocked or the backlog is empty." and stop.
 
 ---
 

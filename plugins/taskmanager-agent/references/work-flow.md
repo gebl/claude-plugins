@@ -17,11 +17,20 @@
    If no such comment exists, stop and tell the user:
    > "No plan found. Run /tm-plan first."
 
-2. **Parse the checklist:**
+2. **Assign the issue to the current operator:**
+   Use the `operator` field from the config as the assignee:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
+     --id <issue_id> \
+     --assignee <operator>
+   ```
+   If the script returns an error, warn the user but continue — assignment failure should not block work.
+
+3. **Parse the checklist:**
    - Unchecked items match: `- [ ] `
    - Checked items match: `- [x] `
 
-3. **Determine mode:** Look up the issue's project in config (same logic as `plan-flow.md`).
+4. **Determine mode:** Look up the issue's project in config (same logic as `plan-flow.md`).
 
 ---
 

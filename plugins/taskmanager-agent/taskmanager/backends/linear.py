@@ -19,6 +19,7 @@ ISSUE_FIELDS = """
     project { id name }
     labels { nodes { id name color } }
     parent { id }
+    creator { id }
 """
 
 ISSUE_FIELDS_WITH_RELATIONS = ISSUE_FIELDS + """
@@ -221,7 +222,7 @@ class LinearBackend:
     # Issues
     # ------------------------------------------------------------------
 
-    def list_issues(self, status: str | list[str] | None = None, project: str | None = None) -> list[Issue]:
+    def list_issues(self, status: str | list[str] | None = None, project: str | None = None, label: str | None = None) -> list[Issue]:
         filters: dict = {}
         if status:
             if isinstance(status, list):
@@ -230,6 +231,8 @@ class LinearBackend:
                 filters["state"] = {"name": {"eq": status.replace("_", " ").title()}}
         if project:
             filters["project"] = {"name": {"eq": project}}
+        if label:
+            filters["labels"] = {"name": {"eq": label}}
 
         if filters:
             query = "query($filter: IssueFilter) { issues(filter: $filter) { nodes { " + ISSUE_FIELDS + " } } }"
@@ -368,6 +371,7 @@ class LinearBackend:
             project_id=proj["id"] if proj else None,
             project_name=proj["name"] if proj else None,
             labels=labels,
+            creator_id=(node.get("creator") or {}).get("id"),
             parent_id=(node.get("parent") or {}).get("id"),
             blocked_by=blocked_by,
             url=node.get("url", ""),
