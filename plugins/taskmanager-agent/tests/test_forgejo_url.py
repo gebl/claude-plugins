@@ -57,9 +57,9 @@ class TestRepoUrlToHttpsBase:
             "https://forgejo.example.com:3000"
         )
 
-    def test_ssh_with_port(self):
+    def test_ssh_with_port_drops_port(self):
         assert repo_url_to_https_base("ssh://git@forgejo.example.com:2222/Anvil/repo.git") == (
-            "https://forgejo.example.com:2222"
+            "https://forgejo.example.com"
         )
 
     def test_ssh_no_port(self):

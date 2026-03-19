@@ -34,9 +34,9 @@ def repo_url_to_https_base(url: str) -> str:
     """Convert any git repo URL to an HTTPS base URL for API calls.
 
     Supports:
-      - https://host[:port]/...
-      - ssh://[user@]host[:port]/...
-      - git@host:owner/repo.git  (short SSH)
+      - https://host[:port]/...  (port preserved — it's the HTTP port)
+      - ssh://[user@]host[:port]/...  (port dropped — SSH port != HTTP port)
+      - git@host:owner/repo.git  (short SSH, no port)
     """
     short = _SHORT_SSH_RE.match(url)
     if short:
@@ -44,7 +44,8 @@ def repo_url_to_https_base(url: str) -> str:
 
     parsed = urlparse(url)
     base = f"https://{parsed.hostname}"
-    if parsed.port:
+    # Only preserve the port for HTTP(S) URLs — SSH ports are irrelevant for API calls
+    if parsed.port and parsed.scheme in ("http", "https"):
         base += f":{parsed.port}"
     return base
 
