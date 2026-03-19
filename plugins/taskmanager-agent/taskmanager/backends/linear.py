@@ -222,7 +222,7 @@ class LinearBackend:
     # Issues
     # ------------------------------------------------------------------
 
-    def list_issues(self, status: str | list[str] | None = None, project: str | None = None, label: str | None = None) -> list[Issue]:
+    def list_issues(self, status: str | list[str] | None = None, project: str | None = None, label: str | None = None, parent_id: str | None = None) -> list[Issue]:
         filters: dict = {}
         if status:
             if isinstance(status, list):
@@ -233,6 +233,8 @@ class LinearBackend:
             filters["project"] = {"name": {"eq": project}}
         if label:
             filters["labels"] = {"name": {"eq": label}}
+        if parent_id:
+            filters["parent"] = {"id": {"eq": parent_id}}
 
         if filters:
             query = "query($filter: IssueFilter) { issues(filter: $filter) { nodes { " + ISSUE_FIELDS + " } } }"

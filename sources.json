@@ -98,8 +98,8 @@
       "upstream_path": ".",
       "upstream_ref": "main",
       "upstream_type": "plugin",
-      "last_synced_commit": "b3a1d2efab292e7a60311b4ceecc9a0c37d6faab",
-      "last_checked": "2026-03-19T21:25:00.000000+00:00",
+      "last_synced_commit": "d79ab33a154cb29c3fa1b4a5159a668cf7cba596",
+      "last_checked": "2026-03-19T23:10:17.344088+00:00",
       "local_modifications": false,
       "has_executable_code": true,
       "verified": true
@@ -109,8 +109,8 @@
       "upstream_path": "grill-me",
       "upstream_ref": "main",
       "upstream_type": "raw-skill",
-      "last_synced_commit": "1325b1464becee8db785260b5f556e641b8e7f55",
-      "last_checked": "2026-03-19T04:32:20.729075+00:00",
+      "last_synced_commit": "fb3629d3a2ba638a65ef336061204995be7f5d5e",
+      "last_checked": "2026-03-19T23:02:56.807093+00:00",
       "local_modifications": false,
       "has_executable_code": false,
       "verified": true

@@ -43,14 +43,24 @@ Before looking for new work, check if any "In Review" issues have had their PRs 
           --issue-id <issue-id> \
           --body "PR merged. Issue complete."
         ```
-     3. Clean up the local worktree if it exists:
+     3. **Close all sub-issues** of the parent:
+        ```bash
+        ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_issues.py --parent <issue-id>
+        ```
+        For each sub-issue returned that is not already in a completed or canceled state, set it to Done:
+        ```bash
+        ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
+          --id <sub-issue-id> \
+          --state "Done"
+        ```
+     4. Clean up the local worktree if it exists:
         ```bash
         # From the project's local_path:
         git worktree remove .worktrees/<branch-name> --force 2>/dev/null
         git branch -d <branch-name> 2>/dev/null
         ```
-     4. Report: `"Closed: <issue-id> — <title> (PR merged)"`
-     5. Continue to next In Review issue (do not return this as the selected issue).
+     5. Report: `"Closed: <issue-id> — <title> (PR merged)"`
+     6. Continue to next In Review issue (do not return this as the selected issue).
 
    - **Has review comments** (state is `open` and `comments` is non-empty) — The PR received feedback that needs to be addressed:
      1. Set status back to In Progress:
@@ -96,26 +106,27 @@ Before looking for new work, check if any previously blocked issues can be unblo
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_issue.py <parent_id>
       ```
-   c. If the parent is **not** in Blocked status, skip — it was already unblocked.
-   d. **Read the review response.** Fetch comments on the review sub-issue to find the human's answer:
+   c. If the parent is in a **completed** or **canceled** state (Done, Canceled, Duplicate), this is an orphaned review sub-issue. Clean it up by setting it to Done (already done) — no further action needed. Skip it.
+   d. If the parent is **not** in Blocked status, skip — it was already unblocked.
+   e. **Read the review response.** Fetch comments on the review sub-issue to find the human's answer:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <review-sub-issue-id>
       ```
       Also read the review sub-issue's own description and title for context on what was asked. The human may have answered via a comment, or by updating the description. Collect all of this as the `review_response`.
-   e. **Unblock the parent** — set it to In Progress and reassign to the operator:
+   f. **Unblock the parent** — set it to In Progress and reassign to the operator:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
         --id <parent_id> \
         --state "In Progress" \
         --assignee <operator>
       ```
-   f. **Post a summary comment on the parent** that includes the review response so the context is preserved on the parent issue:
+   g. **Post a summary comment on the parent** that includes the review response so the context is preserved on the parent issue:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
         --issue-id <parent_id> \
         --body "Review resolved (<review-sub-issue-key>). Response:\n\n<review_response summary>\n\nResuming work with this input."
       ```
-   g. **Return the parent issue as the selected issue** along with the `review_response` context. Skip to Phase 3. This parent takes priority because it was already in progress and has a plan.
+   h. **Return the parent issue as the selected issue** along with the `review_response` context. Skip to Phase 3. This parent takes priority because it was already in progress and has a plan.
 
    If multiple review sub-issues are resolved, process all of them (unblock all parents), but select the highest-priority parent as the issue to work on. Carry forward all review responses.
 

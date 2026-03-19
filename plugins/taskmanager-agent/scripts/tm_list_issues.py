@@ -12,6 +12,7 @@ def main() -> None:
     parser.add_argument("--status", action="append", help="Filter by status name (repeatable)")
     parser.add_argument("--project", help="Filter by project name")
     parser.add_argument("--label", help="Filter by label name")
+    parser.add_argument("--parent", help="Filter by parent issue ID")
     args = parser.parse_args()
 
     try:
@@ -21,7 +22,7 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        result = backend.list_issues(status=args.status, project=args.project, label=args.label)
+        result = backend.list_issues(status=args.status, project=args.project, label=args.label, parent_id=args.parent)
         print(json.dumps([asdict(r) for r in result]))
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

@@ -178,6 +178,27 @@ class TestListIssues:
         body = json.loads(httpx_mock.get_requests()[0].content)
         assert body["variables"]["filter"]["state"]["name"]["in"] == ["Todo", "Backlog"]
 
+    def test_parent_id_filter(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"issues": {"nodes": [self._issue_node(parent={"id": "parent-1"})]}}),
+        )
+        backend.list_issues(parent_id="parent-1")
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert body["variables"]["filter"]["parent"]["id"]["eq"] == "parent-1"
+
+    def test_parent_id_combined_with_status(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=_gql_response({"issues": {"nodes": []}}),
+        )
+        backend.list_issues(status="Done", parent_id="parent-1")
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert body["variables"]["filter"]["state"]["name"]["eq"] == "Done"
+        assert body["variables"]["filter"]["parent"]["id"]["eq"] == "parent-1"
+
 
 class TestSaveComment:
     def test_create_comment(self, backend: LinearBackend, httpx_mock: HTTPXMock):
