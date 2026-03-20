@@ -79,14 +79,14 @@ In interactive mode (default), you confirm before work begins. Use `/tm-next --p
 
 Point Claude at a specific issue. It determines the next action automatically: plan if no plan exists, execute if a plan is ready.
 
-### Autonomous Processing (`/work-backlog`)
+### Autonomous Processing (`/tm-work-backlog`)
 
 Loops through the entire Todo backlog: select → plan → execute → repeat. Pauses for confirmation every 3 issues.
 
 ```
-/work-backlog                        # process all active projects
-/work-backlog --project "My App"     # limit to one project
-/work-backlog --limit 5              # stop after 5 issues
+/tm-work-backlog                        # process all active projects
+/tm-work-backlog --project "My App"     # limit to one project
+/tm-work-backlog --limit 5              # stop after 5 issues
 ```
 
 ## Commands
@@ -102,7 +102,7 @@ Loops through the entire Todo backlog: select → plan → execute → repeat. P
 | `/tm-issues` | List issues from active projects. Defaults to Todo and Backlog. Filter with `--project` or `--status`. |
 | `/tm-issue-create` | Create a new issue in an active project. Supports `--assignee` to set the owner. |
 | `/tm-project-create` | Create a new project and mark it as active. Optionally attach a git repo URL. |
-| `/work-backlog` | Process the backlog autonomously with checkpoints every 3 issues. |
+| `/tm-work-backlog` | Process the backlog autonomously with checkpoints every 3 issues. |
 
 ## Code Mode vs Document Mode
 

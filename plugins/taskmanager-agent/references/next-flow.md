@@ -41,7 +41,7 @@ Before looking for new work, check if any "In Review" issues have had their PRs 
         ```bash
         ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
           --issue-id <issue-id> \
-          --body "PR merged. Issue complete."
+          --body "**[Activity]** PR merged. Issue complete."
         ```
      3. **Close all sub-issues** of the parent:
         ```bash
@@ -73,7 +73,7 @@ Before looking for new work, check if any "In Review" issues have had their PRs 
         ```bash
         ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
           --issue-id <issue-id> \
-          --body "PR review feedback received:\n\n<formatted comments>\n\nResuming work to address feedback."
+          --body "**[Activity]** PR review feedback received:\n\n<formatted comments>\n\nResuming work to address feedback."
         ```
      3. **Return this issue as the selected issue** with the review comments as context. Skip to Phase 3.
 
@@ -124,7 +124,7 @@ Before looking for new work, check if any previously blocked issues can be unblo
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
         --issue-id <parent_id> \
-        --body "Review resolved (<review-sub-issue-key>). Response:\n\n<review_response summary>\n\nResuming work with this input."
+        --body "**[Activity]** Review resolved (<review-sub-issue-key>). Response:\n\n<review_response summary>\n\nResuming work with this input."
       ```
    h. **Return the parent issue as the selected issue** along with the `review_response` context. Skip to Phase 3. This parent takes priority because it was already in progress and has a plan.
 

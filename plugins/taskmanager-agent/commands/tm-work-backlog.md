@@ -1,5 +1,5 @@
 ---
-name: work-backlog
+name: tm-work-backlog
 description: "Process the backlog autonomously. Loops through Todo issues by priority, plans each one, executes the work, and creates PRs or documents. Confirms every 3 issues."
 argument-hint: "[--project <name>] [--limit <n>]"
 allowed-tools:
@@ -11,7 +11,7 @@ allowed-tools:
   - Grep
 ---
 
-# /work-backlog — Autonomous Backlog Processing
+# /tm-work-backlog — Autonomous Backlog Processing
 
 Process the backlog autonomously. Selects Todo issues by priority, plans each one, executes the work, and loops until the backlog is empty, a limit is reached, or confirmation is declined.
 

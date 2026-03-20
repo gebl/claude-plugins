@@ -52,7 +52,7 @@
    a. **Determine the review assignee:**
       - If `issue_defaults.assignee_id` is set in config, use that as the assignee for the review sub-issue.
       - Otherwise, fall back to `<creator-id>` (the issue's `creator_id` field).
-   b. Create a review sub-issue asking the reviewer to approve the plan:
+   b. Create a review sub-issue asking the reviewer to approve the plan. **Include the full plan text** in the description so the reviewer has everything in one place:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
         --title "Review plan for <issue-key>: <issue-title>" \
@@ -61,7 +61,7 @@
         --state Todo \
         --labels Review \
         --assignee <review-assignee-id> \
-        --description "Please review the execution plan posted on <issue-key>.\n\n**Action needed:** Mark this sub-issue as Done to approve the plan, or add a comment with changes needed."
+        --description "Please review the execution plan posted on <issue-key>.\n\n<full plan text copied from the plan comment>\n\n**Action needed:** Mark this sub-issue as Done to approve the plan, or add a comment with changes needed."
       ```
    b. Set the parent issue to Blocked:
       ```bash

@@ -54,7 +54,14 @@ where `<slug>` is the issue title lowercased with spaces replaced by hyphens.
 git worktree add .worktrees/<branch> -b <branch> main
 ```
 
-**d. Work through each unchecked checklist item:**
+**d. Post a work-start journal entry:**
+```bash
+${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
+  --issue-id <issue-id> \
+  --body "**[Activity]** Starting execution of plan."
+```
+
+**e. Work through each unchecked checklist item:**
 - Do the work for the item.
 - After completing each item, update the plan comment with the item checked off:
   ```bash
@@ -62,11 +69,17 @@ git worktree add .worktrees/<branch> -b <branch> main
     --id <comment-id> \
     --body "<updated body with that item changed from - [ ] to - [x]>"
   ```
+- Then post a journal entry on the issue with progress tracking:
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
+    --issue-id <issue-id> \
+    --body "**[Activity]** Completed step <N>/<total>: <step description>"
+  ```
 
-**e. If blocked at any point:**
+**f. If blocked at any point:**
 Follow `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md`, then stop.
 
-**f. On completion:**
+**g. On completion:**
 ```bash
 git commit -m "<key>: <summary>"
 git push origin <branch>
@@ -85,11 +98,11 @@ Then:
      --id <issue-id> \
      --state "In Review"
    ```
-4. Post an actionable comment telling the creator what to do next:
+4. Post a completion journal entry and actionable comment:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <issue-id> \
-     --body "PR submitted: <pr-url>\n\n<summary of work done>\n\n**Action needed:** Please review the PR and either merge it or leave comments for changes needed."
+     --body "**[Activity]** Execution complete. PR submitted: <pr-url>\n\n<summary of work done>\n\n**Action needed:** Please review the PR and either merge it or leave comments for changes needed."
    ```
 
 ---
@@ -115,9 +128,9 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_create_d
      --id <issue-id> \
      --state "In Review"
    ```
-2. Post an actionable comment:
+2. Post a completion journal entry and actionable comment:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <issue-id> \
-     --body "Work complete.\n\n<summary of work done>\n\n**Action needed:** Please review and close, or leave comments for changes needed."
+     --body "**[Activity]** Execution complete.\n\n<summary of work done>\n\n**Action needed:** Please review and close, or leave comments for changes needed."
    ```
