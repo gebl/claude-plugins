@@ -1,43 +1,73 @@
-"""Adaptive polling logic — purely computational, no sleep/threading."""
+"""Adaptive polling logic — time-based tiered backoff, no sleep/threading."""
 
 from __future__ import annotations
 
-# Interval thresholds
-INTERVAL_ACTIVE = 60  # seconds — after finding work
-INTERVAL_IDLE_3 = 300  # 5 minutes — after 3 consecutive empty polls
-INTERVAL_IDLE_10 = 900  # 15 minutes — after 10 consecutive empty polls
+import time
+from collections.abc import Callable, Sequence
+
+# Default initial interval
+INTERVAL_ACTIVE = 30  # seconds — after finding work
+
+# Backoff tiers: (interval_seconds, duration_seconds)
+# Each tier stays for its duration before promoting to the next.
+# The last tier stays forever (duration is ignored).
+DEFAULT_TIERS: list[tuple[float, float]] = [
+    (30, 300),   # 30s interval for 5 minutes
+    (60, 300),   # 60s interval for 5 minutes
+    (300, 300),  # 5min interval for 5 minutes
+    (900, 0),    # 15min interval — permanent
+]
 
 
 class AdaptivePoller:
-    """Calculates poll intervals based on consecutive empty polls."""
+    """Calculates poll intervals using time-based tiered backoff.
 
-    def __init__(self, initial_interval: float = INTERVAL_ACTIVE) -> None:
-        self._initial_interval = initial_interval
-        self._consecutive_empty = 0
-        self._current_interval = initial_interval
+    Each tier has an interval and a duration. The poller stays at a tier
+    for the specified duration (wall-clock time), then promotes to the next.
+    The last tier is permanent. ``work_found()`` resets to tier 0.
+    """
+
+    def __init__(
+        self,
+        initial_interval: float = INTERVAL_ACTIVE,
+        tiers: Sequence[tuple[float, float]] | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._tiers = tiers or DEFAULT_TIERS
+        # Override the first tier's interval with initial_interval
+        self._tiers = [
+            (initial_interval, self._tiers[0][1]),
+            *self._tiers[1:],
+        ]
+        self._clock = clock
+        self._tier_index = 0
+        self._tier_entered_at = self._clock()
 
     @property
     def current_interval(self) -> float:
-        return self._current_interval
+        self._maybe_promote()
+        return self._tiers[self._tier_index][0]
 
     @property
-    def consecutive_empty(self) -> int:
-        return self._consecutive_empty
+    def tier_index(self) -> int:
+        self._maybe_promote()
+        return self._tier_index
 
     def work_found(self) -> None:
-        """Reset to active interval after finding work."""
-        self._consecutive_empty = 0
-        self._current_interval = self._initial_interval
+        """Reset to tier 0 after finding work."""
+        self._tier_index = 0
+        self._tier_entered_at = self._clock()
 
     def no_work_found(self) -> None:
-        """Increment empty count and recalculate interval."""
-        self._consecutive_empty += 1
-        self._recalculate()
+        """Called after an empty poll — promotes tier if duration elapsed."""
+        self._maybe_promote()
 
-    def _recalculate(self) -> None:
-        if self._consecutive_empty >= 10:
-            self._current_interval = INTERVAL_IDLE_10
-        elif self._consecutive_empty >= 3:
-            self._current_interval = INTERVAL_IDLE_3
-        else:
-            self._current_interval = self._initial_interval
+    def _maybe_promote(self) -> None:
+        """Promote to the next tier if the current tier's duration has elapsed."""
+        while self._tier_index < len(self._tiers) - 1:
+            _, duration = self._tiers[self._tier_index]
+            elapsed = self._clock() - self._tier_entered_at
+            if elapsed < duration:
+                break
+            self._tier_index += 1
+            self._tier_entered_at += duration

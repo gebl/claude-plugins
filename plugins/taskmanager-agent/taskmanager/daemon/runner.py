@@ -84,11 +84,13 @@ class DaemonRunner:
                 self._state.last_work_found = _now_iso()
                 self._poller.work_found()
                 self._process_issue(selected)
-            else:
-                log.debug(
-                    "No work found (empty poll %d)", self._poller.consecutive_empty + 1
-                )
-                self._poller.no_work_found()
+                # Skip sleep — immediately re-poll for pending work
+                self._state.current_interval_seconds = self._poller.current_interval
+                self._state.save()
+                continue
+
+            log.debug("No work found (tier %d)", self._poller.tier_index)
+            self._poller.no_work_found()
 
             self._state.current_interval_seconds = self._poller.current_interval
             self._state.save()

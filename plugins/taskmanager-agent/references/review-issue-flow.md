@@ -12,31 +12,28 @@
 ### Steps
 
 1. **Create a review sub-issue:**
+   Determine the review assignee: use `issue_defaults.assignee_id` from config if set, otherwise fall back to the parent issue's `creator_id`.
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --title "[Review] <parent_key>: <question>" \
      --team <team> \
      --parent-id <parent_id> \
-     --assignee <operator_id> \
+     --assignee <review_assignee_id> \
      --labels Review \
      --state Todo \
      --description "<context and questions>"
    ```
    Note the returned issue key (e.g. `ENG-43`) as `<review_key>`.
 
-2. **Block and reassign the parent issue to its creator:**
-   First, fetch the parent issue to get the creator ID:
-   ```bash
-   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_issue.py <parent_id>
-   ```
-   Note the `creator_id` from the response. Then update the issue:
+2. **Block and reassign the parent issue to the human reviewer:**
+   Use `issue_defaults.assignee_id` from config if set, otherwise fall back to the parent issue's `creator_id`.
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --id <parent_id> \
      --state Blocked \
-     --assignee <creator_id>
+     --assignee <review_assignee_id>
    ```
-   This ensures the issue creator is notified that their input is needed. If `creator_id` is not available, skip the `--assignee` flag.
+   This ensures the human reviewer is notified that their input is needed. If neither `issue_defaults.assignee_id` nor `creator_id` is available, skip the `--assignee` flag.
 
 3. **Post a comment on the parent issue:**
    ```bash

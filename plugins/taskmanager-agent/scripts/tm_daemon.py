@@ -12,7 +12,7 @@ from taskmanager.daemon.runner import DaemonRunner
     "--no-session-output", is_flag=True, help="Disable Claude session output capture"
 )
 @click.option(
-    "--poll-interval", type=int, default=60, help="Initial poll interval in seconds"
+    "--poll-interval", type=int, default=30, help="Initial poll interval in seconds"
 )
 @click.option("--timeout", type=int, default=1800, help="Session timeout in seconds")
 def main(
