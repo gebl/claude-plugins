@@ -1,6 +1,6 @@
 ---
 name: tm-work-backlog
-description: "Process the backlog autonomously. Loops through Todo issues by priority, plans each one, executes the work, and creates PRs or documents. Confirms every 3 issues."
+description: "Process the backlog autonomously. Loops through issues by priority, processes each one (plan, execute, or handle state transitions), and creates PRs or documents."
 argument-hint: "[--project <name>] [--limit <n>]"
 allowed-tools:
   - Read
@@ -13,7 +13,7 @@ allowed-tools:
 
 # /tm-work-backlog — Autonomous Backlog Processing
 
-Process the backlog autonomously. Selects Todo issues by priority, plans each one, executes the work, and loops until the backlog is empty, a limit is reached, or confirmation is declined.
+Process the backlog autonomously. Selects issues by priority, processes each one via process-flow, and loops until the backlog is empty or a limit is reached.
 
 This is a self-contained command. It reads reference files for shared logic but does NOT invoke other slash commands.
 
@@ -60,47 +60,26 @@ Repeat the following sub-steps continuously until an exit condition is met.
 
 ### 4a. Select Next Issue
 
-Follow `${CLAUDE_PLUGIN_ROOT}/references/next-flow.md` with:
-- `interactive: false`
-- `project_filter`: the value of `--project` if provided, otherwise none
+Follow `${CLAUDE_PLUGIN_ROOT}/references/next-flow.md` with the project filter if provided.
 
 If no qualifying issue is found, exit the loop and go to Step 5.
 
-### 4b. Claim Issue
+### 4b. Process Issue
 
-Apply the Claude label and set status to In Progress:
-```
-${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-  --id <issue-id> \
-  --state "In Progress" \
-  --label "Claude"
-```
+Follow `${CLAUDE_PLUGIN_ROOT}/references/process-flow.md` with the selected issue ID.
 
-If the script returns an error, report it, increment `blocked`, and continue to the next iteration.
+Track the outcome:
+- If the issue was **blocked** during processing (vague requirements, review needed, PR rejected), increment `blocked`.
+- If the issue was **completed** (moved to In Review or Done), increment `completed`.
+- If a **pull request was created** during processing, also increment `prs_created`.
 
-### 4c. Plan
-
-Follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` for this issue.
-
-- If the issue is vague or a blocker is discovered during planning, increment `blocked` and continue to the next iteration (do not execute work on this issue).
-- If planning succeeds, proceed to step 4d.
-
-### 4d. Execute
-
-Follow `${CLAUDE_PLUGIN_ROOT}/references/work-flow.md` for this issue.
-
-- If blocked during execution, increment `blocked` and continue to the next iteration.
-- If execution completes successfully:
-  - Increment `completed`.
-  - If a pull request was created during the work-flow (code mode), also increment `prs_created`.
-
-### 4e. Check Limits
+### 4c. Check Limits
 
 Increment `iteration` by 1.
 
 If `--limit` was provided and `iteration >= limit`, exit the loop and go to Step 5.
 
-### 4f. Checkpoint
+### 4d. Progress Report
 
 If `iteration` is a nonzero multiple of 3, display a progress summary:
 
@@ -111,11 +90,7 @@ Progress after <iteration> issues:
   PRs created: <prs_created>
 ```
 
-Ask the user: "Continue? (y/n)"
-
-- **y** — continue the loop.
-- **n** — exit the loop and go to Step 5.
-- Any other input — treat as **n**, exit the loop.
+Continue to the next iteration.
 
 ---
 

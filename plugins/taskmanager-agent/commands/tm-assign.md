@@ -1,6 +1,6 @@
 ---
 name: tm-assign
-description: "Assign a specific issue to Claude and begin working on it. Automatically determines the next action: plan if no plan exists, execute if plan exists. This is the 'point Claude at a specific issue' entry point."
+description: "Assign a specific issue to Claude and process it. Handles all issue states: In Review (PR checks), Blocked (review resolution), Todo (planning), In Progress (execution). Delegates to process-flow for action."
 argument-hint: "<issue-id>"
 allowed-tools:
   - Read
@@ -11,9 +11,9 @@ allowed-tools:
   - Grep
 ---
 
-# /tm-assign — Assign and Work a Specific Issue
+# /tm-assign — Assign and Process a Specific Issue
 
-Assign a specific issue to Claude and drive it to completion. This command handles the full lifecycle: claiming the issue, planning if needed, and executing the plan.
+Process a specific issue through its entire lifecycle. Handles all issue states by delegating to process-flow.md.
 
 This is a self-contained command. It reads reference files for shared logic but does NOT invoke other slash commands.
 
@@ -51,69 +51,16 @@ Verify the issue's project appears in the config's `projects` list. If not, stop
 
 ---
 
-## Step 4: Set In Progress
+## Step 4: Process the Issue
 
-Claim the issue by setting it to In Progress and applying the Claude label:
-```
-${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-  --id <issue-id> \
-  --state "In Progress" \
-  --label "Claude"
-```
+Follow `${CLAUDE_PLUGIN_ROOT}/references/process-flow.md` with the issue ID.
 
-If the script returns an error, report it and stop.
+Process-flow determines the correct action based on the issue's current state:
 
----
+- **In Review** → checks PR status (merged → close, comments → address feedback, etc.)
+- **Blocked** → checks for resolved review sub-issues, unblocks and resumes if found
+- **Todo or In Progress without plan** → creates an execution plan, blocks for review
+- **In Progress with unchecked plan items** → executes the plan
+- **In Progress with all items checked** → moves to In Review
 
-## Step 5: Check for Existing Plan
-
-Fetch all comments on the issue:
-```
-${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <issue-id>
-```
-
-Scan the results for any comment whose body starts with `## Execution Plan`. Note the outcome:
-
-- **No plan comment found** → go to Step 6 (Create Plan).
-- **Plan comment found with at least one unchecked item** (`- [ ]`) → go to Step 7 (Execute Plan).
-- **Plan comment found, all items checked** (`- [x]`, no `- [ ]` remaining) → go to Step 8 (Wrap Up).
-
----
-
-## Step 6: Create Plan
-
-Follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` to create an execution plan for this issue.
-
-- If the issue is vague or missing detail, follow the review-issue-flow as directed by plan-flow.md and **stop** — do not proceed to execution until the issue is clarified.
-- If planning succeeds and a plan comment is posted, the plan-flow will block the issue and create a review sub-issue for the creator. **Stop here** — do not proceed to Step 7. Report: `"Plan posted for <issue-id>. Waiting for creator review."` The creator must review and approve before execution begins.
-
----
-
-## Step 7: Execute the Plan
-
-Follow `${CLAUDE_PLUGIN_ROOT}/references/work-flow.md` with `<issue-id>`.
-
-- If blocked at any point during execution, follow the review-issue-flow as directed by work-flow.md and **stop**.
-- On successful completion, work-flow.md will set the status to "In Review" and post a summary comment. Once that is done, stop — the issue is complete.
-
----
-
-## Step 8: Wrap Up (All Items Already Checked)
-
-If the plan exists and all checklist items are already checked, the work is done. Finalize the issue:
-
-1. Set status to "In Review":
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-     --id <issue-id> \
-     --state "In Review"
-   ```
-
-2. Post a summary comment:
-   ```
-   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
-     --issue-id <issue-id> \
-     --body "All plan items were already complete. Issue moved to In Review."
-   ```
-
-Report to the user: "Issue <issue-id> — all plan items were already completed. Moved to In Review."
+Process-flow handles all status transitions, so no additional status changes are needed here.
