@@ -324,11 +324,15 @@ projects:
     git_accessible: <true-or-false>
 
 stale_threshold_hours: 72  # preserve existing value if set
+
+issue_defaults:              # preserve existing values if set
+  assignee_id: <user-id>    # optional: default assignee for new issues
+  assignee_name: <name>     # optional: display name (informational)
 ```
 
 When merging with an existing config:
 - Always update: `last_health_check`, `operator`, `team`, `statuses`, `labels`, `projects` (repo, git_accessible).
-- Preserve: `stale_threshold_hours`, `local_path` per project, any user-added fields.
+- Preserve: `stale_threshold_hours`, `issue_defaults`, `local_path` per project, any user-added fields.
 
 ---
 

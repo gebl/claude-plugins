@@ -28,6 +28,9 @@ If `last_health_check` is more than 24 hours old, warn the user:
 | `projects`             | Project definitions (name, repo, local_path, etc.)  |
 | `operator`             | Current operator/user ID                            |
 | `stale_threshold_hours`| Hours before an in-progress issue is considered stale |
+| `issue_defaults`       | Optional defaults for issue creation                |
+| `issue_defaults.assignee_id` | Default assignee user ID for new issues        |
+| `issue_defaults.assignee_name` | Display name of the default assignee (informational) |
 
 ### Updating the Config
 

@@ -446,6 +446,52 @@ class TestSaveIssueResolution:
         assert len(httpx_mock.get_requests()) == 1
 
 
+class TestSaveIssueAssignee:
+    """Test that save_issue passes assignee through to the GraphQL mutation."""
+
+    def _issue_response(self, mutation_key: str) -> dict:
+        return _gql_response({
+            mutation_key: {
+                "issue": {
+                    "id": "i1", "identifier": "ENG-1", "title": "Test",
+                    "description": "", "priority": 0, "url": "", "branchName": None,
+                    "state": {"id": "s1", "name": "Todo", "type": "unstarted"},
+                    "project": None, "labels": {"nodes": []}, "parent": None,
+                }
+            }
+        })
+
+    def test_assignee_passed_on_create(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=self._issue_response("issueCreate"),
+        )
+        backend.save_issue(title="Test", team="t1", assignee="user-123")
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert body["variables"]["input"]["assigneeId"] == "user-123"
+
+    def test_assignee_passed_on_update(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=self._issue_response("issueUpdate"),
+        )
+        backend.save_issue(id="i1", assignee="user-456")
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert body["variables"]["input"]["assigneeId"] == "user-456"
+
+    def test_no_assignee_omitted(self, backend: LinearBackend, httpx_mock: HTTPXMock):
+        httpx_mock.add_response(
+            url=API_URL,
+            json=self._issue_response("issueUpdate"),
+        )
+        backend.save_issue(id="i1")
+        import json
+        body = json.loads(httpx_mock.get_requests()[0].content)
+        assert "assigneeId" not in body["variables"]["input"]
+
+
 class TestAuthHeader:
     def test_sends_token_in_header(self, backend: LinearBackend, httpx_mock: HTTPXMock):
         httpx_mock.add_response(

@@ -49,7 +49,10 @@
    ```
 
 7. **Wait for creator review:** After posting the plan, **do not auto-execute**. Instead:
-   a. Create a review sub-issue asking the creator to approve the plan:
+   a. **Determine the review assignee:**
+      - If `issue_defaults.assignee_id` is set in config, use that as the assignee for the review sub-issue.
+      - Otherwise, fall back to `<creator-id>` (the issue's `creator_id` field).
+   b. Create a review sub-issue asking the reviewer to approve the plan:
       ```bash
       ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
         --title "Review plan for <issue-key>: <issue-title>" \
@@ -57,7 +60,7 @@
         --parent-id <issue-id> \
         --state Todo \
         --labels Review \
-        --assignee <creator-id> \
+        --assignee <review-assignee-id> \
         --description "Please review the execution plan posted on <issue-key>.\n\n**Action needed:** Mark this sub-issue as Done to approve the plan, or add a comment with changes needed."
       ```
    b. Set the parent issue to Blocked:

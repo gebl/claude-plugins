@@ -100,7 +100,7 @@ Loops through the entire Todo backlog: select → plan → execute → repeat. P
 | `/tm-work <id>` | Execute the approved plan (git worktree + PR for code, documents for non-code). |
 | `/tm-update <id> <status>` | Manually update an issue's status with an optional comment. |
 | `/tm-issues` | List issues from active projects. Defaults to Todo and Backlog. Filter with `--project` or `--status`. |
-| `/tm-issue-create` | Create a new issue in an active project. |
+| `/tm-issue-create` | Create a new issue in an active project. Supports `--assignee` to set the owner. |
 | `/tm-project-create` | Create a new project and mark it as active. Optionally attach a git repo URL. |
 | `/work-backlog` | Process the backlog autonomously with checkpoints every 3 issues. |
 
@@ -161,7 +161,18 @@ projects:
     local_path: null
 
 stale_threshold_hours: 72
+
+issue_defaults:                          # optional
+  assignee_id: <user-id>                 # default assignee for new issues
+  assignee_name: Gabriel Lawrence        # display name (informational)
 ```
+
+### Default Assignee
+
+By default, issues created by `/tm-issue-create` and review sub-issues from `/tm-plan` are assigned to the issue creator (the Linear API token owner). To assign them to a different user:
+
+- **Per-issue:** Use `--assignee "Display Name"` or `--assignee <uuid>` with `/tm-issue-create`.
+- **Globally:** Add `issue_defaults.assignee_id` and `issue_defaults.assignee_name` to the config file. All new issues and review sub-issues will use this default unless overridden with `--assignee`.
 
 ## Architecture
 
