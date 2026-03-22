@@ -19,7 +19,6 @@ from taskmanager.daemon import poller
 from taskmanager.daemon import selector
 from taskmanager.daemon import session
 from taskmanager.daemon import state
-from taskmanager.daemon import validator
 
 log = logging.getLogger("tm-daemon.runner")
 
@@ -251,89 +250,34 @@ class DaemonRunner:
             )
             self._record_session_to_db(selected, result, "unchanged", session_started_at)
             self._post_session_summary(selected, result, "unchanged")
-        elif not _is_valid_transition(pre_status, post_status):
-            log.warning(
-                "Issue %s made invalid transition: %s → %s",
+        else:
+            log.info(
+                "Issue %s transitioned: %s → %s",
                 selected.identifier,
                 pre_status,
                 post_status,
             )
-            self._quarantine_issue(
-                selected,
-                f"Invalid workflow transition: {pre_status} → {post_status}",
-            )
             self._state.add_to_history(
                 selected.issue_id,
-                "invalid_transition",
+                "completed",
                 result.duration_seconds,
                 total_cost_usd=result.total_cost_usd,
                 input_tokens=result.input_tokens,
                 output_tokens=result.output_tokens,
                 num_turns=result.num_turns,
             )
-            self._record_session_to_db(selected, result, "invalid_transition", session_started_at)
-            self._post_session_summary(selected, result, "invalid_transition")
-        else:
-            # Valid transition — now check artifact requirements
-            comments = selector._run_list_script(
-                "tm_list_comments.py", selected.issue_id
+            db_row_id = self._record_session_to_db(
+                selected, result, "completed", session_started_at
             )
-            sub_issues = selector._run_list_script(
-                "tm_list_issues.py", "--parent", selected.issue_id
-            )
-            artifact_ok, artifact_reason = validator.validate_artifacts(
-                pre_status,
-                post_status,
-                post_issue or {},
-                comments or [],
-                sub_issues or [],
-            )
-            if not artifact_ok:
-                log.warning(
-                    "Issue %s missing artifacts: %s",
-                    selected.identifier,
-                    artifact_reason,
-                )
-                self._quarantine_issue(selected, artifact_reason)
-                self._state.add_to_history(
-                    selected.issue_id,
-                    "missing_artifacts",
-                    result.duration_seconds,
-                    total_cost_usd=result.total_cost_usd,
-                    input_tokens=result.input_tokens,
-                    output_tokens=result.output_tokens,
-                    num_turns=result.num_turns,
-                )
-                self._record_session_to_db(selected, result, "missing_artifacts", session_started_at)
-                self._post_session_summary(selected, result, "missing_artifacts")
-            else:
-                log.info(
-                    "Issue %s transitioned: %s → %s",
-                    selected.identifier,
-                    pre_status,
-                    post_status,
-                )
-                self._state.add_to_history(
-                    selected.issue_id,
-                    "completed",
-                    result.duration_seconds,
-                    total_cost_usd=result.total_cost_usd,
-                    input_tokens=result.input_tokens,
-                    output_tokens=result.output_tokens,
-                    num_turns=result.num_turns,
-                )
-                db_row_id = self._record_session_to_db(
-                    selected, result, "completed", session_started_at
-                )
-                self._post_session_summary(selected, result, "completed")
+            self._post_session_summary(selected, result, "completed")
 
-                # Record PR if the session transitioned to In Review
-                if post_status == "In Review" and selected.branch_name:
-                    self._capture_pr(selected, project, db_row_id)
+            # Record PR if the session transitioned to In Review
+            if post_status == "In Review" and selected.branch_name:
+                self._capture_pr(selected, project, db_row_id)
 
-                # Bug triage: close Bug sub-issues on success
-                if is_bug_triage:
-                    self._close_bug_sub_issues(selected)
+            # Bug triage: close Bug sub-issues on success
+            if is_bug_triage:
+                self._close_bug_sub_issues(selected)
 
     def _capture_pr(
         self,
@@ -638,22 +582,6 @@ class DaemonRunner:
                 signum,
             )
             self._draining = True
-
-
-_VALID_TRANSITIONS: dict[str, set[str]] = {
-    "Todo": {"In Progress", "In Review", "Blocked"},
-    "In Progress": {"In Review", "Blocked"},
-    "In Review": {"In Review", "Done", "Blocked", "In Progress"},
-    "Blocked": {"In Progress", "Todo", "In Review"},
-}
-
-
-def _is_valid_transition(pre: str, post: str) -> bool:
-    """Check whether a status transition follows the expected workflow."""
-    valid = _VALID_TRANSITIONS.get(pre)
-    if valid is None:
-        return True  # Unknown pre-status — don't block
-    return post in valid
 
 
 def _now_iso() -> str:

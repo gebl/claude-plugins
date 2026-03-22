@@ -238,66 +238,6 @@ class TestForceStop:
         mock_proc.kill.assert_called_once()
 
 
-class TestTransitionValidation:
-    def test_todo_to_in_progress_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("Todo", "In Progress") is True
-
-    def test_todo_to_in_review_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("Todo", "In Review") is True
-
-    def test_todo_to_blocked_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("Todo", "Blocked") is True
-
-    def test_todo_to_done_is_invalid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("Todo", "Done") is False
-
-    def test_in_progress_to_in_review_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Progress", "In Review") is True
-
-    def test_in_progress_to_blocked_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Progress", "Blocked") is True
-
-    def test_in_progress_to_done_is_invalid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Progress", "Done") is False
-
-    def test_in_review_to_done_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Review", "Done") is True
-
-    def test_in_review_to_blocked_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Review", "Blocked") is True
-
-    def test_in_review_to_in_progress_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Review", "In Progress") is True
-
-    def test_blocked_to_in_progress_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("Blocked", "In Progress") is True
-
-    def test_in_review_to_in_review_is_valid(self):
-        from taskmanager.daemon.runner import _is_valid_transition
-
-        assert _is_valid_transition("In Review", "In Review") is True
 
 
 class TestConversationIssueDetection:
