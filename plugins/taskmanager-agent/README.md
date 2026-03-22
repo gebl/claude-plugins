@@ -27,6 +27,46 @@ A separate **conversation workflow** handles projectless issues — back-and-for
 
 **3. Review** — The creator reviews the PR or document. If changes are needed, comments on the PR move the issue back to In Progress for Claude to address. When the PR is merged, the next `/tm-next` run (or daemon poll) detects it and closes the issue automatically.
 
+### When Things Go Wrong
+
+Not every session succeeds. The daemon detects failures and quarantines issues so they don't block the pipeline.
+
+**What triggers quarantine:**
+
+| Failure Mode | Detection | Example |
+|---|---|---|
+| **Timeout** | Session exceeds the timeout (default 2.5 hours) | Claude gets stuck in a loop or the task is too large |
+| **Unchanged state** | Issue status is the same before and after the session | Claude ran but made no meaningful progress |
+| **Invalid transition** | Issue moved to a status that isn't valid for its starting state | `Todo → Done` (skips the plan/execute workflow) |
+| **Missing artifacts** | Valid transition but required artifacts don't exist | `In Progress → In Review` without a PR |
+
+**What happens when an issue is quarantined:**
+
+1. A **Bug sub-issue** is created under the parent, labeled "Bug", assigned to the human reviewer. Its description contains the failure reason and instructions.
+2. The parent issue is set to **Blocked**.
+3. The quarantined issue ID is added to `~/.claude/taskmanager/daemon-state.yaml` — the daemon skips it during polling.
+4. Session metrics (cost, tokens, duration, outcome) are recorded to the SQLite database.
+
+**Recovery paths:**
+
+- **Self-healing bug triage (Phase 1.5)** — Comment on the Bug sub-issue with guidance ("the repo needs X first", "try without the Y flag"). The daemon detects the new comment, removes the parent from quarantine, and spawns a new session with your guidance as context. If the retry succeeds, the Bug sub-issue is closed automatically.
+- **Manual state reset** — Edit `~/.claude/taskmanager/daemon-state.yaml` to remove the issue from the quarantine list, then use `/tm-update` or `/tm-assign` to re-queue it.
+
+### Human Operator Guide
+
+Every intervention point follows the same pattern: Claude creates a trackable sub-issue, the human acts on it, and the daemon resumes automatically.
+
+| When | What You See | What To Do | What Happens Next |
+|---|---|---|---|
+| **Plan approval** | Review sub-issue linking to a plan comment on the parent issue | Read the plan. Comment on the review sub-issue if changes are needed, then mark it Done. | Parent unblocks, Claude executes the plan. |
+| **Blocked during work** | Review sub-issue with a question from Claude | Answer the question on the review sub-issue, then mark it Done. | Claude resumes execution with your answer as context. |
+| **PR review** | Issue in "In Review" with a PR link | Review the PR on Forgejo/GitHub. Merge if good, or add comments for changes. | Merged: issue auto-closes. Comments: review sub-issue created, parent blocked until triaged. |
+| **Quarantine triage** | Bug sub-issue with a daemon error message; parent Blocked | Read the error. Comment on the Bug sub-issue with guidance for retry. | Daemon detects your comment, removes quarantine, retries with your guidance. Closes Bug sub-issue on success. |
+| **Decomposition** | Review sub-issue suggesting the plan is large (8+ items) | Comment "decompose" on the review sub-issue if you want the plan split, then mark Done. Or just mark Done to proceed as-is. | If decomposed: plan is split into sub-issues with dependency chains. Otherwise: single execution. |
+| **Conversation** | Projectless issue with `**[Conversation]**` comments | Comment on the issue with your request or response. | Claude reads your comment and takes the next action (create project, create issues, research, respond, or close). |
+
+> **Tip:** You never need to manually change issue statuses. All transitions are handled by the daemon or Claude sessions. Your only actions are: read, comment, mark review sub-issues as Done, and merge PRs.
+
 ## Prerequisites
 
 - Python 3.12+
@@ -172,7 +212,7 @@ The daemon backs off when idle and resets when work is found:
 | 3 | 5 min | 10 min |
 | 4 | 15 min | permanent |
 
-**Quarantine:** If a session times out, completes without changing the issue state, or fails validation, the issue is quarantined — an error sub-issue with the "Review" label is created and the parent is blocked. Quarantined issues are skipped during polling until manually resolved.
+**Quarantine:** If a session times out, completes without changing the issue state, or fails validation, the issue is quarantined — a Bug sub-issue is created and the parent is blocked. The daemon's Phase 1.5 (bug triage) enables self-healing: comment on the Bug sub-issue with guidance, and the daemon will automatically retry. See [When Things Go Wrong](#when-things-go-wrong) for full details on triggers, recovery paths, and the [Human Operator Guide](#human-operator-guide) for what to do at each step.
 
 **Shutdown:** Two-stage signal handling — the first SIGINT/SIGTERM enters drain mode (finishes the active session, then exits). A second signal while draining force-kills the active session and exits immediately.
 

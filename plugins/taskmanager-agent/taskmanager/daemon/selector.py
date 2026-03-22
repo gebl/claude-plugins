@@ -315,20 +315,25 @@ def _phase_resolved_reviews(
         children = _run_list_script(
             "tm_list_issues.py", "--parent", issue["id"], "--label", "Review"
         )
-        resolved = [c for c in children if c.get("status", {}).get("name") == "Done"]
-        if resolved:
+        if not children:
+            continue
+
+        unresolved = [
+            c for c in children
+            if c.get("status", {}).get("name") not in ("Done", "Canceled")
+        ]
+
+        # All Review sub-issues resolved — ready to unblock
+        if not unresolved:
             log.info(
-                "  → %s has %d resolved review(s)",
+                "  → %s has all %d review(s) resolved",
                 issue.get("identifier", issue["id"]),
-                len(resolved),
+                len(children),
             )
             return _to_selected(issue)
 
         # Check if parent's PR was merged — auto-close open Review sub-issues
-        unresolved = [
-            c for c in children if c.get("status", {}).get("name") != "Done"
-        ]
-        if unresolved and _is_pr_merged(issue, projects_by_id):
+        if _is_pr_merged(issue, projects_by_id):
             log.info(
                 "  → %s PR merged — auto-closing %d review sub-issue(s)",
                 issue.get("identifier", issue["id"]),
