@@ -7,9 +7,21 @@ import re
 
 import httpx
 
-_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
 
-from taskmanager.models import Comment, Document, Issue, Label, Project, ProjectLink, Status, Team, User
+from taskmanager.models import (
+    Comment,
+    Document,
+    Issue,
+    Label,
+    Project,
+    ProjectLink,
+    Status,
+    Team,
+    User,
+)
 
 API_URL = "https://api.linear.app/graphql"
 
@@ -20,11 +32,15 @@ ISSUE_FIELDS = """
     labels { nodes { id name color } }
     parent { id }
     creator { id }
+    assignee { id }
 """
 
-ISSUE_FIELDS_WITH_RELATIONS = ISSUE_FIELDS + """
+ISSUE_FIELDS_WITH_RELATIONS = (
+    ISSUE_FIELDS
+    + """
     relations { nodes { relatedIssue { id identifier state { type } } type } }
 """
+)
 
 
 class LinearBackend:
@@ -65,7 +81,9 @@ class LinearBackend:
             return name_or_id
         tid = team_id or self._config.get("team", {}).get("id", "")
         if not tid:
-            raise ValueError(f"Cannot resolve state '{name_or_id}': no team ID in config")
+            raise ValueError(
+                f"Cannot resolve state '{name_or_id}': no team ID in config"
+            )
         statuses = self.list_statuses(tid)
         for s in statuses:
             if s.name.lower() == name_or_id.lower():
@@ -76,13 +94,17 @@ class LinearBackend:
         """Resolve a label name to its UUID, or pass through if already a UUID."""
         if self._is_uuid(name_or_id):
             return name_or_id
-        labels = self.list_issue_labels() if scope == "issue" else self.list_project_labels()
+        labels = (
+            self.list_issue_labels() if scope == "issue" else self.list_project_labels()
+        )
         for label in labels:
             if label.name.lower() == name_or_id.lower():
                 return label.id
         raise ValueError(f"No {scope} label matching '{name_or_id}'")
 
-    def _resolve_label_ids(self, names_or_ids: list[str], scope: str = "issue") -> list[str]:
+    def _resolve_label_ids(
+        self, names_or_ids: list[str], scope: str = "issue"
+    ) -> list[str]:
         """Resolve a list of label names/UUIDs to UUIDs."""
         return [self._resolve_label_id(v, scope) for v in names_or_ids]
 
@@ -102,7 +124,10 @@ class LinearBackend:
 
     def list_teams(self) -> list[Team]:
         data = self._request("{ teams { nodes { id name key } } }")
-        return [Team(id=t["id"], name=t["name"], key=t["key"]) for t in data["teams"]["nodes"]]
+        return [
+            Team(id=t["id"], name=t["name"], key=t["key"])
+            for t in data["teams"]["nodes"]
+        ]
 
     def get_user(self, query: str) -> User:
         if query == "me":
@@ -110,7 +135,7 @@ class LinearBackend:
             v = data["viewer"]
             return User(id=v["id"], name=v["name"], email=v.get("email", ""))
         data = self._request(
-            'query($filter: UserFilter) { users(filter: $filter) { nodes { id name email } } }',
+            "query($filter: UserFilter) { users(filter: $filter) { nodes { id name email } } }",
             {"filter": {"displayName": {"containsIgnoreCase": query}}},
         )
         nodes = data["users"]["nodes"]
@@ -128,7 +153,10 @@ class LinearBackend:
             "query($teamId: ID!) { workflowStates(filter: { team: { id: { eq: $teamId } } }) { nodes { id name type } } }",
             {"teamId": team_id},
         )
-        return [Status(id=s["id"], name=s["name"], type=s["type"]) for s in data["workflowStates"]["nodes"]]
+        return [
+            Status(id=s["id"], name=s["name"], type=s["type"])
+            for s in data["workflowStates"]["nodes"]
+        ]
 
     def create_status(self, team_id: str, name: str, type: str, color: str) -> Status:
         data = self._request(
@@ -144,7 +172,10 @@ class LinearBackend:
 
     def list_issue_labels(self) -> list[Label]:
         data = self._request("{ issueLabels { nodes { id name color } } }")
-        return [Label(id=l["id"], name=l["name"], color=l["color"], scope="issue") for l in data["issueLabels"]["nodes"]]
+        return [
+            Label(id=l["id"], name=l["name"], color=l["color"], scope="issue")
+            for l in data["issueLabels"]["nodes"]
+        ]
 
     def create_issue_label(self, name: str, color: str) -> Label:
         data = self._request(
@@ -156,9 +187,14 @@ class LinearBackend:
 
     def list_project_labels(self) -> list[Label]:
         data = self._request("{ projectLabels { nodes { id name color } } }")
-        return [Label(id=l["id"], name=l["name"], color=l["color"], scope="project") for l in data["projectLabels"]["nodes"]]
+        return [
+            Label(id=l["id"], name=l["name"], color=l["color"], scope="project")
+            for l in data["projectLabels"]["nodes"]
+        ]
 
-    def create_project_label(self, name: str, color: str, description: str = "") -> Label:
+    def create_project_label(
+        self, name: str, color: str, description: str = ""
+    ) -> Label:
         inp: dict = {"name": name, "color": color}
         if description:
             inp["description"] = description
@@ -184,11 +220,19 @@ class LinearBackend:
             """
             data = self._request(query, {"label": label})
         else:
-            data = self._request("{ projects { nodes { id name url labels { nodes { id name color } } } } }")
+            data = self._request(
+                "{ projects { nodes { id name url labels { nodes { id name color } } } } }"
+            )
         nodes = data["projects"]["nodes"]
         return [self._parse_project(p) for p in nodes]
 
-    def save_project(self, name: str, team: str, description: str = "", labels: list[str] | None = None) -> Project:
+    def save_project(
+        self,
+        name: str,
+        team: str,
+        description: str = "",
+        labels: list[str] | None = None,
+    ) -> Project:
         inp: dict = {"name": name, "teamIds": [team]}
         if description:
             inp["description"] = description
@@ -212,7 +256,7 @@ class LinearBackend:
 
     def create_project_link(self, project_id: str, label: str, url: str) -> ProjectLink:
         data = self._request(
-            'mutation($input: EntityExternalLinkCreateInput!) { entityExternalLinkCreate(input: $input) { entityExternalLink { id label url } } }',
+            "mutation($input: EntityExternalLinkCreateInput!) { entityExternalLinkCreate(input: $input) { entityExternalLink { id label url } } }",
             {"input": {"projectId": project_id, "label": label, "url": url}},
         )
         l = data["entityExternalLinkCreate"]["entityExternalLink"]
@@ -222,11 +266,20 @@ class LinearBackend:
     # Issues
     # ------------------------------------------------------------------
 
-    def list_issues(self, status: str | list[str] | None = None, project: str | None = None, label: str | None = None, parent_id: str | None = None) -> list[Issue]:
+    def list_issues(
+        self,
+        status: str | list[str] | None = None,
+        project: str | None = None,
+        label: str | None = None,
+        parent_id: str | None = None,
+        assignee: str | None = None,
+    ) -> list[Issue]:
         filters: dict = {}
         if status:
             if isinstance(status, list):
-                filters["state"] = {"name": {"in": [s.replace("_", " ").title() for s in status]}}
+                filters["state"] = {
+                    "name": {"in": [s.replace("_", " ").title() for s in status]}
+                }
             else:
                 filters["state"] = {"name": {"eq": status.replace("_", " ").title()}}
         if project:
@@ -235,9 +288,15 @@ class LinearBackend:
             filters["labels"] = {"name": {"eq": label}}
         if parent_id:
             filters["parent"] = {"id": {"eq": parent_id}}
+        if assignee:
+            filters["assignee"] = {"id": {"eq": assignee}}
 
         if filters:
-            query = "query($filter: IssueFilter) { issues(filter: $filter) { nodes { " + ISSUE_FIELDS + " } } }"
+            query = (
+                "query($filter: IssueFilter) { issues(filter: $filter) { nodes { "
+                + ISSUE_FIELDS
+                + " } } }"
+            )
             data = self._request(query, {"filter": filters})
         else:
             query = "{ issues { nodes { " + ISSUE_FIELDS + " } } }"
@@ -286,19 +345,33 @@ class LinearBackend:
             inp["assigneeId"] = assignee
 
         if id:
-            mutation = "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { issue { " + ISSUE_FIELDS + " } } }"
+            mutation = (
+                "mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { issue { "
+                + ISSUE_FIELDS
+                + " } } }"
+            )
             data = self._request(mutation, {"id": id, "input": inp})
             issue = self._parse_issue(data["issueUpdate"]["issue"])
         else:
-            mutation = "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { issue { " + ISSUE_FIELDS + " } } }"
+            mutation = (
+                "mutation($input: IssueCreateInput!) { issueCreate(input: $input) { issue { "
+                + ISSUE_FIELDS
+                + " } } }"
+            )
             data = self._request(mutation, {"input": inp})
             issue = self._parse_issue(data["issueCreate"]["issue"])
 
         if links:
             for link in links:
                 self._request(
-                    'mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { attachment { id } } }',
-                    {"input": {"issueId": issue.id, "title": link["label"], "url": link["url"]}},
+                    "mutation($input: AttachmentCreateInput!) { attachmentCreate(input: $input) { attachment { id } } }",
+                    {
+                        "input": {
+                            "issueId": issue.id,
+                            "title": link["label"],
+                            "url": link["url"],
+                        }
+                    },
                 )
         return issue
 
@@ -308,34 +381,79 @@ class LinearBackend:
 
     def list_comments(self, issue_id: str) -> list[Comment]:
         data = self._request(
-            "query($id: String!) { issue(id: $id) { comments { nodes { id body createdAt } } } }",
+            "query($id: String!) { issue(id: $id) { comments { nodes { id body createdAt user { id name } } } } }",
             {"id": issue_id},
         )
         return [
-            Comment(id=c["id"], issue_id=issue_id, body=c["body"], created_at=c["createdAt"])
+            Comment(
+                id=c["id"],
+                issue_id=issue_id,
+                body=c["body"],
+                created_at=c["createdAt"],
+                user_id=c.get("user", {}).get("id", ""),
+                user_name=c.get("user", {}).get("name", ""),
+            )
             for c in data["issue"]["comments"]["nodes"]
         ]
 
-    def save_comment(self, *, id: str | None = None, issue_id: str | None = None, body: str) -> Comment:
+    def save_comment(
+        self, *, id: str | None = None, issue_id: str | None = None, body: str
+    ) -> Comment:
         if id:
             data = self._request(
                 "mutation($id: String!, $input: CommentUpdateInput!) { commentUpdate(id: $id, input: $input) { comment { id body createdAt issue { id } } } }",
                 {"id": id, "input": {"body": body}},
             )
             c = data["commentUpdate"]["comment"]
-            return Comment(id=c["id"], issue_id=c["issue"]["id"], body=c["body"], created_at=c["createdAt"])
+            return Comment(
+                id=c["id"],
+                issue_id=c["issue"]["id"],
+                body=c["body"],
+                created_at=c["createdAt"],
+            )
         data = self._request(
             "mutation($input: CommentCreateInput!) { commentCreate(input: $input) { comment { id body createdAt issue { id } } } }",
             {"input": {"issueId": issue_id, "body": body}},
         )
         c = data["commentCreate"]["comment"]
-        return Comment(id=c["id"], issue_id=c["issue"]["id"], body=c["body"], created_at=c["createdAt"])
+        return Comment(
+            id=c["id"],
+            issue_id=c["issue"]["id"],
+            body=c["body"],
+            created_at=c["createdAt"],
+        )
+
+    # ------------------------------------------------------------------
+    # Relations
+    # ------------------------------------------------------------------
+
+    def create_relation(self, issue_id: str, blocks_id: str) -> dict:
+        """Create a 'blocks' relation: issue_id blocks blocks_id."""
+        data = self._request(
+            "mutation($input: IssueRelationCreateInput!) { issueRelationCreate(input: $input) { issueRelation { id type relatedIssue { id identifier } } } }",
+            {
+                "input": {
+                    "issueId": issue_id,
+                    "relatedIssueId": blocks_id,
+                    "type": "blocks",
+                }
+            },
+        )
+        rel = data["issueRelationCreate"]["issueRelation"]
+        return {
+            "id": rel["id"],
+            "type": rel["type"],
+            "related_issue_id": rel["relatedIssue"]["id"],
+            "related_issue_identifier": rel["relatedIssue"]["identifier"],
+        }
 
     # ------------------------------------------------------------------
     # Documents
     # ------------------------------------------------------------------
 
-    def create_document(self, title: str, content: str, project: str | None = None) -> Document:
+    def create_document(
+        self, title: str, content: str, project: str | None = None
+    ) -> Document:
         inp: dict = {"title": title, "content": content}
         if project:
             inp["projectId"] = project
@@ -355,7 +473,10 @@ class LinearBackend:
         state = node.get("state") or {}
         proj = node.get("project")
         label_nodes = (node.get("labels") or {}).get("nodes", [])
-        labels = [Label(id=l["id"], name=l["name"], color=l["color"], scope="issue") for l in label_nodes]
+        labels = [
+            Label(id=l["id"], name=l["name"], color=l["color"], scope="issue")
+            for l in label_nodes
+        ]
 
         blocked_by: list[str] = []
         if include_relations:
@@ -368,12 +489,17 @@ class LinearBackend:
             identifier=node.get("identifier", ""),
             title=node.get("title", ""),
             description=node.get("description", ""),
-            status=Status(id=state.get("id", ""), name=state.get("name", ""), type=state.get("type", "")),
+            status=Status(
+                id=state.get("id", ""),
+                name=state.get("name", ""),
+                type=state.get("type", ""),
+            ),
             priority=node.get("priority", 0),
             project_id=proj["id"] if proj else None,
             project_name=proj["name"] if proj else None,
             labels=labels,
             creator_id=(node.get("creator") or {}).get("id"),
+            assignee_id=(node.get("assignee") or {}).get("id"),
             parent_id=(node.get("parent") or {}).get("id"),
             blocked_by=blocked_by,
             url=node.get("url", ""),
@@ -383,5 +509,10 @@ class LinearBackend:
     @staticmethod
     def _parse_project(node: dict) -> Project:
         label_nodes = (node.get("labels") or {}).get("nodes", [])
-        labels = [Label(id=l["id"], name=l["name"], color=l["color"], scope="project") for l in label_nodes]
-        return Project(id=node["id"], name=node["name"], url=node.get("url", ""), labels=labels)
+        labels = [
+            Label(id=l["id"], name=l["name"], color=l["color"], scope="project")
+            for l in label_nodes
+        ]
+        return Project(
+            id=node["id"], name=node["name"], url=node.get("url", ""), labels=labels
+        )

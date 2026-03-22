@@ -6,15 +6,16 @@ import time
 from collections.abc import Callable, Sequence
 
 # Default initial interval
-INTERVAL_ACTIVE = 30  # seconds — after finding work
+INTERVAL_ACTIVE = 10  # seconds — after finding work
 
 # Backoff tiers: (interval_seconds, duration_seconds)
 # Each tier stays for its duration before promoting to the next.
 # The last tier stays forever (duration is ignored).
 DEFAULT_TIERS: list[tuple[float, float]] = [
-    (30, 300),   # 30s interval for 5 minutes
-    (60, 300),   # 60s interval for 5 minutes
-    (300, 300),  # 5min interval for 5 minutes
+    (10, 600),   # 10s interval for 10 minutes
+    (30, 600),   # 30s interval for 10 minutes
+    (120, 600),  # 2min interval for 10 minutes
+    (300, 600),  # 5min interval for 10 minutes
     (900, 0),    # 15min interval — permanent
 ]
 

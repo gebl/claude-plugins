@@ -10,6 +10,10 @@ Given an issue ID, determine the current state and execute the appropriate actio
 - `issue_id` — Linear issue ID to process
 - `review_response` — optional; context from a resolved review sub-issue
 
+### General Principle: Human Input Requires a Review Sub-Issue
+
+Any time human input is needed — plan approval, PR review, clarification, or feedback — a review sub-issue **MUST** be created via `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md`. Do not post "action needed" comments without a corresponding trackable sub-issue. The human responds with a comment on the sub-issue and marks it as Done to unblock work.
+
 ### Steps
 
 1. **Fetch full issue details:**
@@ -21,6 +25,13 @@ Given an issue ID, determine the current state and execute the appropriate actio
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <issue_id>
    ```
+
+2b. **Check for human comments on this issue.** From the comments fetched in step 2, look for comments NOT from the operator (config `operator.id`) and NOT starting with `**[Activity]**`. If found:
+   1. Create a review sub-issue via `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` with:
+      - `parent_issue_id` = `<issue-id>`
+      - `parent_issue_key` = `<issue-key>`
+      - `question` = "Direct feedback received on this issue:\n\n<formatted human comments>\n\nPlease review and advise how to proceed."
+   2. The review-issue-flow will block the parent and assign to the human reviewer. **Stop** — do not proceed further.
 
 3. **Route based on issue status:**
 
@@ -70,20 +81,18 @@ If the issue status is **In Review**:
         ```
      5. Report: `"Closed: <issue-id> — <title> (PR merged)"`
 
-   - **Has review comments** (state is `open` and `comments` is non-empty) — Address feedback:
-     1. Set status back to In Progress:
-        ```bash
-        ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-          --id <issue-id> \
-          --state "In Progress"
-        ```
-     2. Post the review comments on the issue:
+   - **Has review comments** (state is `open` and `comments` is non-empty) — Create review sub-issue for human to triage:
+     1. Post the PR feedback on the issue:
         ```bash
         ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
           --issue-id <issue-id> \
-          --body "**[Activity]** PR review feedback received:\n\n<formatted comments>\n\nResuming work to address feedback."
+          --body "**[Activity]** PR review feedback received:\n\n<formatted comments>"
         ```
-     3. Proceed to **Route D** (Execute Plan) with the review comments as context.
+     2. Create a review sub-issue via `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` with:
+        - `parent_issue_id` = `<issue-id>`
+        - `parent_issue_key` = `<issue-key>`
+        - `question` = "PR review feedback received — please review the comments and advise how to proceed:\n\n<formatted PR comments>"
+     3. The review-issue-flow will block the parent and assign to the human reviewer. **Stop** — do not proceed to Route D until the review sub-issue is resolved via Route B.
 
    - **`open` with no comments** — PR is still under review. Report: `"<issue-id> — PR still under review. No action needed."` and stop.
 
@@ -130,7 +139,8 @@ If the issue status is **Blocked**:
         --issue-id <issue-id> \
         --body "**[Activity]** Review resolved (<review-sub-issue-key>). Response:\n\n<review_response summary>\n\nResuming work with this input."
       ```
-   d. Continue processing — check for a plan comment (from step 2 above) and route to **Route C** or **Route D** accordingly, carrying the `review_response` as context.
+   d. **Check for decomposition request:** Examine the review response (description + comments on the review sub-issue). If the reviewer requested decomposition (e.g., commented "decompose", "break this up", "split into smaller issues", or similar), route to **Route F** instead of continuing below.
+   e. Continue processing — check for a plan comment (from step 2 above) and route to **Route C** or **Route D** accordingly, carrying the `review_response` as context.
 
 ---
 
@@ -185,6 +195,17 @@ If the issue status is **In Progress** and a plan comment exists with all items 
      --body "**[Activity]** All plan items complete. Issue moved to In Review."
    ```
 3. Report: `"<issue-id> — all plan items complete. Moved to In Review."`
+
+---
+
+### Route F: Decompose Plan
+
+If the review response contains a decomposition request (detected in Route B step 4d):
+
+1. Find the plan comment (comment starting with `## Execution Plan`) from the comments fetched in step 2.
+2. Follow `${CLAUDE_PLUGIN_ROOT}/references/decompose-flow.md` with the issue ID and plan comment.
+3. Decompose-flow will create sub-issues, set up dependency chains, and move the parent to In Review.
+4. Report: `"Decomposed <issue-key> into sub-issues per reviewer request."` and **stop**.
 
 ---
 

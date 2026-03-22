@@ -131,14 +131,17 @@ class TestAdaptivePoller:
         assert p.tier_index == 0
 
     def test_default_tiers_structure(self):
-        assert len(DEFAULT_TIERS) == 4
-        # First tier starts at 30s
-        assert DEFAULT_TIERS[0][0] == 30
+        assert len(DEFAULT_TIERS) == 5
+        # First tier starts at 10s
+        assert DEFAULT_TIERS[0][0] == 10
+        # All non-permanent tiers last 10 minutes
+        for _, duration in DEFAULT_TIERS[:-1]:
+            assert duration == 600
         # Last tier is 900s (15 min)
         assert DEFAULT_TIERS[-1][0] == 900
 
     def test_default_active_interval(self):
-        assert INTERVAL_ACTIVE == 30
+        assert INTERVAL_ACTIVE == 10
 
     def test_current_interval_triggers_promotion(self):
         """current_interval should auto-promote if duration elapsed."""

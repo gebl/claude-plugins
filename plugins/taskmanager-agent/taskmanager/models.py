@@ -30,6 +30,8 @@ class Comment:
     issue_id: str
     body: str
     created_at: str
+    user_id: str = ""
+    user_name: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -38,16 +40,17 @@ class Comment:
 @dataclass
 class Issue:
     id: str
-    identifier: str       # e.g., "LAN-42"
+    identifier: str  # e.g., "LAN-42"
     title: str
     description: str
     status: Status
-    priority: int          # 0=None, 1=Urgent, 2=High, 3=Normal, 4=Low
+    priority: int  # 0=None, 1=Urgent, 2=High, 3=Normal, 4=Low
     project_id: str | None
     project_name: str | None
     labels: list[Label]
     parent_id: str | None
     creator_id: str | None = None
+    assignee_id: str | None = None
     blocked_by: list[str] = field(default_factory=list)
     url: str = ""
     branch_name: str | None = None

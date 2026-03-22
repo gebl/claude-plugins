@@ -32,6 +32,7 @@ class SelectedIssue:
 def select_next_issue(
     quarantined_ids: set[str],
     project_filter: str | None = None,
+    seen_comments: dict[str, str] | None = None,
 ) -> SelectedIssue | None:
     """Select the next issue to process, following next-flow.md phases.
 
@@ -41,7 +42,13 @@ def select_next_issue(
     active_project_ids = {p["id"] for p in cfg.get("projects", [])}
 
     # Phase 1: In Review issues needing attention
-    result = _phase_in_review(cfg, active_project_ids, quarantined_ids, project_filter)
+    result = _phase_in_review(
+        cfg,
+        active_project_ids,
+        quarantined_ids,
+        project_filter,
+        seen_comments=seen_comments,
+    )
     if result:
         return result
 
@@ -64,6 +71,12 @@ def select_next_issue(
     if result:
         return result
 
+    # Phase 5: Conversation issues (projectless, assigned to operator)
+    if cfg.get("conversation_issues") and not project_filter:
+        result = _phase_conversation(cfg, active_project_ids, quarantined_ids)
+        if result:
+            return result
+
     return None
 
 
@@ -72,14 +85,19 @@ def _phase_in_review(
     active_project_ids: set[str],
     quarantined_ids: set[str],
     project_filter: str | None,
+    seen_comments: dict[str, str] | None = None,
 ) -> SelectedIssue | None:
-    """Phase 1: Find In Review issues with actionable PR status."""
+    """Phase 1: Find In Review issues with actionable PR or Linear comments."""
+    log.info("Phase 1: checking In Review issues")
     issues = _run_list_script(
         "tm_list_issues.py", "--status", "In Review", "--label", "Claude"
     )
     if not issues:
+        log.info("  → no In Review issues found")
         return None
+    log.info("  → found %d In Review issue(s)", len(issues))
 
+    operator_id = cfg.get("operator", {}).get("id", "")
     projects_by_id = {p["id"]: p for p in cfg.get("projects", [])}
 
     for issue in issues:
@@ -89,30 +107,77 @@ def _phase_in_review(
             continue
 
         project = projects_by_id.get(issue.get("project_id", ""))
-        if not project or not project.get("repo"):
-            continue
-
         branch = issue.get("branch_name")
-        if not branch:
-            continue
 
-        pr_status = _run_dict_script(
-            "check_pr_status.py",
-            "--repo-url",
-            project["repo"],
-            "--branch",
-            branch,
-        )
-        if not pr_status:
-            continue
+        # Check PR status first (cheap — single HTTP call to Forgejo)
+        if project and project.get("repo") and branch:
+            pr_status = _run_dict_script(
+                "check_pr_status.py",
+                "--repo-url",
+                project["repo"],
+                "--branch",
+                branch,
+            )
+            if pr_status:
+                state = pr_status.get("state", "")
+                comments = pr_status.get("comments", [])
 
-        state = pr_status.get("state", "")
-        comments = pr_status.get("comments", [])
+                if (
+                    state == "merged"
+                    or state == "closed"
+                    or (state == "open" and comments)
+                ):
+                    return _to_selected(issue)
 
-        if state == "merged" or state == "closed" or (state == "open" and comments):
+        # Fallback: check Linear issue comments (only if PR had no actionable state)
+        last_seen_at = (seen_comments or {}).get(issue.get("id", ""))
+        if _has_human_comments(issue, operator_id, last_seen_at):
             return _to_selected(issue)
 
     return None
+
+
+def _has_human_comments(
+    issue: dict,
+    operator_id: str,
+    last_seen_at: str | None = None,
+) -> bool:
+    """Check if an In Review issue has new comments from non-operator users.
+
+    Filters out activity comments (prefixed with **[Activity]**) and comments
+    from the operator (Claude agent) to find genuine human feedback.
+    Skips comments created at or before last_seen_at when provided.
+    """
+    issue_id = issue.get("id", "")
+    comments = _run_list_script("tm_list_comments.py", issue_id)
+    if not comments:
+        return False
+
+    for comment in comments:
+        user_id = comment.get("user_id", "")
+        body = comment.get("body", "")
+        created_at = comment.get("created_at", "")
+
+        # Skip comments already processed in a previous session
+        if last_seen_at and created_at and created_at <= last_seen_at:
+            continue
+
+        # Skip operator (Claude agent) comments
+        if user_id == operator_id:
+            continue
+
+        # Skip automated activity comments
+        if body.startswith("**[Activity]**"):
+            continue
+
+        log.info(
+            "  → %s has human comment from %s",
+            issue.get("identifier", issue_id),
+            comment.get("user_name", user_id),
+        )
+        return True
+
+    return False
 
 
 def _phase_resolved_reviews(
@@ -121,41 +186,45 @@ def _phase_resolved_reviews(
     quarantined_ids: set[str],
     project_filter: str | None,
 ) -> SelectedIssue | None:
-    """Phase 2: Find Blocked issues with resolved review sub-issues."""
-    review_issues = _run_list_script(
-        "tm_list_issues.py", "--status", "Done", "--label", "Review"
+    """Phase 2: Find Blocked issues whose review sub-issues are resolved."""
+    log.info("Phase 2: checking Blocked issues for resolved reviews")
+    blocked_issues = _run_list_script(
+        "tm_list_issues.py", "--status", "Blocked", "--label", "Claude"
     )
-    if not review_issues:
+    if not blocked_issues:
+        log.info("  → no Blocked issues found")
         return None
 
-    candidates = []
-    for review in review_issues:
-        parent_id = review.get("parent_id")
-        if not parent_id:
-            continue
-
-        parent = _run_dict_script("tm_get_issue.py", parent_id)
-        if not parent:
-            continue
-
-        parent_status = parent.get("status", {}).get("name", "")
-        parent_status_type = parent.get("status", {}).get("type", "")
-        if parent_status_type in ("completed", "canceled"):
-            continue
-        if parent_status != "Blocked":
-            continue
-        if not _passes_filters(
-            parent, active_project_ids, quarantined_ids, project_filter
-        ):
-            continue
-
-        candidates.append(parent)
-
-    if not candidates:
+    filtered = [
+        i
+        for i in blocked_issues
+        if _passes_filters(i, active_project_ids, quarantined_ids, project_filter)
+    ]
+    if not filtered:
+        log.info(
+            "  → %d Blocked issue(s) found, none in active projects",
+            len(blocked_issues),
+        )
         return None
 
-    candidates.sort(key=_priority_sort_key)
-    return _to_selected(candidates[0])
+    log.info("  → found %d Blocked issue(s), checking sub-issues", len(filtered))
+    filtered.sort(key=_priority_sort_key)
+
+    for issue in filtered:
+        children = _run_list_script(
+            "tm_list_issues.py", "--parent", issue["id"], "--label", "Review"
+        )
+        resolved = [c for c in children if c.get("status", {}).get("name") == "Done"]
+        if resolved:
+            log.info(
+                "  → %s has %d resolved review(s)",
+                issue.get("identifier", issue["id"]),
+                len(resolved),
+            )
+            return _to_selected(issue)
+
+    log.info("  → no Blocked issues have resolved reviews")
+    return None
 
 
 def _phase_in_progress(
@@ -165,11 +234,14 @@ def _phase_in_progress(
     project_filter: str | None,
 ) -> SelectedIssue | None:
     """Phase 3: Find In Progress issues with Claude label."""
+    log.info("Phase 3: checking In Progress issues")
     issues = _run_list_script(
         "tm_list_issues.py", "--status", "In Progress", "--label", "Claude"
     )
     if not issues:
+        log.info("  → no In Progress issues found")
         return None
+    log.info("  → found %d In Progress issue(s)", len(issues))
 
     filtered = [
         i
@@ -190,9 +262,12 @@ def _phase_todo(
     project_filter: str | None,
 ) -> SelectedIssue | None:
     """Phase 4: Select highest-priority unblocked Todo issue."""
+    log.info("Phase 4: checking Todo issues")
     issues = _run_list_script("tm_list_issues.py", "--status", "Todo")
     if not issues:
+        log.info("  → no Todo issues found")
         return None
+    log.info("  → found %d Todo issue(s), checking blockers", len(issues))
 
     filtered = [
         i
@@ -216,17 +291,78 @@ def _phase_todo(
     return None
 
 
+def _phase_conversation(
+    cfg: dict,
+    active_project_ids: set[str],
+    quarantined_ids: set[str],
+) -> SelectedIssue | None:
+    """Phase 5: Find conversation issues — projectless, assigned to operator.
+
+    These are issues without an active project that are assigned to the daemon
+    operator. They use a comment-based conversation workflow instead of the
+    standard plan→execute→PR pipeline.
+    """
+    operator_id = cfg.get("operator", {}).get("id", "")
+    if not operator_id:
+        log.info("Phase 5: skipped — no operator ID configured")
+        return None
+
+    log.info("Phase 5: checking conversation issues (assigned to operator)")
+
+    # Fetch issues assigned to the operator across actionable statuses
+    for status in ("In Progress", "Todo"):
+        issues = _run_list_script(
+            "tm_list_issues.py", "--status", status, "--assignee", operator_id
+        )
+        if not issues:
+            continue
+
+        for issue in issues:
+            if issue.get("id") in quarantined_ids:
+                continue
+            # Only pick up issues that are NOT in active projects
+            project_id = issue.get("project_id")
+            if project_id and project_id in active_project_ids:
+                continue
+            log.info(
+                "  → found conversation issue: %s — %s (%s)",
+                issue.get("identifier", "?"),
+                issue.get("title", "?"),
+                status,
+            )
+            return _to_selected(issue)
+
+    log.info("  → no conversation issues found")
+    return None
+
+
 def _passes_filters(
     issue: dict,
     active_project_ids: set[str],
     quarantined_ids: set[str],
     project_filter: str | None,
+    *,
+    allow_projectless: bool = False,
+    operator_id: str = "",
 ) -> bool:
-    """Check if an issue passes the active project and quarantine filters."""
+    """Check if an issue passes the active project and quarantine filters.
+
+    When allow_projectless is True, issues with no project are accepted if
+    they are assigned to the operator (conversation issues).
+    """
+    identifier = issue.get("identifier", issue.get("id", "?"))
     if issue.get("id") in quarantined_ids:
+        log.info("  ⊘ %s — skipped (quarantined)", identifier)
         return False
-    if issue.get("project_id") not in active_project_ids:
+
+    project_id = issue.get("project_id")
+    if project_id not in active_project_ids:
+        # Allow projectless issues assigned to operator when opted in
+        if allow_projectless and not project_id:
+            if issue.get("assignee_id") == operator_id:
+                return True
         return False
+
     if project_filter and issue.get("project_name") != project_filter:
         return False
     return True
@@ -293,7 +429,8 @@ def _run_script(script_name: str, *args: str) -> dict | list | None:
     script_path = scripts_dir / script_name
 
     cmd = [python, str(script_path), *args]
-    log.debug("Running: %s", " ".join(cmd))
+    args_str = " ".join(args) if args else "(no args)"
+    log.info("    query: %s %s", script_name, args_str)
 
     try:
         result = subprocess.run(
@@ -303,17 +440,26 @@ def _run_script(script_name: str, *args: str) -> dict | list | None:
             timeout=30,
         )
     except subprocess.TimeoutExpired:
-        log.warning("Script timed out: %s", script_name)
+        log.warning("    query timed out: %s", script_name)
         return None
 
     if result.returncode != 0:
         log.warning(
-            "Script failed (%d): %s\n%s", result.returncode, script_name, result.stderr
+            "    query failed (%d): %s\n%s",
+            result.returncode,
+            script_name,
+            result.stderr,
         )
         return None
 
     try:
-        return json.loads(result.stdout)
+        parsed = json.loads(result.stdout)
+        if isinstance(parsed, list):
+            log.info("    result: %d item(s)", len(parsed))
+        elif isinstance(parsed, dict):
+            summary = parsed.get("identifier") or parsed.get("id", "")
+            log.info("    result: %s", summary or "1 object")
+        return parsed
     except json.JSONDecodeError:
-        log.warning("Invalid JSON from %s: %s", script_name, result.stdout[:200])
+        log.warning("    invalid JSON from %s: %s", script_name, result.stdout[:200])
         return None

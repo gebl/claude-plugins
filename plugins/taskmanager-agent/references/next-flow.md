@@ -22,6 +22,14 @@ Selects the next issue to work on. Returns an issue ID (with optional context li
 
 1c. **Apply project filter** if provided.
 
+1c2. **Check for human comments on the Linear issue.** Fetch comments:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_comments.py <issue-id>
+   ```
+   If any comment exists from a user other than the operator (config `operator.id`) AND does not start with `**[Activity]**` AND is newer than the last-seen timestamp for this issue → select this issue.
+
+   This check runs before the PR check so that direct Linear feedback is detected even when the PR has no comments.
+
 1d. **For each In Review issue**, look up its project in config to get the `repo` URL. Get the issue's `branch_name` field. Check PR status:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/check_pr_status.py \

@@ -8,20 +8,22 @@
 - `parent_issue_id` — ID of the issue that needs human input
 - `parent_issue_key` — Display key of the parent issue (e.g. `ENG-42`)
 - `question` — The specific question or blocker requiring human review
+- `title` — (optional) Custom title for the review sub-issue. Defaults to `"[Review] <parent_key>: <short summary of question>"`
 
 ### Steps
 
 1. **Create a review sub-issue:**
    Determine the review assignee: use `issue_defaults.assignee_id` from config if set, otherwise fall back to the parent issue's `creator_id`.
+   Use `title` if provided, otherwise default to `"[Review] <parent_key>: <short summary of question>"`.
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-     --title "[Review] <parent_key>: <question>" \
+     --title "<title>" \
      --team <team> \
      --parent-id <parent_id> \
      --assignee <review_assignee_id> \
      --labels Review \
      --state Todo \
-     --description "<context and questions>"
+     --description "<question>"
    ```
    Note the returned issue key (e.g. `ENG-43`) as `<review_key>`.
 

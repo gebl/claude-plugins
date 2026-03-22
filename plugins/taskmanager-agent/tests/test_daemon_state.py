@@ -74,3 +74,67 @@ class TestDaemonState:
 
         s.clear_active_session()
         assert s.active_session is None
+
+    def test_seen_comments_default_empty(self):
+        s = DaemonState()
+        assert s.seen_comments == {}
+        assert s.last_seen_comment_at("issue-1") is None
+
+    def test_mark_and_retrieve_seen_comments(self):
+        s = DaemonState()
+        ts = "2024-01-15T10:00:00+00:00"
+        s.mark_comments_seen("issue-1", ts)
+        assert s.last_seen_comment_at("issue-1") == ts
+        assert s.last_seen_comment_at("issue-2") is None
+
+    def test_seen_comments_persisted_across_save_load(self, tmp_path, monkeypatch):
+        state_file = tmp_path / "daemon-state.yaml"
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_FILE", state_file)
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_DIR", tmp_path)
+
+        s = DaemonState()
+        s.mark_comments_seen("issue-42", "2024-06-01T08:00:00+00:00")
+        s.save()
+
+        loaded = DaemonState.load()
+        assert loaded.last_seen_comment_at("issue-42") == "2024-06-01T08:00:00+00:00"
+        assert loaded.last_seen_comment_at("other-issue") is None
+
+    def test_history_with_token_fields(self, tmp_path, monkeypatch):
+        state_file = tmp_path / "daemon-state.yaml"
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_FILE", state_file)
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_DIR", tmp_path)
+
+        s = DaemonState()
+        s.add_to_history(
+            "issue-1",
+            "completed",
+            120.5,
+            total_cost_usd=0.1234,
+            input_tokens=1000,
+            output_tokens=500,
+            num_turns=3,
+        )
+        s.save()
+
+        loaded = DaemonState.load()
+        h = loaded.history[0]
+        assert h.total_cost_usd == 0.1234
+        assert h.input_tokens == 1000
+        assert h.output_tokens == 500
+        assert h.num_turns == 3
+
+    def test_history_without_token_fields_backward_compat(self, tmp_path, monkeypatch):
+        state_file = tmp_path / "daemon-state.yaml"
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_FILE", state_file)
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_DIR", tmp_path)
+
+        s = DaemonState()
+        s.add_to_history("issue-1", "completed", 60.0)
+        s.save()
+
+        loaded = DaemonState.load()
+        h = loaded.history[0]
+        assert h.input_tokens is None
+        assert h.output_tokens is None
+        assert h.num_turns is None

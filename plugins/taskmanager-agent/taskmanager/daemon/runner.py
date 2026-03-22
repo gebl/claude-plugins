@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import signal
@@ -12,11 +13,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from taskmanager import config
+from taskmanager.daemon import database
 from taskmanager.daemon import logging_config
 from taskmanager.daemon import poller
 from taskmanager.daemon import selector
 from taskmanager.daemon import session
 from taskmanager.daemon import state
+from taskmanager.daemon import validator
 
 log = logging.getLogger("tm-daemon.runner")
 
@@ -56,6 +59,8 @@ class DaemonRunner:
         signal.signal(signal.SIGINT, self._handle_signal)
         signal.signal(signal.SIGTERM, self._handle_signal)
 
+        database.init_db()
+
         log.info("Daemon started (pid=%d)", os.getpid())
 
         try:
@@ -72,13 +77,24 @@ class DaemonRunner:
             self._state.last_poll = _now_iso()
 
             quarantined_ids = {q.issue_id for q in self._state.quarantine}
-            selected = selector.select_next_issue(quarantined_ids)
+            quarantine_note = (
+                f" ({len(quarantined_ids)} quarantined)" if quarantined_ids else ""
+            )
+            log.info(
+                "Poll #%d — scanning for work%s",
+                self._state.poll_count,
+                quarantine_note,
+            )
+            selected = selector.select_next_issue(
+                quarantined_ids, seen_comments=self._state.seen_comments
+            )
 
             if selected:
                 log.info(
-                    "Selected: %s — %s (status=%s)",
+                    "Selected: %s — %s (priority=%s, status=%s)",
                     selected.identifier,
                     selected.title,
+                    selected.priority or "none",
                     selected.status,
                 )
                 self._state.last_work_found = _now_iso()
@@ -89,7 +105,6 @@ class DaemonRunner:
                 self._state.save()
                 continue
 
-            log.debug("No work found (tier %d)", self._poller.tier_index)
             self._poller.no_work_found()
 
             self._state.current_interval_seconds = self._poller.current_interval
@@ -99,13 +114,23 @@ class DaemonRunner:
                 break
 
             interval = self._poller.current_interval
-            log.debug("Sleeping %.0fs before next poll", interval)
+            log.info(
+                "No work found — sleeping %.0fs (tier %d)",
+                interval,
+                self._poller.tier_index,
+            )
             # Sleep in small increments so we can respond to signals
             end_time = time.monotonic() + interval
             while time.monotonic() < end_time:
                 if self._draining or self._force_stop:
                     break
                 time.sleep(min(1.0, end_time - time.monotonic()))
+
+    def _is_conversation_issue(
+        self, selected: selector.SelectedIssue, active_project_ids: set[str]
+    ) -> bool:
+        """Check if an issue is a conversation-mode issue (no active project)."""
+        return not selected.project_id or selected.project_id not in active_project_ids
 
     def _process_issue(self, selected: selector.SelectedIssue) -> None:
         """Spawn a Claude session and handle the result."""
@@ -129,25 +154,48 @@ class DaemonRunner:
         ):
             log_file = logging_config.session_log_path(selected.identifier)
 
+        session_started_at = _now_iso()
         self._state.set_active_session(selected.issue_id, os.getpid())
         self._state.save()
+
+        def _on_proc(proc: subprocess.Popen) -> None:
+            self._active_proc = proc
+
+        # Determine the command based on issue type
+        active_project_ids = set(projects_by_id.keys())
+        session_command = None
+        if self._is_conversation_issue(selected, active_project_ids):
+            session_command = f"/tm-converse {selected.identifier}"
 
         result = session.run_session(
             issue_identifier=selected.identifier,
             working_dir=working_dir,
             log_file=log_file,
             timeout=self._timeout,
+            issue_id=selected.issue_id,
+            proc_callback=_on_proc,
+            command=session_command,
         )
 
+        self._active_proc = None
         self._state.clear_active_session()
+        self._state.mark_comments_seen(selected.issue_id, _now_iso())
 
         if result.timed_out:
             self._quarantine_issue(
                 selected, f"Session timed out after {self._timeout}s"
             )
             self._state.add_to_history(
-                selected.issue_id, "timeout", result.duration_seconds
+                selected.issue_id,
+                "timeout",
+                result.duration_seconds,
+                total_cost_usd=result.total_cost_usd,
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                num_turns=result.num_turns,
             )
+            self._record_session_to_db(selected, result, "timeout", session_started_at)
+            self._post_session_summary(selected, result, "timeout")
             return
 
         # Check post-session state
@@ -156,7 +204,13 @@ class DaemonRunner:
         if post_issue:
             post_status = post_issue.get("status", {}).get("name", "")
 
-        if post_status == pre_status:
+        is_conversation = self._is_conversation_issue(selected, active_project_ids)
+
+        if (
+            post_status == pre_status
+            and pre_status != "In Review"
+            and not is_conversation
+        ):
             log.warning(
                 "Issue %s state unchanged after session (still %s)",
                 selected.identifier,
@@ -166,18 +220,231 @@ class DaemonRunner:
                 selected, f"State unchanged after session (remained {pre_status})"
             )
             self._state.add_to_history(
-                selected.issue_id, "unchanged", result.duration_seconds
+                selected.issue_id,
+                "unchanged",
+                result.duration_seconds,
+                total_cost_usd=result.total_cost_usd,
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                num_turns=result.num_turns,
             )
-        else:
-            log.info(
-                "Issue %s transitioned: %s → %s",
+            self._record_session_to_db(selected, result, "unchanged", session_started_at)
+            self._post_session_summary(selected, result, "unchanged")
+        elif not _is_valid_transition(pre_status, post_status):
+            log.warning(
+                "Issue %s made invalid transition: %s → %s",
                 selected.identifier,
                 pre_status,
                 post_status,
             )
-            self._state.add_to_history(
-                selected.issue_id, "completed", result.duration_seconds
+            self._quarantine_issue(
+                selected,
+                f"Invalid workflow transition: {pre_status} → {post_status}",
             )
+            self._state.add_to_history(
+                selected.issue_id,
+                "invalid_transition",
+                result.duration_seconds,
+                total_cost_usd=result.total_cost_usd,
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                num_turns=result.num_turns,
+            )
+            self._record_session_to_db(selected, result, "invalid_transition", session_started_at)
+            self._post_session_summary(selected, result, "invalid_transition")
+        else:
+            # Valid transition — now check artifact requirements
+            comments = selector._run_list_script(
+                "tm_list_comments.py", selected.issue_id
+            )
+            sub_issues = selector._run_list_script(
+                "tm_list_issues.py", "--parent", selected.issue_id
+            )
+            artifact_ok, artifact_reason = validator.validate_artifacts(
+                pre_status,
+                post_status,
+                post_issue or {},
+                comments or [],
+                sub_issues or [],
+            )
+            if not artifact_ok:
+                log.warning(
+                    "Issue %s missing artifacts: %s",
+                    selected.identifier,
+                    artifact_reason,
+                )
+                self._quarantine_issue(selected, artifact_reason)
+                self._state.add_to_history(
+                    selected.issue_id,
+                    "missing_artifacts",
+                    result.duration_seconds,
+                    total_cost_usd=result.total_cost_usd,
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
+                    num_turns=result.num_turns,
+                )
+                self._record_session_to_db(selected, result, "missing_artifacts", session_started_at)
+                self._post_session_summary(selected, result, "missing_artifacts")
+            else:
+                log.info(
+                    "Issue %s transitioned: %s → %s",
+                    selected.identifier,
+                    pre_status,
+                    post_status,
+                )
+                self._state.add_to_history(
+                    selected.issue_id,
+                    "completed",
+                    result.duration_seconds,
+                    total_cost_usd=result.total_cost_usd,
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
+                    num_turns=result.num_turns,
+                )
+                db_row_id = self._record_session_to_db(
+                    selected, result, "completed", session_started_at
+                )
+                self._post_session_summary(selected, result, "completed")
+
+                # Record PR if the session transitioned to In Review
+                if post_status == "In Review" and selected.branch_name:
+                    self._capture_pr(selected, project, db_row_id)
+
+    def _capture_pr(
+        self,
+        selected: selector.SelectedIssue,
+        project: dict,
+        db_session_id: int | None,
+    ) -> None:
+        """Check for a PR on the branch and record it to the database."""
+        repo_url = project.get("repo", "")
+        if not repo_url or not selected.branch_name:
+            return
+
+        scripts_dir = selector._find_scripts_dir()
+        python = selector._find_venv_python()
+
+        try:
+            proc = subprocess.run(
+                [
+                    python,
+                    str(scripts_dir / "check_pr_status.py"),
+                    "--repo-url",
+                    repo_url,
+                    "--branch",
+                    selected.branch_name,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if proc.returncode != 0:
+                return
+
+            pr_data = json.loads(proc.stdout)
+            pr_url = pr_data.get("pr_url", "")
+            if pr_url and pr_data.get("state") != "not_found":
+                database.record_pr(
+                    issue_id=selected.issue_id,
+                    pr_url=pr_url,
+                    branch_name=selected.branch_name,
+                    session_id=db_session_id,
+                )
+        except Exception:
+            log.exception("Failed to capture PR for %s", selected.identifier)
+
+    def _record_session_to_db(
+        self,
+        selected: selector.SelectedIssue,
+        result: session.SessionResult,
+        outcome: str,
+        started_at: str,
+    ) -> int | None:
+        """Persist session metrics to the SQLite database."""
+        try:
+            return database.record_session(
+                issue_id=selected.issue_id,
+                issue_identifier=selected.identifier,
+                project_id=selected.project_id,
+                project_name=selected.project_name,
+                session_id=result.session_id,
+                branch_name=selected.branch_name,
+                outcome=outcome,
+                exit_code=result.exit_code,
+                timed_out=result.timed_out,
+                duration_seconds=result.duration_seconds,
+                duration_api_ms=result.duration_api_ms,
+                total_cost_usd=result.total_cost_usd,
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                cache_read_input_tokens=result.cache_read_input_tokens,
+                cache_creation_input_tokens=result.cache_creation_input_tokens,
+                num_turns=result.num_turns,
+                started_at=started_at,
+            )
+        except Exception:
+            log.exception("Failed to record session to database for %s", selected.identifier)
+            return None
+
+    def _post_session_summary(
+        self,
+        selected: selector.SelectedIssue,
+        result: session.SessionResult,
+        outcome: str,
+    ) -> None:
+        """Post a session metrics comment to the Linear issue."""
+        parts = [f"**[Session Complete]** Outcome: {outcome}"]
+
+        duration_mins = result.duration_seconds / 60
+        parts.append(f"Duration: {duration_mins:.1f}m (wall clock)")
+
+        if result.duration_api_ms is not None:
+            api_mins = result.duration_api_ms / 1000 / 60
+            parts.append(f"API time: {api_mins:.1f}m")
+
+        if result.total_cost_usd is not None:
+            parts.append(f"Cost: ${result.total_cost_usd:.4f}")
+
+        if result.input_tokens is not None or result.output_tokens is not None:
+            token_parts = []
+            if result.input_tokens is not None:
+                token_parts.append(f"{result.input_tokens} in")
+            if result.output_tokens is not None:
+                token_parts.append(f"{result.output_tokens} out")
+            token_str = f"Tokens: {' / '.join(token_parts)}"
+            cache_parts = []
+            if result.cache_read_input_tokens is not None:
+                cache_parts.append(f"{result.cache_read_input_tokens} read")
+            if result.cache_creation_input_tokens is not None:
+                cache_parts.append(f"{result.cache_creation_input_tokens} created")
+            if cache_parts:
+                token_str += f" (cache: {', '.join(cache_parts)})"
+            parts.append(token_str)
+
+        if result.num_turns is not None:
+            parts.append(f"Turns: {result.num_turns}")
+
+        body = " | ".join(parts)
+
+        scripts_dir = selector._find_scripts_dir()
+        python = selector._find_venv_python()
+
+        try:
+            subprocess.run(
+                [
+                    python,
+                    str(scripts_dir / "tm_save_comment.py"),
+                    "--issue-id",
+                    selected.issue_id,
+                    "--body",
+                    body,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            log.error("Failed to post session summary for %s", selected.identifier)
 
     def _resolve_working_dir(
         self, selected: selector.SelectedIssue, project: dict
@@ -212,12 +479,10 @@ class DaemonRunner:
 
             return None
 
-        # Non-code project — create session directory
+        # Non-code project or conversation issue — create session directory
+        dir_name = selected.project_name or selected.identifier
         session_dir = (
-            Path.home()
-            / "Projects"
-            / "sessions"
-            / selected.project_name.lower().replace(" ", "-")
+            Path.home() / "Projects" / "sessions" / dir_name.lower().replace(" ", "-")
         )
         session_dir.mkdir(parents=True, exist_ok=True)
         return session_dir
@@ -230,7 +495,7 @@ class DaemonRunner:
         # Create error sub-issue
         cfg = config.load_config()
         team_id = cfg.get("team", {}).get("id", "")
-        operator_id = cfg.get("operator", {}).get("id", "")
+        human_id = cfg.get("issue_defaults", {}).get("assignee_id", "")
 
         if team_id:
             scripts_dir = selector._find_scripts_dir()
@@ -252,7 +517,7 @@ class DaemonRunner:
                         "Todo",
                         "--label",
                         "Review",
-                        *(["--assignee", operator_id] if operator_id else []),
+                        *(["--assignee", human_id] if human_id else []),
                         "--description",
                         f"The daemon encountered an error processing {selected.identifier}.\n\nReason: {reason}\n\nThis issue has been quarantined. To retry, remove it from the quarantine list in ~/.claude/taskmanager/daemon-state.yaml.",
                     ],
@@ -312,12 +577,33 @@ class DaemonRunner:
         if self._draining:
             log.info("Second signal received — force stopping")
             self._force_stop = True
+            if self._active_proc:
+                log.info(
+                    "Killing active session process (pid=%d)", self._active_proc.pid
+                )
+                self._active_proc.kill()
         else:
             log.info(
                 "Signal %d received — draining (finish current session, then exit)",
                 signum,
             )
             self._draining = True
+
+
+_VALID_TRANSITIONS: dict[str, set[str]] = {
+    "Todo": {"In Progress", "In Review", "Blocked"},
+    "In Progress": {"In Review", "Blocked"},
+    "In Review": {"In Review", "Done", "Blocked", "In Progress"},
+    "Blocked": {"In Progress", "Todo", "In Review"},
+}
+
+
+def _is_valid_transition(pre: str, post: str) -> bool:
+    """Check whether a status transition follows the expected workflow."""
+    valid = _VALID_TRANSITIONS.get(pre)
+    if valid is None:
+        return True  # Unknown pre-status — don't block
+    return post in valid
 
 
 def _now_iso() -> str:

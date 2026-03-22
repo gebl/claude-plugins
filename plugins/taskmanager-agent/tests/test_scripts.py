@@ -1,4 +1,5 @@
 """Tests for CLI scripts in scripts/."""
+
 import pytest
 
 SCRIPTS = [
@@ -30,8 +31,14 @@ def test_script_has_help(run_script, script):
 def test_create_forgejo_pr_missing_token(run_script):
     result = run_script(
         "create_forgejo_pr.py",
-        "--repo-url", "https://forgejo.example.com/Org/repo",
-        "--branch", "test", "--title", "test", "--body", "test",
+        "--repo-url",
+        "https://forgejo.example.com/Org/repo",
+        "--branch",
+        "test",
+        "--title",
+        "test",
+        "--body",
+        "test",
         env_override={"FORGEJO_TOKEN": ""},
     )
     assert result.returncode != 0
@@ -41,3 +48,53 @@ def test_create_forgejo_pr_missing_token(run_script):
 def test_create_forgejo_pr_has_help(run_script):
     result = run_script("create_forgejo_pr.py", "--help")
     assert result.returncode == 0
+
+
+def test_create_pr_has_help(run_script):
+    result = run_script("create_pr.py", "--help")
+    assert result.returncode == 0
+
+
+def test_create_pr_missing_token(run_script):
+    result = run_script(
+        "create_pr.py",
+        "--repo-url",
+        "https://forgejo.example.com/Org/repo",
+        "--branch",
+        "test",
+        "--title",
+        "test",
+        "--body",
+        "test",
+        env_override={"FORGEJO_TOKEN": ""},
+    )
+    assert result.returncode != 0
+    assert "FORGEJO_TOKEN" in result.stderr
+
+
+def test_create_forgejo_repo_has_help(run_script):
+    result = run_script("create_forgejo_repo.py", "--help")
+    assert result.returncode == 0
+    assert "name" in result.stdout.lower()
+
+
+def test_create_forgejo_repo_missing_token(run_script):
+    result = run_script(
+        "create_forgejo_repo.py",
+        "--name",
+        "test-repo",
+        env_override={"FORGEJO_TOKEN": "", "FORGEJO_URL": "https://example.com"},
+    )
+    assert result.returncode != 0
+    assert "FORGEJO_TOKEN" in result.stderr
+
+
+def test_create_forgejo_repo_missing_url(run_script):
+    result = run_script(
+        "create_forgejo_repo.py",
+        "--name",
+        "test-repo",
+        env_override={"FORGEJO_TOKEN": "test-token", "FORGEJO_URL": ""},
+    )
+    assert result.returncode != 0
+    assert "FORGEJO_URL" in result.stderr

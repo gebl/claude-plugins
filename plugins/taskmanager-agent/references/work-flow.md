@@ -98,12 +98,18 @@ Then:
      --id <issue-id> \
      --state "In Review"
    ```
-4. Post a completion journal entry and actionable comment:
+4. Post a completion journal entry:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <issue-id> \
-     --body "**[Activity]** Execution complete. PR submitted: <pr-url>\n\n<summary of work done>\n\n**Action needed:** Please review the PR and either merge it or leave comments for changes needed."
+     --body "**[Activity]** Execution complete. PR submitted: <pr-url>\n\n<summary of work done>"
    ```
+5. Create a review sub-issue for PR review via `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` with:
+   - `parent_issue_id` = `<issue-id>`
+   - `parent_issue_key` = `<issue-key>`
+   - `title` = `"Review PR for <issue-key>: <issue-title>"`
+   - `question` = `"PR submitted for review: <pr-url>\n\n<summary of work done>\n\nPlease review the PR and either merge it or add a comment with feedback."`
+   The review-issue-flow will block the parent and assign to the human reviewer.
 
 ---
 
@@ -128,9 +134,14 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_create_d
      --id <issue-id> \
      --state "In Review"
    ```
-2. Post a completion journal entry and actionable comment:
+2. Post a completion journal entry:
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
      --issue-id <issue-id> \
-     --body "**[Activity]** Execution complete.\n\n<summary of work done>\n\n**Action needed:** Please review and close, or leave comments for changes needed."
+     --body "**[Activity]** Execution complete.\n\n<summary of work done>"
    ```
+3. Create a review sub-issue via `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` with:
+   - `parent_issue_id` = `<issue-id>`
+   - `parent_issue_key` = `<issue-key>`
+   - `question` = `"Work complete. Please review the output and either close the issue or add a comment with feedback."`
+   The review-issue-flow will block the parent and assign to the human reviewer.

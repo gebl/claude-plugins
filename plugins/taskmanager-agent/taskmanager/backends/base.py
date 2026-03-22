@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from taskmanager.models import Comment, Document, Issue, Label, Project, ProjectLink, Status, Team, User
+from taskmanager.models import (
+    Comment,
+    Document,
+    Issue,
+    Label,
+    Project,
+    ProjectLink,
+    Status,
+    Team,
+    User,
+)
 
 
 class TaskBackend(Protocol):
@@ -16,22 +26,41 @@ class TaskBackend(Protocol):
 
     # Statuses
     def list_statuses(self, team_id: str) -> list[Status]: ...
-    def create_status(self, team_id: str, name: str, type: str, color: str) -> Status: ...
+    def create_status(
+        self, team_id: str, name: str, type: str, color: str
+    ) -> Status: ...
 
     # Labels
     def list_issue_labels(self) -> list[Label]: ...
     def create_issue_label(self, name: str, color: str) -> Label: ...
     def list_project_labels(self) -> list[Label]: ...
-    def create_project_label(self, name: str, color: str, description: str = "") -> Label: ...
+    def create_project_label(
+        self, name: str, color: str, description: str = ""
+    ) -> Label: ...
 
     # Projects
     def list_projects(self, label: str | None = None) -> list[Project]: ...
-    def save_project(self, name: str, team: str, description: str = "", labels: list[str] | None = None) -> Project: ...
+    def save_project(
+        self,
+        name: str,
+        team: str,
+        description: str = "",
+        labels: list[str] | None = None,
+    ) -> Project: ...
     def get_project_links(self, project_id: str) -> list[ProjectLink]: ...
-    def create_project_link(self, project_id: str, label: str, url: str) -> ProjectLink: ...
+    def create_project_link(
+        self, project_id: str, label: str, url: str
+    ) -> ProjectLink: ...
 
     # Issues
-    def list_issues(self, status: str | list[str] | None = None, project: str | None = None, label: str | None = None, parent_id: str | None = None) -> list[Issue]: ...
+    def list_issues(
+        self,
+        status: str | list[str] | None = None,
+        project: str | None = None,
+        label: str | None = None,
+        parent_id: str | None = None,
+        assignee: str | None = None,
+    ) -> list[Issue]: ...
     def get_issue(self, issue_id: str, include_relations: bool = False) -> Issue: ...
     def save_issue(
         self,
@@ -49,9 +78,16 @@ class TaskBackend(Protocol):
         links: list[dict] | None = None,
     ) -> Issue: ...
 
+    # Relations
+    def create_relation(self, issue_id: str, blocks_id: str) -> dict: ...
+
     # Comments
     def list_comments(self, issue_id: str) -> list[Comment]: ...
-    def save_comment(self, *, id: str | None = None, issue_id: str | None = None, body: str) -> Comment: ...
+    def save_comment(
+        self, *, id: str | None = None, issue_id: str | None = None, body: str
+    ) -> Comment: ...
 
     # Documents
-    def create_document(self, title: str, content: str, project: str | None = None) -> Document: ...
+    def create_document(
+        self, title: str, content: str, project: str | None = None
+    ) -> Document: ...

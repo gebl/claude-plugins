@@ -1,7 +1,7 @@
 ---
 name: tm-issues
-description: "Show issues from active projects. Defaults to Todo and Backlog status. Filter by project or status."
-argument-hint: "[--project <name>] [--status <status>]"
+description: "Show issues from active projects. Defaults to Todo and Backlog status. Filter by project or status. Use --conversation to show projectless conversation issues."
+argument-hint: "[--project <name>] [--status <status>] [--conversation]"
 allowed-tools:
   - Read
   - Bash
@@ -9,7 +9,7 @@ allowed-tools:
 
 # /tm-issues — List Issues from Active Projects
 
-Display issues from active projects, sorted by priority. Defaults to showing Todo and Backlog issues.
+Display issues from active projects, sorted by priority. Defaults to showing Todo and Backlog issues. Use `--conversation` to show projectless conversation issues assigned to the operator.
 
 All script invocations use the pattern:
 ```
@@ -28,6 +28,7 @@ If the config does not exist or is missing required fields, stop and report: "Co
 
 ## Step 2: Parse Arguments
 
+- If `--conversation` is provided, switch to conversation mode (see Step 3b).
 - If `--project <name>` is provided, validate it against the active projects list (case-insensitive). If not found, stop and report:
   ```
   Project '<name>' is not in the active projects list.
@@ -66,6 +67,20 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_iss
 ```
 
 Collect and deduplicate all returned issues (by issue ID) across all calls.
+
+### Step 3b: Fetch Conversation Issues (if `--conversation`)
+
+If `--conversation` was provided, fetch issues assigned to the operator that have no project:
+
+```
+${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_list_issues.py \
+  --assignee <operator-id> \
+  [--status <status>]
+```
+
+If no `--status` was given, run for both Todo and In Progress statuses.
+
+Filter the results to only include issues where `project_id` is null (no project assigned). Skip Step 3 entirely when in conversation mode.
 
 ---
 

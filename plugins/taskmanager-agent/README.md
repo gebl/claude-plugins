@@ -89,6 +89,46 @@ Loops through the entire Todo backlog: select → plan → execute → repeat. P
 /tm-work-backlog --limit 5              # stop after 5 issues
 ```
 
+### Daemon Mode (`tm_daemon.py`)
+
+Run the task manager as a background daemon that continuously polls for work and spawns Claude Code sessions to process issues.
+
+```bash
+python scripts/tm_daemon.py [OPTIONS]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--poll-interval` | `10` | Initial poll interval in seconds |
+| `--timeout` | `9000` (2.5h) | Session timeout in seconds |
+| `--no-daemon-log` | off | Disable the daemon log file |
+| `--no-session-log` | off | Disable per-session log files |
+| `--no-session-output` | off | Disable Claude session output capture |
+
+**How it works:**
+
+1. Loads state from `~/.claude/taskmanager/daemon-state.yaml` and acquires a PID lock (refuses to start if another instance is running).
+2. Polls for work using the same 4-phase selection as `/tm-next`.
+3. Spawns a Claude Code session (`claude --print` with `--output-format stream-json`) for the selected issue.
+4. Posts progress comments on the issue during the session.
+5. On completion, checks whether the issue state actually changed. If not, the issue is quarantined.
+
+**Adaptive Polling:**
+
+The daemon backs off when idle and resets when work is found:
+
+| Tier | Interval | Duration |
+|------|----------|----------|
+| 0 | 10s | 10 min |
+| 1 | 30s | 10 min |
+| 2 | 2 min | 10 min |
+| 3 | 5 min | 10 min |
+| 4 | 15 min | permanent |
+
+**Quarantine:** If a session times out or completes without changing the issue state, the issue is quarantined — an error sub-issue with the "Review" label is created and the parent is blocked. Quarantined issues are skipped during polling until manually resolved.
+
+**Shutdown:** Two-stage signal handling — the first SIGINT/SIGTERM enters drain mode (finishes the active session, then exits). A second signal while draining force-kills the active session and exits immediately.
+
 ## Commands
 
 | Command | Description |
@@ -111,12 +151,34 @@ The plugin automatically determines the mode based on the project configuration:
 - **Code mode** — Project has a `repo` URL. Work happens in a git worktree (`git worktree add`). On completion, changes are committed, pushed, and a PR is created and linked on the issue.
 - **Document mode** — Project has no repo. Work produces Linear documents. On completion, documents are linked and the issue moves to In Review.
 
+## Git Hosting Abstraction
+
+PR creation and status checks go through a `GitHostBackend` protocol in `taskmanager/githost/`, making the plugin independent of any single git hosting platform.
+
+**Current backends:**
+- **Forgejo/Gitea** — fully implemented. Authenticates via `FORGEJO_TOKEN`.
+
+**Platform detection:** `detect_platform(repo_url)` inspects the hostname — `github.com` maps to `"github"`, everything else defaults to `"forgejo"`. The factory function `get_githost_backend()` returns the matching backend instance.
+
+**URL parsing:** `parse_repo_url()` extracts `(owner, repo)` from HTTPS, SSH (`ssh://`), and short SSH (`git@host:path`) URLs. `repo_url_to_https_base()` converts any format to an HTTPS base URL for API calls.
+
+**Adding a new backend:**
+
+1. Create a new file in `taskmanager/githost/` (e.g., `github.py`).
+2. Implement the `GitHostBackend` protocol — two methods: `create_pr()` and `check_pr_status()`.
+3. Add the hostname pattern to `detect_platform()` in `base.py`.
+4. Register the new class in `get_githost_backend()` in `__init__.py`.
+
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `LINEAR_TOKEN` | Yes | Linear API token for reading/writing issues, comments, and projects |
 | `FORGEJO_TOKEN` | For Forgejo PRs | Forgejo/Gitea API token for creating pull requests |
+
+**Daemon git identity:** Sessions spawned by the daemon use a fixed git identity — `Claude Daemon <claude-daemon@local>` — set via `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME`, `GIT_AUTHOR_EMAIL`, and `GIT_COMMITTER_EMAIL` in the session subprocess.
+
+**Daemon state file:** `~/.claude/taskmanager/daemon-state.yaml` — stores PID lock, quarantine list, and session history. Managed automatically by the daemon.
 
 ## Config File
 
@@ -177,19 +239,33 @@ By default, issues created by `/tm-issue-create` and review sub-issues from `/tm
 ## Architecture
 
 ```
-commands/        Slash commands (markdown with YAML frontmatter)
-references/      Shared workflow logic referenced by commands
-scripts/         Python CLI scripts (thin wrappers over the backend)
-taskmanager/     Core Python package
-  config.py        Config file management
-  models.py        Data classes (Issue, Project, Status, Label, etc.)
-  backends/
-    base.py        TaskBackend protocol (interface)
-    linear.py      Linear GraphQL implementation
-tests/           pytest test suite
+commands/           Slash commands (markdown with YAML frontmatter)
+references/         Shared workflow logic referenced by commands
+scripts/            Python CLI scripts (thin wrappers over the backend)
+  tm_daemon.py        Daemon entrypoint
+taskmanager/        Core Python package
+  config.py           Config file management
+  models.py           Data classes (Issue, Project, Status, Label, etc.)
+  backends/           Task tracker backends
+    base.py             TaskBackend protocol (interface)
+    linear.py           Linear GraphQL implementation
+  daemon/             Daemon mode subsystem
+    runner.py           Main daemon loop and signal handling
+    session.py          Claude Code session spawning
+    poller.py           Adaptive polling with backoff tiers
+    selector.py         Issue selection (4-phase priority)
+    progress.py         Progress comment posting
+    state.py            Daemon state persistence and quarantine
+    logging_config.py   Log file configuration
+  githost/            Git hosting backends
+    base.py             GitHostBackend protocol and URL parsing
+    forgejo.py          Forgejo/Gitea implementation
+tests/              pytest test suite
 ```
 
-The plugin is backend-agnostic. All task operations go through the `TaskBackend` protocol. To add support for Jira, GitHub Issues, or another tracker, implement the protocol in `taskmanager/backends/`.
+The plugin is backend-agnostic at two levels:
+- **Task tracking** — all issue operations go through the `TaskBackend` protocol in `taskmanager/backends/`. To add Jira, GitHub Issues, or another tracker, implement the protocol there.
+- **Git hosting** — PR creation and status checks go through the `GitHostBackend` protocol in `taskmanager/githost/`. See [Git Hosting Abstraction](#git-hosting-abstraction) for details.
 
 ## License
 

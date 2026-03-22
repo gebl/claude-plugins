@@ -6,7 +6,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from taskmanager.backends.linear import API_URL, LinearBackend
-from taskmanager.models import Comment, Issue, Label, Project, Status, Team
+from taskmanager.models import Comment, Issue, Label, Status, Team
 
 
 @pytest.fixture

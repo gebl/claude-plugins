@@ -34,6 +34,10 @@ class HistoryEntry:
     outcome: str
     duration_seconds: float
     finished_at: str
+    total_cost_usd: float | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    num_turns: int | None = None
 
 
 @dataclass
@@ -47,6 +51,7 @@ class DaemonState:
     active_session: ActiveSession | None = None
     quarantine: list[QuarantineEntry] = field(default_factory=list)
     history: list[HistoryEntry] = field(default_factory=list)
+    seen_comments: dict[str, str] = field(default_factory=dict)
 
     @staticmethod
     def load() -> DaemonState:
@@ -80,6 +85,10 @@ class DaemonState:
                 outcome=h["outcome"],
                 duration_seconds=h["duration_seconds"],
                 finished_at=h["finished_at"],
+                total_cost_usd=h.get("total_cost_usd"),
+                input_tokens=h.get("input_tokens"),
+                output_tokens=h.get("output_tokens"),
+                num_turns=h.get("num_turns"),
             )
             for h in raw.get("history", [])
         ]
@@ -94,6 +103,7 @@ class DaemonState:
             active_session=active,
             quarantine=quarantine,
             history=history,
+            seen_comments=raw.get("seen_comments", {}),
         )
 
     def save(self) -> None:
@@ -126,9 +136,26 @@ class DaemonState:
                     "outcome": h.outcome,
                     "duration_seconds": h.duration_seconds,
                     "finished_at": h.finished_at,
+                    **(
+                        {"total_cost_usd": h.total_cost_usd}
+                        if h.total_cost_usd is not None
+                        else {}
+                    ),
+                    **(
+                        {"input_tokens": h.input_tokens}
+                        if h.input_tokens is not None
+                        else {}
+                    ),
+                    **(
+                        {"output_tokens": h.output_tokens}
+                        if h.output_tokens is not None
+                        else {}
+                    ),
+                    **({"num_turns": h.num_turns} if h.num_turns is not None else {}),
                 }
                 for h in self.history
             ],
+            "seen_comments": self.seen_comments,
         }
 
         STATE_FILE.write_text(
@@ -150,7 +177,14 @@ class DaemonState:
         )
 
     def add_to_history(
-        self, issue_id: str, outcome: str, duration_seconds: float
+        self,
+        issue_id: str,
+        outcome: str,
+        duration_seconds: float,
+        total_cost_usd: float | None = None,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        num_turns: int | None = None,
     ) -> None:
         self.history.append(
             HistoryEntry(
@@ -158,6 +192,10 @@ class DaemonState:
                 outcome=outcome,
                 duration_seconds=duration_seconds,
                 finished_at=_now_iso(),
+                total_cost_usd=total_cost_usd,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                num_turns=num_turns,
             )
         )
         # Cap history at HISTORY_CAP entries, keeping most recent
@@ -173,6 +211,14 @@ class DaemonState:
             started_at=_now_iso(),
             pid=pid,
         )
+
+    def mark_comments_seen(self, issue_id: str, timestamp: str) -> None:
+        """Record the latest comment timestamp seen for an issue."""
+        self.seen_comments[issue_id] = timestamp
+
+    def last_seen_comment_at(self, issue_id: str) -> str | None:
+        """Return the last seen comment timestamp for an issue, or None."""
+        return self.seen_comments.get(issue_id)
 
 
 def _now_iso() -> str:

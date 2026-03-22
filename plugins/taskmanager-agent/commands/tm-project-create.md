@@ -1,16 +1,20 @@
 ---
 name: tm-project-create
-description: "Create a new project and mark it as active for the task manager. Optionally attach a git repository URL."
-argument-hint: "<name> [--repo <url>] [--description <text>]"
+description: "Create a new project with Linear project, Forgejo repo, local clone, and config update. Supports both full setup and Linear-only modes."
+argument-hint: "<name> [--repo <url>] [--description <text>] [--full] [--org <name>] [--public]"
 allowed-tools:
   - Read
   - Write
+  - Edit
   - Bash
 ---
 
 # /tm-project-create — Create a New Active Project
 
-Create a new Linear project, tag it as Claude-active, and optionally attach a git repository URL.
+Create a new project. Two modes:
+
+- **Default**: Create a Linear project and optionally attach an existing repo URL.
+- **Full setup** (`--full`): Create Linear project + Forgejo repository + local clone + config update — follows `references/project-setup-flow.md` end-to-end.
 
 All script invocations use the pattern:
 ```
@@ -24,7 +28,7 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/<script>.py
 `<name>` is required. If not provided, stop and report:
 
 ```
-Usage: /tm-project-create <name> [--repo <url>] [--description <text>]
+Usage: /tm-project-create <name> [--repo <url>] [--description <text>] [--full] [--org <name>] [--public]
 ```
 
 ---
@@ -37,7 +41,25 @@ If the config does not exist or is missing required fields, stop and report: "Co
 
 ---
 
-## Step 3: Create the Project
+## Step 3: Route by Mode
+
+### If `--full` is provided:
+
+Follow `${CLAUDE_PLUGIN_ROOT}/references/project-setup-flow.md` with:
+- `name` = the provided name
+- `description` = `--description` value if given
+- `visibility` = "public" if `--public`, otherwise "private"
+- `org` = `--org` value if given, otherwise from config or environment
+
+Display the full summary from the setup flow and stop.
+
+### If `--full` is NOT provided (default):
+
+Continue with the legacy steps below.
+
+---
+
+## Step 4: Create the Project (legacy mode)
 
 Run:
 
@@ -55,7 +77,7 @@ Capture the returned `project-id` from the script output.
 
 ---
 
-## Step 4: Attach Repository Link (if provided)
+## Step 5: Attach Repository Link (if provided)
 
 If `--repo <url>` was given, run:
 
@@ -70,7 +92,7 @@ If the script returns an error, report it as a warning but do not fail — the p
 
 ---
 
-## Step 5: Update Config
+## Step 6: Update Config
 
 Add the new project to the `projects` list in `~/.claude/taskmanager.yaml`:
 
@@ -86,7 +108,7 @@ Write the updated config back to disk, preserving all existing fields.
 
 ---
 
-## Step 6: Display Summary
+## Step 7: Display Summary
 
 ```
 Created project: <name> (<project-id>)
@@ -95,6 +117,7 @@ Repo:            <url, or "none">
 Config:          ~/.claude/taskmanager.yaml updated
 
 Next steps:
+  /tm-project-create "<name>" --full   — set up repo and local clone
   /tm-issue-create "<title>" --project "<name>"   — add issues to this project
   /tm-health                                       — refresh config and validate git access
 ```

@@ -1,7 +1,7 @@
 ---
 name: tm-issue-create
-description: "Create a new issue in an active project. Sets status to Todo so it's ready to be picked up."
-argument-hint: "<title> --project <name> [--priority <level>] [--description <text>] [--assignee <name-or-id>]"
+description: "Create a new issue in an active project, or as a projectless conversation issue. Sets status to Todo so it's ready to be picked up."
+argument-hint: "<title> [--project <name>] [--priority <level>] [--description <text>] [--assignee <name-or-id>]"
 allowed-tools:
   - Read
   - Bash
@@ -9,7 +9,7 @@ allowed-tools:
 
 # /tm-issue-create — Create a New Issue
 
-Create a new Linear issue in an active project with status set to Todo.
+Create a new Linear issue with status set to Todo. If `--project` is provided, the issue is created in that project. If omitted, the issue is created as a projectless conversation issue.
 
 All script invocations use the pattern:
 ```
@@ -20,10 +20,10 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/<script>.py
 
 ## Step 1: Validate Arguments
 
-`<title>` and `--project <name>` are both required. If either is missing, stop and report:
+`<title>` is required. If missing, stop and report:
 
 ```
-Usage: /tm-issue-create <title> --project <name> [--priority <level>] [--description <text>] [--assignee <name-or-id>]
+Usage: /tm-issue-create <title> [--project <name>] [--priority <level>] [--description <text>] [--assignee <name-or-id>]
 ```
 
 Valid priority levels: `urgent`, `high`, `normal` (default), `low`
@@ -46,14 +46,16 @@ If the config does not exist or is missing required fields, stop and report: "Co
 
 ---
 
-## Step 3: Validate Project
+## Step 3: Validate Project (if provided)
 
-Check that the provided project name matches an entry in the active projects list (case-insensitive comparison). If not found, stop and report:
+If `--project` was given, check that the project name matches an entry in the active projects list (case-insensitive comparison). If not found, stop and report:
 
 ```
 Project '<name>' is not in the active projects list.
 Active projects: <comma-separated list of project names>
 ```
+
+If `--project` was NOT given, skip this step. The issue will be created without a project (conversation issue).
 
 ---
 
@@ -101,14 +103,14 @@ Run:
 ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
   --title <title> \
   --team <team-id> \
-  --project <project-name> \
+  [--project <project-name>] \
   --state Todo \
   --priority <n> \
   [--description <text>] \
   [--assignee <resolved-user-id>]
 ```
 
-Include `--description <text>` only if it was provided. Include `--assignee <resolved-user-id>` only if an assignee was resolved in Step 5. If the script returns an error, report it and stop.
+Include `--project <project-name>` only if a project was provided. Include `--description <text>` only if it was provided. Include `--assignee <resolved-user-id>` only if an assignee was resolved in Step 5. If the script returns an error, report it and stop.
 
 Capture the returned issue ID from the script output.
 

@@ -2,11 +2,12 @@
 
 import os
 import signal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from taskmanager.daemon.runner import DaemonRunner
+from taskmanager.daemon.session import SessionResult
 from taskmanager.daemon.state import DaemonState
 
 
@@ -169,3 +170,260 @@ class TestQuarantine:
             runner._quarantine_issue(selected, "timed out")
 
         assert runner._state.is_quarantined("id-123")
+
+    def test_quarantine_assigns_to_human(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "taskmanager.daemon.state.STATE_FILE", tmp_path / "state.yaml"
+        )
+        monkeypatch.setattr("taskmanager.daemon.state.STATE_DIR", tmp_path)
+
+        runner = DaemonRunner()
+        runner._state = DaemonState()
+
+        from taskmanager.daemon.selector import SelectedIssue
+
+        selected = SelectedIssue(
+            issue_id="id-123",
+            identifier="LAN-99",
+            title="Test Issue",
+            status="In Progress",
+            priority=3,
+            project_id="p1",
+            project_name="My Project",
+        )
+
+        mock_config = {
+            "team": {"id": "team-1"},
+            "operator": {"id": "op-1"},
+            "issue_defaults": {"assignee_id": "human-1"},
+        }
+
+        calls = []
+
+        def capture_run(*args, **kwargs):
+            calls.append(args[0] if args else kwargs.get("args", []))
+            return MagicMock(returncode=0)
+
+        with (
+            patch(
+                "taskmanager.daemon.runner.config.load_config", return_value=mock_config
+            ),
+            patch(
+                "taskmanager.daemon.runner.selector._find_scripts_dir",
+                return_value=tmp_path,
+            ),
+            patch(
+                "taskmanager.daemon.runner.selector._find_venv_python",
+                return_value="python",
+            ),
+            patch("subprocess.run", side_effect=capture_run),
+        ):
+            runner._quarantine_issue(selected, "timed out")
+
+        # The first subprocess.run call creates the error sub-issue
+        create_call = calls[0]
+        assignee_idx = create_call.index("--assignee") + 1
+        assert create_call[assignee_idx] == "human-1"
+
+
+class TestForceStop:
+    def test_second_signal_kills_active_proc(self):
+        runner = DaemonRunner()
+        mock_proc = MagicMock()
+        runner._active_proc = mock_proc
+
+        runner._handle_signal(signal.SIGINT, None)  # first — drain
+        runner._handle_signal(signal.SIGINT, None)  # second — force stop
+
+        mock_proc.kill.assert_called_once()
+
+
+class TestTransitionValidation:
+    def test_todo_to_in_progress_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("Todo", "In Progress") is True
+
+    def test_todo_to_in_review_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("Todo", "In Review") is True
+
+    def test_todo_to_blocked_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("Todo", "Blocked") is True
+
+    def test_todo_to_done_is_invalid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("Todo", "Done") is False
+
+    def test_in_progress_to_in_review_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Progress", "In Review") is True
+
+    def test_in_progress_to_blocked_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Progress", "Blocked") is True
+
+    def test_in_progress_to_done_is_invalid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Progress", "Done") is False
+
+    def test_in_review_to_done_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Review", "Done") is True
+
+    def test_in_review_to_blocked_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Review", "Blocked") is True
+
+    def test_in_review_to_in_progress_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Review", "In Progress") is True
+
+    def test_blocked_to_in_progress_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("Blocked", "In Progress") is True
+
+    def test_in_review_to_in_review_is_valid(self):
+        from taskmanager.daemon.runner import _is_valid_transition
+
+        assert _is_valid_transition("In Review", "In Review") is True
+
+
+class TestConversationIssueDetection:
+    """Tests for conversation issue routing in the runner."""
+
+    def _make_runner(self):
+        return DaemonRunner()
+
+    def _make_selected(self, project_id=None, project_name=None):
+        from taskmanager.daemon.selector import SelectedIssue
+
+        return SelectedIssue(
+            issue_id="id-conv",
+            identifier="LAN-50",
+            title="Conversation Test",
+            status="In Progress",
+            priority=3,
+            project_id=project_id or "",
+            project_name=project_name or "",
+        )
+
+    def test_projectless_issue_is_conversation(self):
+        runner = self._make_runner()
+        selected = self._make_selected(project_id="", project_name="")
+        assert runner._is_conversation_issue(selected, {"p1"}) is True
+
+    def test_active_project_issue_is_not_conversation(self):
+        runner = self._make_runner()
+        selected = self._make_selected(project_id="p1", project_name="Project")
+        assert runner._is_conversation_issue(selected, {"p1"}) is False
+
+    def test_inactive_project_issue_is_conversation(self):
+        runner = self._make_runner()
+        selected = self._make_selected(project_id="p2", project_name="Other")
+        assert runner._is_conversation_issue(selected, {"p1"}) is True
+
+    def test_working_dir_uses_identifier_for_projectless(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+        runner = self._make_runner()
+        selected = self._make_selected(project_id="", project_name="")
+        project = {}
+
+        result = runner._resolve_working_dir(selected, project)
+        expected = tmp_path / "Projects" / "sessions" / "lan-50"
+        assert result == expected
+        assert result.exists()
+
+
+class TestSessionSummary:
+    def _make_selected(self):
+        from taskmanager.daemon.selector import SelectedIssue
+
+        return SelectedIssue(
+            issue_id="id-123",
+            identifier="LAN-99",
+            title="Test",
+            status="In Progress",
+            priority=3,
+            project_id="p1",
+            project_name="My Project",
+        )
+
+    def test_summary_includes_token_counts(self, tmp_path):
+        runner = DaemonRunner()
+        selected = self._make_selected()
+        result = SessionResult(
+            exit_code=0,
+            timed_out=False,
+            duration_seconds=120.0,
+            stdout="",
+            stderr="",
+            total_cost_usd=0.1234,
+            duration_api_ms=5000,
+            input_tokens=1000,
+            output_tokens=500,
+            cache_read_input_tokens=800,
+            cache_creation_input_tokens=200,
+            num_turns=3,
+            session_id="sess-abc",
+        )
+
+        with (
+            patch(
+                "taskmanager.daemon.runner.selector._find_scripts_dir",
+                return_value=tmp_path,
+            ),
+            patch(
+                "taskmanager.daemon.runner.selector._find_venv_python",
+                return_value="python",
+            ),
+            patch("subprocess.run") as mock_run,
+        ):
+            runner._post_session_summary(selected, result, "completed")
+
+        body = mock_run.call_args[0][0][mock_run.call_args[0][0].index("--body") + 1]
+        assert "Tokens: 1000 in / 500 out" in body
+        assert "cache: 800 read, 200 created" in body
+        assert "Turns: 3" in body
+        assert "Cost: $0.1234" in body
+
+    def test_summary_without_tokens(self, tmp_path):
+        runner = DaemonRunner()
+        selected = self._make_selected()
+        result = SessionResult(
+            exit_code=0,
+            timed_out=False,
+            duration_seconds=60.0,
+            stdout="",
+            stderr="",
+            total_cost_usd=0.05,
+        )
+
+        with (
+            patch(
+                "taskmanager.daemon.runner.selector._find_scripts_dir",
+                return_value=tmp_path,
+            ),
+            patch(
+                "taskmanager.daemon.runner.selector._find_venv_python",
+                return_value="python",
+            ),
+            patch("subprocess.run") as mock_run,
+        ):
+            runner._post_session_summary(selected, result, "completed")
+
+        body = mock_run.call_args[0][0][mock_run.call_args[0][0].index("--body") + 1]
+        assert "Tokens:" not in body
+        assert "Turns:" not in body
+        assert "Cost: $0.0500" in body

@@ -18,6 +18,7 @@ Select the next work item and process it. Priority order:
 1. Blocked issues with resolved review sub-issues
 2. In Progress issues already claimed by Claude
 3. Highest-priority Todo issue from the backlog
+4. Conversation issues (projectless, assigned to operator) — only if `conversation_issues: true` in config
 
 This is a self-contained command. It reads reference files for shared logic but does NOT invoke other slash commands.
 

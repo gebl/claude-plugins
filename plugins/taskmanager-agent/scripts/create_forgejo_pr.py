@@ -1,85 +1,30 @@
-"""Create a pull request on a Forgejo instance."""
+"""Create a pull request on a Forgejo instance.
 
-import argparse
-import json
-import os
-import re
+DEPRECATED: Use create_pr.py instead. This script is kept for backward compatibility.
+The URL helpers (parse_repo_url, repo_url_to_https_base) now live in
+taskmanager.githost.base but are re-exported here for existing imports.
+"""
+
 import sys
-from urllib.parse import urlparse
+from pathlib import Path
 
-import httpx
+# Add project root to path so taskmanager package is importable
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Matches short SSH format: git@host:owner/repo.git
-_SHORT_SSH_RE = re.compile(r"^[\w.-]+@([\w.-]+):(.+)$")
-
-
-def parse_repo_url(url: str) -> tuple[str, str]:
-    """Extract owner and repo name from a Forgejo/Gitea repo URL.
-
-    Handles https://, ssh://, and short SSH (git@host:path) formats.
-    """
-    short = _SHORT_SSH_RE.match(url)
-    if short:
-        path = short.group(2)
-    else:
-        path = urlparse(url).path.strip("/")
-    path = path.removesuffix(".git")
-    parts = path.strip("/").split("/")
-    if len(parts) < 2:
-        raise ValueError(f"Cannot parse owner/repo from URL: {url}")
-    return parts[0], parts[1]
-
-
-def repo_url_to_https_base(url: str) -> str:
-    """Convert any git repo URL to an HTTPS base URL for API calls.
-
-    Supports:
-      - https://host[:port]/...  (port preserved — it's the HTTP port)
-      - ssh://[user@]host[:port]/...  (port dropped — SSH port != HTTP port)
-      - git@host:owner/repo.git  (short SSH, no port)
-    """
-    short = _SHORT_SSH_RE.match(url)
-    if short:
-        return f"https://{short.group(1)}"
-
-    parsed = urlparse(url)
-    base = f"https://{parsed.hostname}"
-    # Only preserve the port for HTTP(S) URLs — SSH ports are irrelevant for API calls
-    if parsed.port and parsed.scheme in ("http", "https"):
-        base += f":{parsed.port}"
-    return base
+# Re-export URL helpers for backward compatibility (tests import these)
+from taskmanager.githost.base import parse_repo_url, repo_url_to_https_base  # noqa: F401
 
 
 def main() -> None:
-    token = os.environ.get("FORGEJO_TOKEN", "")
-    if not token:
-        print("Error: FORGEJO_TOKEN environment variable is not set", file=sys.stderr)
-        sys.exit(1)
+    """Delegate to the platform-agnostic create_pr.py."""
+    import importlib.util
 
-    parser = argparse.ArgumentParser(description="Create a Forgejo pull request")
-    parser.add_argument("--repo-url", required=True, help="Full repo URL")
-    parser.add_argument("--branch", required=True, help="Head branch name")
-    parser.add_argument("--title", required=True, help="PR title")
-    parser.add_argument("--body", default="", help="PR body (markdown)")
-    parser.add_argument("--base", default="main", help="Base branch (default: main)")
-    args = parser.parse_args()
-
-    base_url = repo_url_to_https_base(args.repo_url)
-
-    try:
-        owner, repo = parse_repo_url(args.repo_url)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    response = httpx.post(
-        f"{base_url}/api/v1/repos/{owner}/{repo}/pulls",
-        json={"title": args.title, "head": args.branch, "base": args.base, "body": args.body},
-        headers={"Authorization": f"token {token}", "Content-Type": "application/json"},
+    spec = importlib.util.spec_from_file_location(
+        "create_pr", Path(__file__).parent / "create_pr.py"
     )
-    response.raise_for_status()
-    data = response.json()
-    print(json.dumps({"number": data["number"], "html_url": data["html_url"]}))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.main()
 
 
 if __name__ == "__main__":

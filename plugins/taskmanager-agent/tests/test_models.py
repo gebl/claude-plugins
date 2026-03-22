@@ -1,8 +1,17 @@
 import json
 
-import pytest
 
-from taskmanager.models import Comment, Issue, Label, Project, ProjectLink, Status, Team, User, Document
+from taskmanager.models import (
+    Comment,
+    Issue,
+    Label,
+    Project,
+    ProjectLink,
+    Status,
+    Team,
+    User,
+    Document,
+)
 
 
 def make_status(type_: str = "started") -> Status:
@@ -70,17 +79,36 @@ class TestLabel:
 
 class TestComment:
     def test_to_dict_contains_all_fields(self):
-        c = Comment(id="c1", issue_id="i1", body="Looks good", created_at="2026-01-01T00:00:00Z")
+        c = Comment(
+            id="c1", issue_id="i1", body="Looks good", created_at="2026-01-01T00:00:00Z"
+        )
         d = c.to_dict()
         assert d == {
             "id": "c1",
             "issue_id": "i1",
             "body": "Looks good",
             "created_at": "2026-01-01T00:00:00Z",
+            "user_id": "",
+            "user_name": "",
         }
 
+    def test_to_dict_with_user(self):
+        c = Comment(
+            id="c1",
+            issue_id="i1",
+            body="Fix this",
+            created_at="2026-01-01T00:00:00Z",
+            user_id="u1",
+            user_name="Gabe",
+        )
+        d = c.to_dict()
+        assert d["user_id"] == "u1"
+        assert d["user_name"] == "Gabe"
+
     def test_json_roundtrip(self):
-        c = Comment(id="c2", issue_id="i2", body="Hello", created_at="2026-02-01T00:00:00Z")
+        c = Comment(
+            id="c2", issue_id="i2", body="Hello", created_at="2026-02-01T00:00:00Z"
+        )
         restored = json.loads(json.dumps(c.to_dict()))
         assert restored["body"] == c.body
         assert restored["issue_id"] == c.issue_id
@@ -150,7 +178,9 @@ class TestProject:
         assert d["labels"] == []
 
     def test_json_roundtrip(self):
-        p = Project(id="p2", name="Another", url="https://example.com", labels=[make_label()])
+        p = Project(
+            id="p2", name="Another", url="https://example.com", labels=[make_label()]
+        )
         restored = json.loads(json.dumps(p.to_dict()))
         assert restored["labels"][0]["name"] == "bug"
 

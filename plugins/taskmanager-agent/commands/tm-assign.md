@@ -47,11 +47,13 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_get_issu
 
 If the script returns an error or the issue is not found, stop and report: "Issue <issue-id> not found."
 
-Verify the issue's project appears in the config's `projects` list. If not, stop and report: "Issue is not in an active project."
+Check if the issue is a **conversation issue** (no project, or project not in active projects list):
+- If the issue has a `project_id` that appears in the config's `projects` list → **project issue** (proceed to Step 4a).
+- If the issue has no `project_id` or its project is not in the active projects list → **conversation issue** (proceed to Step 4b).
 
 ---
 
-## Step 4: Process the Issue
+## Step 4a: Process Project Issue
 
 Follow `${CLAUDE_PLUGIN_ROOT}/references/process-flow.md` with the issue ID.
 
@@ -64,3 +66,11 @@ Process-flow determines the correct action based on the issue's current state:
 - **In Progress with all items checked** → moves to In Review
 
 Process-flow handles all status transitions, so no additional status changes are needed here.
+
+---
+
+## Step 4b: Process Conversation Issue
+
+Follow `${CLAUDE_PLUGIN_ROOT}/references/conversation-flow.md` with the issue ID.
+
+The conversation flow reads the issue description and comments, determines the appropriate action (create project, create issues, research, respond, or close), and posts a response comment.

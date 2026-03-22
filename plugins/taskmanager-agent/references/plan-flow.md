@@ -49,32 +49,23 @@
    ```
 
 7. **Wait for creator review:** After posting the plan, **do not auto-execute**. Instead:
-   a. **Determine the review assignee:**
-      - If `issue_defaults.assignee_id` is set in config, use that as the assignee for the review sub-issue.
-      - Otherwise, fall back to `<creator-id>` (the issue's `creator_id` field).
-   b. Create a review sub-issue asking the reviewer to approve the plan. **Include the full plan text** in the description so the reviewer has everything in one place:
-      ```bash
-      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-        --title "Review plan for <issue-key>: <issue-title>" \
-        --team <team> \
-        --parent-id <issue-id> \
-        --state Todo \
-        --labels Review \
-        --assignee <review-assignee-id> \
-        --description "Please review the execution plan posted on <issue-key>.\n\n<full plan text copied from the plan comment>\n\n**Action needed:** Mark this sub-issue as Done to approve the plan, or add a comment with changes needed."
+   a. **Evaluate plan size:** Count the number of checklist items (`- [ ]` lines) in the plan.
+   b. **Build the question for review-issue-flow:** Construct the question text as:
       ```
-   b. Set the parent issue to Blocked:
-      ```bash
-      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
-        --id <issue-id> \
-        --state Blocked
+      Please review the execution plan posted on <issue-key>.
+
+      <full plan text copied from the plan comment>
+
+      <if 8+ items: "This plan has N steps and may benefit from decomposition into smaller sub-issues. To request decomposition, comment 'decompose' on this review sub-issue.">
+
+      Mark this sub-issue as Done to approve the plan, or add a comment with changes needed.
       ```
-   c. Post a comment on the parent issue:
-      ```bash
-      ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
-        --issue-id <issue-id> \
-        --body "Plan posted — blocked until reviewed.\n\n**Action needed:** Review the execution plan above. To approve, mark the review sub-issue as Done. To request changes, comment on the review sub-issue."
-      ```
+   c. **Delegate to review-issue-flow:** Follow `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` with:
+      - `parent_issue_id` = `<issue-id>`
+      - `parent_issue_key` = `<issue-key>`
+      - `title` = `"Review plan for <issue-key>: <issue-title>"`
+      - `question` = the text constructed above
+      The review-issue-flow will create the review sub-issue, block the parent, and post a comment.
    d. Report to the user: `"Plan posted for <issue-key>. Blocked — waiting for creator to review and approve."` then **stop**.
 
 8. **Vague issue:** If the issue lacks sufficient detail to plan, follow:
