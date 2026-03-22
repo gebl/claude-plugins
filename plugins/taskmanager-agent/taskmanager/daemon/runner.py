@@ -134,6 +134,19 @@ class DaemonRunner:
 
     def _process_issue(self, selected: selector.SelectedIssue) -> None:
         """Spawn a Claude session and handle the result."""
+        # Bug triage: auto-remove from quarantine before processing
+        is_bug_triage = selected.source_phase == "bug_triage"
+        if is_bug_triage:
+            log.info(
+                "Bug triage: removing %s from quarantine before session",
+                selected.identifier,
+            )
+            self._state.quarantine = [
+                q for q in self._state.quarantine
+                if q.issue_id != selected.issue_id
+            ]
+            self._state.save()
+
         cfg = config.load_config()
         projects_by_id = {p["id"]: p for p in cfg.get("projects", [])}
         project = projects_by_id.get(selected.project_id, {})
@@ -180,6 +193,14 @@ class DaemonRunner:
         self._active_proc = None
         self._state.clear_active_session()
         self._state.mark_comments_seen(selected.issue_id, _now_iso())
+
+        # Bug triage: also mark comments seen on Bug sub-issues
+        if is_bug_triage:
+            bug_children = selector._run_list_script(
+                "tm_list_issues.py", "--parent", selected.issue_id, "--label", "Bug"
+            )
+            for bug_child in bug_children:
+                self._state.mark_comments_seen(bug_child.get("id", ""), _now_iso())
 
         if result.timed_out:
             self._quarantine_issue(
@@ -309,6 +330,10 @@ class DaemonRunner:
                 # Record PR if the session transitioned to In Review
                 if post_status == "In Review" and selected.branch_name:
                     self._capture_pr(selected, project, db_row_id)
+
+                # Bug triage: close Bug sub-issues on success
+                if is_bug_triage:
+                    self._close_bug_sub_issues(selected)
 
     def _capture_pr(
         self,
@@ -487,6 +512,31 @@ class DaemonRunner:
         session_dir.mkdir(parents=True, exist_ok=True)
         return session_dir
 
+    def _close_bug_sub_issues(self, selected: selector.SelectedIssue) -> None:
+        """Close all Bug-labeled sub-issues of a successfully triaged parent."""
+        children = selector._run_list_script(
+            "tm_list_issues.py", "--parent", selected.issue_id, "--label", "Bug"
+        )
+        scripts_dir = selector._find_scripts_dir()
+        python = selector._find_venv_python()
+
+        for child in children:
+            if child.get("status", {}).get("name") in ("Done", "Canceled"):
+                continue
+            child_id = child.get("id", "")
+            child_ident = child.get("identifier", child_id)
+            log.info("Bug triage: closing %s", child_ident)
+            try:
+                subprocess.run(
+                    [python, str(scripts_dir / "tm_save_issue.py"),
+                     "--id", child_id, "--state", "Done"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                log.error("Failed to close bug sub-issue %s", child_ident)
+
     def _quarantine_issue(self, selected: selector.SelectedIssue, reason: str) -> None:
         """Add issue to quarantine and create error sub-issue in Linear."""
         log.warning("Quarantining %s: %s", selected.identifier, reason)
@@ -516,7 +566,7 @@ class DaemonRunner:
                         "--state",
                         "Todo",
                         "--label",
-                        "Review",
+                        "Bug",
                         *(["--assignee", human_id] if human_id else []),
                         "--description",
                         f"The daemon encountered an error processing {selected.identifier}.\n\nReason: {reason}\n\nThis issue has been quarantined. To retry, remove it from the quarantine list in ~/.claude/taskmanager/daemon-state.yaml.",

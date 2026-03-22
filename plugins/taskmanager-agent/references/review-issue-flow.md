@@ -27,15 +27,13 @@
    ```
    Note the returned issue key (e.g. `ENG-43`) as `<review_key>`.
 
-2. **Block and reassign the parent issue to the human reviewer:**
-   Use `issue_defaults.assignee_id` from config if set, otherwise fall back to the parent issue's `creator_id`.
+2. **Block the parent issue:**
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --id <parent_id> \
-     --state Blocked \
-     --assignee <review_assignee_id>
+     --state Blocked
    ```
-   This ensures the human reviewer is notified that their input is needed. If neither `issue_defaults.assignee_id` nor `creator_id` is available, skip the `--assignee` flag.
+   The parent stays assigned to the operator (agent). Only the review sub-issue is assigned to the human reviewer.
 
 3. **Post a comment on the parent issue:**
    ```bash

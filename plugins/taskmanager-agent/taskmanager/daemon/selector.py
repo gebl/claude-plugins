@@ -27,6 +27,7 @@ class SelectedIssue:
     project_id: str
     project_name: str
     branch_name: str | None = None
+    source_phase: str | None = None
 
 
 def select_next_issue(
@@ -47,6 +48,14 @@ def select_next_issue(
         active_project_ids,
         quarantined_ids,
         project_filter,
+        seen_comments=seen_comments,
+    )
+    if result:
+        return result
+
+    # Phase 1.5: Bug triage — quarantined issues with human guidance
+    result = _phase_bug_triage(
+        cfg, active_project_ids, quarantined_ids, project_filter,
         seen_comments=seen_comments,
     )
     if result:
@@ -178,6 +187,94 @@ def _has_human_comments(
         return True
 
     return False
+
+
+def _phase_bug_triage(
+    cfg: dict,
+    active_project_ids: set[str],
+    quarantined_ids: set[str],
+    project_filter: str | None,
+    seen_comments: dict[str, str] | None = None,
+) -> SelectedIssue | None:
+    """Phase 1.5: Find Bug sub-issues with human comments on quarantined parents.
+
+    When the daemon quarantines an issue, it creates a Bug-labeled sub-issue
+    assigned to the human. When the human comments with guidance, this phase
+    detects it and returns the parent issue for re-processing. The runner
+    auto-removes the parent from quarantine before spawning the session.
+    """
+    log.info("Phase 1.5: checking Bug sub-issues for human guidance")
+    bug_issues = _run_list_script("tm_list_issues.py", "--label", "Bug")
+    if not bug_issues:
+        log.info("  → no Bug issues found")
+        return None
+
+    # Filter to open Bug issues only
+    open_bugs = [
+        b for b in bug_issues
+        if b.get("status", {}).get("name") not in ("Done", "Canceled")
+    ]
+    if not open_bugs:
+        log.info("  → no open Bug issues found")
+        return None
+
+    log.info("  → found %d open Bug issue(s), checking for comments", len(open_bugs))
+
+    operator_id = cfg.get("operator", {}).get("id", "")
+
+    for bug in open_bugs:
+        bug_id = bug.get("id", "")
+        parent_id = bug.get("parent_id")
+        if not parent_id:
+            continue
+
+        # Check if this bug has human comments
+        last_seen_at = (seen_comments or {}).get(bug_id)
+        if not _has_human_comments(bug, operator_id, last_seen_at):
+            continue
+
+        # Look up the parent issue
+        parent = _run_dict_script("tm_get_issue.py", parent_id)
+        if not parent:
+            continue
+
+        parent_project_id = parent.get("project_id", "")
+        if parent_project_id not in active_project_ids:
+            continue
+        if project_filter and parent.get("project_name") != project_filter:
+            continue
+
+        # Check the parent is actually quarantined
+        parent_uuid = parent.get("id", "")
+        if parent_uuid not in quarantined_ids:
+            log.info(
+                "  → %s has comment but parent %s is not quarantined, skipping",
+                bug.get("identifier", bug_id),
+                parent.get("identifier", parent_id),
+            )
+            continue
+
+        log.info(
+            "  → %s has human guidance for quarantined parent %s",
+            bug.get("identifier", bug_id),
+            parent.get("identifier", parent_id),
+        )
+
+        selected = SelectedIssue(
+            issue_id=parent_uuid,
+            identifier=parent.get("identifier", ""),
+            title=parent.get("title", ""),
+            status=parent.get("status", {}).get("name", ""),
+            priority=parent.get("priority", 0),
+            project_id=parent_project_id,
+            project_name=parent.get("project_name", ""),
+            branch_name=parent.get("branch_name"),
+            source_phase="bug_triage",
+        )
+        return selected
+
+    log.info("  → no Bug issues with human guidance found")
+    return None
 
 
 def _phase_resolved_reviews(
