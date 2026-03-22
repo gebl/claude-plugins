@@ -181,12 +181,15 @@ def _has_human_comments(
 
 
 def _phase_resolved_reviews(
-    _cfg: dict,
+    cfg: dict,
     active_project_ids: set[str],
     quarantined_ids: set[str],
     project_filter: str | None,
 ) -> SelectedIssue | None:
-    """Phase 2: Find Blocked issues whose review sub-issues are resolved."""
+    """Phase 2: Find Blocked issues whose review sub-issues are resolved.
+
+    Also auto-resolves Review sub-issues whose parent's PR has been merged.
+    """
     log.info("Phase 2: checking Blocked issues for resolved reviews")
     blocked_issues = _run_list_script(
         "tm_list_issues.py", "--status", "Blocked", "--label", "Claude"
@@ -209,6 +212,7 @@ def _phase_resolved_reviews(
 
     log.info("  → found %d Blocked issue(s), checking sub-issues", len(filtered))
     filtered.sort(key=_priority_sort_key)
+    projects_by_id = {p["id"]: p for p in cfg.get("projects", [])}
 
     for issue in filtered:
         children = _run_list_script(
@@ -223,8 +227,55 @@ def _phase_resolved_reviews(
             )
             return _to_selected(issue)
 
+        # Check if parent's PR was merged — auto-close open Review sub-issues
+        unresolved = [
+            c for c in children if c.get("status", {}).get("name") != "Done"
+        ]
+        if unresolved and _is_pr_merged(issue, projects_by_id):
+            log.info(
+                "  → %s PR merged — auto-closing %d review sub-issue(s)",
+                issue.get("identifier", issue["id"]),
+                len(unresolved),
+            )
+            for child in unresolved:
+                _close_issue(child["id"])
+            return _to_selected(issue)
+
     log.info("  → no Blocked issues have resolved reviews")
     return None
+
+
+def _is_pr_merged(issue: dict, projects_by_id: dict) -> bool:
+    """Check if the issue's linked PR has been merged."""
+    project = projects_by_id.get(issue.get("project_id", ""))
+    branch = issue.get("branch_name")
+    if not project or not project.get("repo") or not branch:
+        return False
+
+    pr_status = _run_dict_script(
+        "check_pr_status.py",
+        "--repo-url",
+        project["repo"],
+        "--branch",
+        branch,
+    )
+    return bool(pr_status and pr_status.get("state") == "merged")
+
+
+def _close_issue(issue_id: str) -> None:
+    """Set an issue's status to Done."""
+    scripts_dir = _find_scripts_dir()
+    python = _find_venv_python()
+    try:
+        subprocess.run(
+            [python, str(scripts_dir / "tm_save_issue.py"),
+             "--id", issue_id, "--state", "Done"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        log.error("Failed to close issue %s", issue_id)
 
 
 def _phase_in_progress(

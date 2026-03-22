@@ -1,10 +1,15 @@
 # taskmanager-agent
 
-A Claude Code plugin for autonomous task management. Integrates with Linear to pull issues, create execution plans with human-in-the-loop review, execute work via git worktrees and pull requests (or documents), and keep issue statuses in sync throughout.
+A Claude Code plugin for autonomous task management. Integrates with Linear to pull issues, plan work with human-in-the-loop review, execute via git worktrees and pull requests (or documents), and keep issue statuses in sync — in both interactive and daemon mode.
 
 ## How It Works
 
-Issues flow through a structured lifecycle:
+The plugin operates in two modes:
+
+- **Interactive** — You run slash commands (`/tm-next`, `/tm-assign`, etc.) inside Claude Code. Claude works through issues one at a time with your confirmation.
+- **Daemon** — A background process (`tm_daemon.py`) continuously polls for work, spawns Claude Code sessions, tracks metrics, and manages the full lifecycle autonomously.
+
+Both modes follow the same issue lifecycle:
 
 ```
 Todo → In Progress → [Plan created] → Blocked (waiting for review)
@@ -12,7 +17,7 @@ Todo → In Progress → [Plan created] → Blocked (waiting for review)
   → Done (PR merged or work accepted)
 ```
 
-Claude handles the automation. Humans review plans before execution and review results before closing.
+A separate **conversation workflow** handles projectless issues — back-and-forth discussions that don't follow the plan/execute/PR pattern.
 
 ### The Three Phases
 
@@ -20,7 +25,7 @@ Claude handles the automation. Humans review plans before execution and review r
 
 **2. Execution** — Once the plan is approved, Claude works through each checklist item. For code tasks, work happens in an isolated git worktree. Each completed item is checked off in the plan comment. On completion, a PR is created and the issue moves to In Review.
 
-**3. Review** — The creator reviews the PR or document. If changes are needed, comments on the PR move the issue back to In Progress for Claude to address. When the PR is merged, the next `/tm-next` run detects it and closes the issue automatically.
+**3. Review** — The creator reviews the PR or document. If changes are needed, comments on the PR move the issue back to In Progress for Claude to address. When the PR is merged, the next `/tm-next` run (or daemon poll) detects it and closes the issue automatically.
 
 ## Prerequisites
 
@@ -64,7 +69,7 @@ This bootstraps everything:
 
 ### Smart Selection (`/tm-next`)
 
-`/tm-next` selects the next issue to work on using a 4-phase priority system:
+`/tm-next` selects the next issue to work on using a 5-phase priority system:
 
 | Phase | What it checks | Action |
 |-------|---------------|--------|
@@ -72,12 +77,26 @@ This bootstraps everything:
 | 2. Resolved Reviews | Review sub-issues marked Done | Unblock the parent issue, resume work with reviewer's feedback. |
 | 3. In Progress | Issues Claude already started | Resume where it left off (plan or execute). |
 | 4. Todo Backlog | Unblocked Todo issues by priority | Urgent → High → Normal → Low. Skips blocked issues. |
+| 5. Conversations | Projectless issues with new comments | Process via the conversation workflow. |
 
 In interactive mode (default), you confirm before work begins. Use `/tm-next --project "My Project"` to filter to a specific project.
 
 ### Direct Assignment (`/tm-assign <id>`)
 
-Point Claude at a specific issue. It determines the next action automatically: plan if no plan exists, execute if a plan is ready.
+Point Claude at a specific issue. It determines the next action automatically: plan if no plan exists, execute if a plan is ready, or converse if it's a projectless issue.
+
+### Conversation Issues (`/tm-converse <id>`)
+
+Process a projectless issue through a comment-based back-and-forth. Instead of plan/execute/PR, Claude reads the issue description and comments, determines the appropriate action, and posts a response.
+
+Actions Claude can take in conversation mode:
+- **create-project** — Set up a new project (Linear project + code repo)
+- **create-issues** — Create issues in an existing project
+- **research** — Analyze code, answer questions, explore
+- **respond** — Ask clarifying questions or provide information
+- **close** — Mark the conversation complete
+
+Conversation responses are tagged with `**[Conversation]**` to distinguish them from activity comments.
 
 ### Autonomous Processing (`/tm-work-backlog`)
 
@@ -108,10 +127,38 @@ python scripts/tm_daemon.py [OPTIONS]
 **How it works:**
 
 1. Loads state from `~/.claude/taskmanager/daemon-state.yaml` and acquires a PID lock (refuses to start if another instance is running).
-2. Polls for work using the same 4-phase selection as `/tm-next`.
+2. Polls for work using the same 5-phase selection as `/tm-next`.
 3. Spawns a Claude Code session (`claude --print` with `--output-format stream-json`) for the selected issue.
-4. Posts progress comments on the issue during the session.
-5. On completion, checks whether the issue state actually changed. If not, the issue is quarantined.
+4. Posts progress comments on the issue during the session (every 5 minutes or on checklist ticks).
+5. On completion, validates that the issue transitioned correctly and required artifacts exist.
+6. Records session metrics (cost, tokens, duration) to the SQLite database.
+7. If the session failed validation, the issue is quarantined.
+
+**Progress Comments:**
+
+During long-running sessions, the daemon posts `**[Progress]**` comments on the issue showing elapsed time, recent activity snippets, and tool usage counts. Comments are triggered every 5 minutes or when a checklist item is checked off.
+
+**Workflow Validation:**
+
+After each session, the daemon validates that the issue transitioned through a valid path and that required artifacts exist:
+
+| Transition | Required Artifacts |
+|------------|-------------------|
+| Todo → In Progress | Plan comment + review sub-issue |
+| Todo → In Review | Plan comment + review sub-issue + PR |
+| In Progress → In Review | PR (branch pushed) |
+| In Progress → Blocked | Review sub-issue |
+
+Invalid transitions or missing artifacts result in quarantine with a descriptive outcome (`invalid_transition`, `missing_artifacts`, `unchanged`, `timeout`).
+
+**Session Metrics Database:**
+
+Every session is recorded in `~/.claude/taskmanager/sessions.db` (SQLite):
+
+- **sessions** — issue, project, outcome, duration, API cost, token counts, turns
+- **pull_requests** — links sessions to PRs they created
+
+Use `tm_session_report.py` to query this data (see [Session Reports](#session-reports)).
 
 **Adaptive Polling:**
 
@@ -125,24 +172,66 @@ The daemon backs off when idle and resets when work is found:
 | 3 | 5 min | 10 min |
 | 4 | 15 min | permanent |
 
-**Quarantine:** If a session times out or completes without changing the issue state, the issue is quarantined — an error sub-issue with the "Review" label is created and the parent is blocked. Quarantined issues are skipped during polling until manually resolved.
+**Quarantine:** If a session times out, completes without changing the issue state, or fails validation, the issue is quarantined — an error sub-issue with the "Review" label is created and the parent is blocked. Quarantined issues are skipped during polling until manually resolved.
 
 **Shutdown:** Two-stage signal handling — the first SIGINT/SIGTERM enters drain mode (finishes the active session, then exits). A second signal while draining force-kills the active session and exits immediately.
+
+## Session Reports
+
+Query the session metrics database for cost tracking, performance analysis, and audit trails.
+
+```bash
+python scripts/tm_session_report.py [OPTIONS]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project <name>` | Filter sessions by project name |
+| `--issue <id>` | Filter by issue identifier (e.g., `LAN-42`) |
+| `--since <date>` | Only sessions after this date (ISO 8601) |
+| `--format {table,csv,json}` | Output format (default: `table`) |
+
+**Output formats:**
+
+- **table** — Rich terminal tables with color-coded outcomes. Shows summary stats (total sessions, unique issues, cost, tokens, average duration), a sessions table, PRs table, and per-issue breakdown.
+- **csv** — Flat CSV with all session columns, suitable for spreadsheets.
+- **json** — Structured JSON with `summary`, `sessions`, and `pull_requests` keys.
+
+**Examples:**
+
+```bash
+# All sessions from the last week
+python scripts/tm_session_report.py --since 2026-03-15
+
+# Cost breakdown for a specific project
+python scripts/tm_session_report.py --project "Task Manager Agent" --format table
+
+# Export all data as JSON for external analysis
+python scripts/tm_session_report.py --format json > sessions.json
+```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
 | `/tm-health` | Setup and validate the environment. Run first, re-run to repair. |
-| `/tm-next` | Pull the next work item using smart 4-phase selection. |
+| `/tm-next` | Pull the next work item using smart 5-phase selection. |
 | `/tm-assign <id>` | Assign a specific issue to Claude and begin working on it. |
 | `/tm-plan <id>` | Create an execution plan for an issue (posts checklist, creates review sub-issue, blocks until approved). |
 | `/tm-work <id>` | Execute the approved plan (git worktree + PR for code, documents for non-code). |
+| `/tm-converse <id>` | Process a conversation issue — read comments, determine action, respond. |
 | `/tm-update <id> <status>` | Manually update an issue's status with an optional comment. |
-| `/tm-issues` | List issues from active projects. Defaults to Todo and Backlog. Filter with `--project` or `--status`. |
-| `/tm-issue-create` | Create a new issue in an active project. Supports `--assignee` to set the owner. |
+| `/tm-issues` | List issues from active projects. Defaults to Todo and Backlog. Filter with `--project` or `--status`. Use `--conversation` for projectless issues. |
+| `/tm-issue-create` | Create a new issue in an active project, or a projectless conversation issue. |
 | `/tm-project-create` | Create a new project and mark it as active. Optionally attach a git repo URL. |
 | `/tm-work-backlog` | Process the backlog autonomously with checkpoints every 3 issues. |
+
+**Standalone scripts:**
+
+| Script | Description |
+|--------|-------------|
+| `scripts/tm_daemon.py` | Run the daemon (see [Daemon Mode](#daemon-mode-tm_daemonpy)). |
+| `scripts/tm_session_report.py` | Query session metrics (see [Session Reports](#session-reports)). |
 
 ## Code Mode vs Document Mode
 
@@ -179,6 +268,8 @@ PR creation and status checks go through a `GitHostBackend` protocol in `taskman
 **Daemon git identity:** Sessions spawned by the daemon use a fixed git identity — `Claude Daemon <claude-daemon@local>` — set via `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME`, `GIT_AUTHOR_EMAIL`, and `GIT_COMMITTER_EMAIL` in the session subprocess.
 
 **Daemon state file:** `~/.claude/taskmanager/daemon-state.yaml` — stores PID lock, quarantine list, and session history. Managed automatically by the daemon.
+
+**Daemon metrics database:** `~/.claude/taskmanager/sessions.db` — SQLite database recording session metrics and PR history. Managed by the daemon, queried via `tm_session_report.py`.
 
 ## Config File
 
@@ -243,6 +334,7 @@ commands/           Slash commands (markdown with YAML frontmatter)
 references/         Shared workflow logic referenced by commands
 scripts/            Python CLI scripts (thin wrappers over the backend)
   tm_daemon.py        Daemon entrypoint
+  tm_session_report.py  Session metrics reporting
 taskmanager/        Core Python package
   config.py           Config file management
   models.py           Data classes (Issue, Project, Status, Label, etc.)
@@ -253,8 +345,10 @@ taskmanager/        Core Python package
     runner.py           Main daemon loop and signal handling
     session.py          Claude Code session spawning
     poller.py           Adaptive polling with backoff tiers
-    selector.py         Issue selection (4-phase priority)
-    progress.py         Progress comment posting
+    selector.py         Issue selection (5-phase priority)
+    progress.py         Progress comment posting during sessions
+    database.py         SQLite session metrics and PR tracking
+    validator.py        Workflow transition and artifact validation
     state.py            Daemon state persistence and quarantine
     logging_config.py   Log file configuration
   githost/            Git hosting backends
