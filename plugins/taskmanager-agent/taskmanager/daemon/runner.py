@@ -9,19 +9,18 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-from taskmanager import config, get_version
-from taskmanager.daemon import (
-    database,
-    logging_config,
-    poller,
-    reconciler,
-    selector,
-    session,
-    state,
-)
+from taskmanager import config
+from taskmanager import get_version
+from taskmanager.daemon import database
+from taskmanager.daemon import logging_config
+from taskmanager.daemon import poller
+from taskmanager.daemon import reconciler
+from taskmanager.daemon import selector
+from taskmanager.daemon import session
+from taskmanager.daemon import state
 
 log = logging.getLogger("tm-daemon.runner")
 
@@ -96,7 +95,9 @@ class DaemonRunner:
             self._state.last_poll = _now_iso()
 
             quarantined_ids = {q.issue_id for q in self._state.quarantine}
-            quarantine_note = f" ({len(quarantined_ids)} quarantined)" if quarantined_ids else ""
+            quarantine_note = (
+                f" ({len(quarantined_ids)} quarantined)" if quarantined_ids else ""
+            )
             log.info(
                 "Poll #%d — scanning for work%s",
                 self._state.poll_count,
@@ -222,11 +223,10 @@ class DaemonRunner:
             for bug_child in bug_children:
                 self._state.mark_comments_seen(bug_child.get("id", ""), _now_iso())
 
-        # Capture summary from latest git commit on the branch
-        summary = self._get_branch_summary(working_dir, selected.branch_name)
-
         if result.timed_out:
-            self._quarantine_issue(selected, f"Session timed out after {self._timeout}s")
+            self._quarantine_issue(
+                selected, f"Session timed out after {self._timeout}s"
+            )
             self._state.add_to_history(
                 selected.issue_id,
                 "timeout",
@@ -236,9 +236,7 @@ class DaemonRunner:
                 output_tokens=result.output_tokens,
                 num_turns=result.num_turns,
             )
-            self._record_session_to_db(
-                selected, result, "timeout", session_started_at, summary=summary
-            )
+            self._record_session_to_db(selected, result, "timeout", session_started_at)
             self._post_session_summary(selected, result, "timeout")
             return
 
@@ -273,7 +271,7 @@ class DaemonRunner:
                 num_turns=result.num_turns,
             )
             self._record_session_to_db(
-                selected, result, "unchanged", session_started_at, summary=summary
+                selected, result, "unchanged", session_started_at
             )
             self._post_session_summary(selected, result, "unchanged")
         else:
@@ -292,23 +290,12 @@ class DaemonRunner:
                 output_tokens=result.output_tokens,
                 num_turns=result.num_turns,
             )
-
-            # Look up PR URL before recording session so it's stored on the row
-            captured_pr_url = None
-            if post_status == "In Review" and selected.branch_name:
-                captured_pr_url = self._lookup_pr_url(selected, project)
-
             db_row_id = self._record_session_to_db(
-                selected,
-                result,
-                "completed",
-                session_started_at,
-                summary=summary,
-                pr_url=captured_pr_url,
+                selected, result, "completed", session_started_at
             )
             self._post_session_summary(selected, result, "completed")
 
-            # Record PR to pull_requests table with the session ID
+            # Record PR if the session transitioned to In Review
             if post_status == "In Review" and selected.branch_name:
                 self._capture_pr(selected, project, db_row_id)
 
@@ -321,11 +308,11 @@ class DaemonRunner:
         selected: selector.SelectedIssue,
         project: dict,
         db_session_id: int | None,
-    ) -> str | None:
-        """Check for a PR on the branch, record it, and return the PR URL."""
+    ) -> None:
+        """Check for a PR on the branch and record it to the database."""
         repo_url = project.get("repo", "")
         if not repo_url or not selected.branch_name:
-            return None
+            return
 
         scripts_dir = selector._find_scripts_dir()
         python = selector._find_venv_python()
@@ -340,13 +327,12 @@ class DaemonRunner:
                     "--branch",
                     selected.branch_name,
                 ],
-                check=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
             )
             if proc.returncode != 0:
-                return None
+                return
 
             pr_data = json.loads(proc.stdout)
             pr_url = pr_data.get("pr_url", "")
@@ -357,72 +343,8 @@ class DaemonRunner:
                     branch_name=selected.branch_name,
                     session_id=db_session_id,
                 )
-                return pr_url
         except Exception:
             log.exception("Failed to capture PR for %s", selected.identifier)
-        return None
-
-    def _lookup_pr_url(
-        self,
-        selected: selector.SelectedIssue,
-        project: dict,
-    ) -> str | None:
-        """Look up the PR URL for a branch without recording to the database."""
-        repo_url = project.get("repo", "")
-        if not repo_url or not selected.branch_name:
-            return None
-
-        scripts_dir = selector._find_scripts_dir()
-        python = selector._find_venv_python()
-
-        try:
-            proc = subprocess.run(
-                [
-                    python,
-                    str(scripts_dir / "check_pr_status.py"),
-                    "--repo-url",
-                    repo_url,
-                    "--branch",
-                    selected.branch_name,
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if proc.returncode != 0:
-                return None
-
-            pr_data = json.loads(proc.stdout)
-            pr_url = pr_data.get("pr_url", "")
-            if pr_url and pr_data.get("state") != "not_found":
-                return pr_url
-        except Exception:
-            log.exception("Failed to look up PR for %s", selected.identifier)
-        return None
-
-    def _get_branch_summary(
-        self,
-        working_dir: Path,
-        branch_name: str | None,
-    ) -> str | None:
-        """Get the latest git commit subject on a branch."""
-        if not branch_name:
-            return None
-        try:
-            proc = subprocess.run(
-                ["git", "log", "-1", "--format=%s", branch_name],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                cwd=str(working_dir),
-            )
-            if proc.returncode == 0 and proc.stdout.strip():
-                return proc.stdout.strip()
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass
-        return None
 
     def _record_session_to_db(
         self,
@@ -430,8 +352,6 @@ class DaemonRunner:
         result: session.SessionResult,
         outcome: str,
         started_at: str,
-        summary: str | None = None,
-        pr_url: str | None = None,
     ) -> int | None:
         """Persist session metrics to the SQLite database."""
         try:
@@ -454,11 +374,11 @@ class DaemonRunner:
                 cache_creation_input_tokens=result.cache_creation_input_tokens,
                 num_turns=result.num_turns,
                 started_at=started_at,
-                summary=summary,
-                pr_url=pr_url,
             )
         except Exception:
-            log.exception("Failed to record session to database for %s", selected.identifier)
+            log.exception(
+                "Failed to record session to database for %s", selected.identifier
+            )
             return None
 
     def _post_session_summary(
@@ -514,7 +434,6 @@ class DaemonRunner:
                     "--body",
                     body,
                 ],
-                check=False,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -522,7 +441,9 @@ class DaemonRunner:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             log.error("Failed to post session summary for %s", selected.identifier)
 
-    def _resolve_working_dir(self, selected: selector.SelectedIssue, project: dict) -> Path | None:
+    def _resolve_working_dir(
+        self, selected: selector.SelectedIssue, project: dict
+    ) -> Path | None:
         """Determine the working directory for a session."""
         local_path = project.get("local_path")
         repo = project.get("repo")
@@ -555,7 +476,9 @@ class DaemonRunner:
 
         # Non-code project or conversation issue — create session directory
         dir_name = selected.project_name or selected.identifier
-        session_dir = Path.home() / "Projects" / "sessions" / dir_name.lower().replace(" ", "-")
+        session_dir = (
+            Path.home() / "Projects" / "sessions" / dir_name.lower().replace(" ", "-")
+        )
         session_dir.mkdir(parents=True, exist_ok=True)
         return session_dir
 
@@ -583,7 +506,6 @@ class DaemonRunner:
                         "--state",
                         "Done",
                     ],
-                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -625,13 +547,14 @@ class DaemonRunner:
                         "--description",
                         f"The daemon encountered an error processing {selected.identifier}.\n\nReason: {reason}\n\nThis issue has been quarantined. To retry, remove it from the quarantine list in ~/.claude/taskmanager/daemon-state.yaml.",
                     ],
-                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=30,
                 )
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                log.error("Failed to create error sub-issue for %s", selected.identifier)
+                log.error(
+                    "Failed to create error sub-issue for %s", selected.identifier
+                )
 
             # Mark parent as blocked
             try:
@@ -644,7 +567,6 @@ class DaemonRunner:
                         "--state",
                         "Blocked",
                     ],
-                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -660,7 +582,9 @@ class DaemonRunner:
         try:
             os.kill(self._state.pid, 0)
             # Process exists
-            log.error("Another daemon is already running (pid=%d). Exiting.", self._state.pid)
+            log.error(
+                "Another daemon is already running (pid=%d). Exiting.", self._state.pid
+            )
             sys.exit(1)
         except ProcessLookupError:
             # Process is dead — stale PID
@@ -680,7 +604,9 @@ class DaemonRunner:
             log.info("Second signal received — force stopping")
             self._force_stop = True
             if self._active_proc:
-                log.info("Killing active session process (pid=%d)", self._active_proc.pid)
+                log.info(
+                    "Killing active session process (pid=%d)", self._active_proc.pid
+                )
                 self._active_proc.kill()
         else:
             log.info(
@@ -711,4 +637,4 @@ def verify_claude_plugin_version() -> str | None:
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(timezone.utc).isoformat()

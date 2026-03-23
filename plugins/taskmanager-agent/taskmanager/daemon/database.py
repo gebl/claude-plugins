@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 log = logging.getLogger("tm-daemon.database")
@@ -33,9 +33,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     cache_creation_input_tokens INTEGER,
     num_turns        INTEGER,
     started_at       TEXT,
-    finished_at      TEXT NOT NULL,
-    summary          TEXT,
-    pr_url           TEXT
+    finished_at      TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS pull_requests (
@@ -66,26 +64,13 @@ def _connect(db_path: Path | None = None) -> sqlite3.Connection:
 
 
 def init_db(db_path: Path | None = None) -> None:
-    """Create tables if they don't exist, and migrate existing ones."""
+    """Create tables if they don't exist."""
     conn = _connect(db_path)
     try:
         conn.executescript(_SCHEMA_SQL)
-        _migrate_sessions_table(conn)
         log.info("Database initialized at %s", db_path or DB_PATH)
     finally:
         conn.close()
-
-
-def _migrate_sessions_table(conn: sqlite3.Connection) -> None:
-    """Add columns introduced after initial schema creation."""
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
-    if "summary" not in existing:
-        conn.execute("ALTER TABLE sessions ADD COLUMN summary TEXT")
-        log.info("Migrated sessions table: added column 'summary'")
-    if "pr_url" not in existing:
-        conn.execute("ALTER TABLE sessions ADD COLUMN pr_url TEXT")
-        log.info("Migrated sessions table: added column 'pr_url'")
-    conn.commit()
 
 
 def record_session(
@@ -109,13 +94,11 @@ def record_session(
     num_turns: int | None = None,
     started_at: str | None = None,
     finished_at: str | None = None,
-    summary: str | None = None,
-    pr_url: str | None = None,
     db_path: Path | None = None,
 ) -> int:
     """Insert a session record. Returns the row ID."""
     if finished_at is None:
-        finished_at = datetime.now(UTC).isoformat()
+        finished_at = datetime.now(timezone.utc).isoformat()
 
     conn = _connect(db_path)
     try:
@@ -127,9 +110,8 @@ def record_session(
                 duration_seconds, duration_api_ms, total_cost_usd,
                 input_tokens, output_tokens,
                 cache_read_input_tokens, cache_creation_input_tokens,
-                num_turns, started_at, finished_at,
-                summary, pr_url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                num_turns, started_at, finished_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 issue_id,
@@ -151,8 +133,6 @@ def record_session(
                 num_turns,
                 started_at,
                 finished_at,
-                summary,
-                pr_url,
             ),
         )
         conn.commit()
@@ -174,7 +154,7 @@ def record_pr(
 ) -> int:
     """Insert a pull request record. Returns the row ID."""
     if created_at is None:
-        created_at = datetime.now(UTC).isoformat()
+        created_at = datetime.now(timezone.utc).isoformat()
 
     conn = _connect(db_path)
     try:
@@ -232,7 +212,9 @@ def query_pull_requests(
                 (issue_id,),
             ).fetchall()
         else:
-            rows = conn.execute("SELECT * FROM pull_requests ORDER BY created_at DESC").fetchall()
+            rows = conn.execute(
+                "SELECT * FROM pull_requests ORDER BY created_at DESC"
+            ).fetchall()
         return [dict(row) for row in rows]
     finally:
         conn.close()
@@ -335,20 +317,12 @@ _SESSION_QUERIES: dict[frozenset[str], str] = {
     frozenset({"issue_id"}): _Q + " WHERE issue_id = ? ORDER BY finished_at DESC",
     frozenset({"issue_identifier"}): _Q + " WHERE issue_identifier = ? ORDER BY finished_at DESC",
     frozenset({"since"}): _Q + " WHERE finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_id", "since"}): _Q
-    + " WHERE project_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_name", "since"}): _Q
-    + " WHERE project_name = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"issue_id", "since"}): _Q
-    + " WHERE issue_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"issue_identifier", "since"}): _Q
-    + " WHERE issue_identifier = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_id", "issue_id"}): _Q
-    + " WHERE project_id = ? AND issue_id = ? ORDER BY finished_at DESC",
-    frozenset({"project_name", "issue_identifier"}): _Q
-    + " WHERE project_name = ? AND issue_identifier = ? ORDER BY finished_at DESC",
-    frozenset({"project_id", "issue_id", "since"}): _Q
-    + " WHERE project_id = ? AND issue_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_name", "issue_identifier", "since"}): _Q
-    + " WHERE project_name = ? AND issue_identifier = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset({"project_id", "since"}): _Q + " WHERE project_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset({"project_name", "since"}): _Q + " WHERE project_name = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset({"issue_id", "since"}): _Q + " WHERE issue_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset({"issue_identifier", "since"}): _Q + " WHERE issue_identifier = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset({"project_id", "issue_id"}): _Q + " WHERE project_id = ? AND issue_id = ? ORDER BY finished_at DESC",
+    frozenset({"project_name", "issue_identifier"}): _Q + " WHERE project_name = ? AND issue_identifier = ? ORDER BY finished_at DESC",
+    frozenset({"project_id", "issue_id", "since"}): _Q + " WHERE project_id = ? AND issue_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset({"project_name", "issue_identifier", "since"}): _Q + " WHERE project_name = ? AND issue_identifier = ? AND finished_at >= ? ORDER BY finished_at DESC",
 }
