@@ -55,7 +55,10 @@ def select_next_issue(
 
     # Phase 1.5: Bug triage — quarantined issues with human guidance
     result = _phase_bug_triage(
-        cfg, active_project_ids, quarantined_ids, project_filter,
+        cfg,
+        active_project_ids,
+        quarantined_ids,
+        project_filter,
         seen_comments=seen_comments,
     )
     if result:
@@ -215,7 +218,8 @@ def _phase_bug_triage(
 
     # Filter to open Bug issues only
     open_bugs = [
-        b for b in bug_issues
+        b
+        for b in bug_issues
         if b.get("status", {}).get("name") not in ("Done", "Canceled")
     ]
     if not open_bugs:
@@ -246,6 +250,17 @@ def _phase_bug_triage(
         if parent_project_id not in active_project_ids:
             continue
         if project_filter and parent.get("project_name") != project_filter:
+            continue
+
+        # Skip parents already in completed states
+        parent_status = parent.get("status", {}).get("name", "")
+        if parent_status in ("Done", "Canceled"):
+            log.info(
+                "  → %s parent %s already %s, skipping",
+                bug.get("identifier", bug_id),
+                parent.get("identifier", parent_id),
+                parent_status,
+            )
             continue
 
         # Check the parent is actually quarantined
@@ -322,7 +337,8 @@ def _phase_resolved_reviews(
             continue
 
         unresolved = [
-            c for c in children
+            c
+            for c in children
             if c.get("status", {}).get("name") not in ("Done", "Canceled")
         ]
 

@@ -250,7 +250,7 @@ class DaemonRunner:
 
         if (
             post_status == pre_status
-            and pre_status not in ("In Review", "Blocked")
+            and pre_status not in ("In Review", "Blocked", "Done", "Canceled")
             and not is_conversation
         ):
             log.warning(
