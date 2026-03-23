@@ -101,5 +101,6 @@
      --title "<title>" \
      --team <team> \
      --parent-id <issue-id> \
+     --project <project-id> \
      --state Backlog
    ```

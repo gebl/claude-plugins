@@ -9,6 +9,8 @@
 - `parent_issue_key` — Display key of the parent issue (e.g. `ENG-42`)
 - `question` — The specific question or blocker requiring human review
 - `title` — (optional) Custom title for the review sub-issue. Defaults to `"[Review] <parent_key>: <short summary of question>"`
+- `parent_project_id` — (optional) Project ID of the parent issue. Sub-issue will inherit this project.
+- `parent_priority` — (optional) Priority of the parent issue. Sub-issue will inherit this priority.
 
 ### Steps
 
@@ -23,7 +25,9 @@
      --assignee <review_assignee_id> \
      --labels Review \
      --state Todo \
-     --description "<question>"
+     --description "<question>" \
+     --project <parent_project_id> \
+     --priority <parent_priority>
    ```
    Note the returned issue key (e.g. `ENG-43`) as `<review_key>`.
 

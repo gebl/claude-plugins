@@ -354,6 +354,7 @@ class DaemonRunner:
         started_at: str,
     ) -> int | None:
         """Persist session metrics to the SQLite database."""
+        summary = self._get_branch_summary(selected)
         try:
             return database.record_session(
                 issue_id=selected.issue_id,
@@ -374,12 +375,42 @@ class DaemonRunner:
                 cache_creation_input_tokens=result.cache_creation_input_tokens,
                 num_turns=result.num_turns,
                 started_at=started_at,
+                summary=summary,
             )
         except Exception:
             log.exception(
                 "Failed to record session to database for %s", selected.identifier
             )
             return None
+
+    def _get_branch_summary(self, selected: selector.SelectedIssue) -> str | None:
+        """Get the latest git commit message on the issue's branch."""
+        if not selected.branch_name:
+            return None
+
+        cfg = config.load_config()
+        projects_by_id = {p["id"]: p for p in cfg.get("projects", [])}
+        project = projects_by_id.get(selected.project_id, {})
+        local_path = project.get("local_path")
+        if not local_path:
+            return None
+
+        worktree_path = Path(local_path) / ".worktrees" / selected.branch_name
+        git_dir = worktree_path if worktree_path.exists() else Path(local_path)
+
+        try:
+            proc = subprocess.run(
+                ["git", "log", "-1", "--format=%s", selected.branch_name],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=str(git_dir),
+            )
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout.strip()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            log.debug("Could not get commit message for %s", selected.branch_name)
+        return None
 
     def _post_session_summary(
         self,

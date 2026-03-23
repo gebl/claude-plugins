@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     cache_creation_input_tokens INTEGER,
     num_turns        INTEGER,
     started_at       TEXT,
-    finished_at      TEXT NOT NULL
+    finished_at      TEXT NOT NULL,
+    summary          TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pull_requests (
@@ -68,9 +69,21 @@ def init_db(db_path: Path | None = None) -> None:
     conn = _connect(db_path)
     try:
         conn.executescript(_SCHEMA_SQL)
+        _migrate_schema(conn)
         log.info("Database initialized at %s", db_path or DB_PATH)
     finally:
         conn.close()
+
+
+def _migrate_schema(conn: sqlite3.Connection) -> None:
+    """Add columns that may be missing from older databases."""
+    try:
+        conn.execute("ALTER TABLE sessions ADD COLUMN summary TEXT")
+        conn.commit()
+        log.info("Migration: added 'summary' column to sessions table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
 
 
 def record_session(
@@ -94,6 +107,7 @@ def record_session(
     num_turns: int | None = None,
     started_at: str | None = None,
     finished_at: str | None = None,
+    summary: str | None = None,
     db_path: Path | None = None,
 ) -> int:
     """Insert a session record. Returns the row ID."""
@@ -110,8 +124,8 @@ def record_session(
                 duration_seconds, duration_api_ms, total_cost_usd,
                 input_tokens, output_tokens,
                 cache_read_input_tokens, cache_creation_input_tokens,
-                num_turns, started_at, finished_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                num_turns, started_at, finished_at, summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 issue_id,
@@ -133,6 +147,7 @@ def record_session(
                 num_turns,
                 started_at,
                 finished_at,
+                summary,
             ),
         )
         conn.commit()
@@ -262,10 +277,16 @@ _SUMMARY_COLUMNS = """\
 
 # nosemgrep: python.lang.security.audit.formatted-sql-query
 _SUMMARY_ALL = "SELECT" + _SUMMARY_COLUMNS + " FROM sessions"
-_SUMMARY_BY_PROJECT = "SELECT" + _SUMMARY_COLUMNS + " FROM sessions WHERE project_name = ?"
-_SUMMARY_BY_SINCE = "SELECT" + _SUMMARY_COLUMNS + " FROM sessions WHERE finished_at >= ?"
+_SUMMARY_BY_PROJECT = (
+    "SELECT" + _SUMMARY_COLUMNS + " FROM sessions WHERE project_name = ?"
+)
+_SUMMARY_BY_SINCE = (
+    "SELECT" + _SUMMARY_COLUMNS + " FROM sessions WHERE finished_at >= ?"
+)
 _SUMMARY_BY_PROJECT_AND_SINCE = (
-    "SELECT" + _SUMMARY_COLUMNS + " FROM sessions WHERE project_name = ? AND finished_at >= ?"
+    "SELECT"
+    + _SUMMARY_COLUMNS
+    + " FROM sessions WHERE project_name = ? AND finished_at >= ?"
 )
 
 
@@ -309,20 +330,32 @@ def _build_session_query(
 
 # Static query lookup — every supported filter combination has a pre-built query.
 # Parameter order must match the order filters are added in _build_session_query.
-_Q = "SELECT * FROM sessions"
+# LEFT JOIN pull_requests so each session row includes its PR URL inline.
+_Q = "SELECT s.*, pr.pr_url FROM sessions s LEFT JOIN pull_requests pr ON pr.session_id = s.id"
 _SESSION_QUERIES: dict[frozenset[str], str] = {
-    frozenset(): _Q + " ORDER BY finished_at DESC",
-    frozenset({"project_id"}): _Q + " WHERE project_id = ? ORDER BY finished_at DESC",
-    frozenset({"project_name"}): _Q + " WHERE project_name = ? ORDER BY finished_at DESC",
-    frozenset({"issue_id"}): _Q + " WHERE issue_id = ? ORDER BY finished_at DESC",
-    frozenset({"issue_identifier"}): _Q + " WHERE issue_identifier = ? ORDER BY finished_at DESC",
-    frozenset({"since"}): _Q + " WHERE finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_id", "since"}): _Q + " WHERE project_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_name", "since"}): _Q + " WHERE project_name = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"issue_id", "since"}): _Q + " WHERE issue_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"issue_identifier", "since"}): _Q + " WHERE issue_identifier = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_id", "issue_id"}): _Q + " WHERE project_id = ? AND issue_id = ? ORDER BY finished_at DESC",
-    frozenset({"project_name", "issue_identifier"}): _Q + " WHERE project_name = ? AND issue_identifier = ? ORDER BY finished_at DESC",
-    frozenset({"project_id", "issue_id", "since"}): _Q + " WHERE project_id = ? AND issue_id = ? AND finished_at >= ? ORDER BY finished_at DESC",
-    frozenset({"project_name", "issue_identifier", "since"}): _Q + " WHERE project_name = ? AND issue_identifier = ? AND finished_at >= ? ORDER BY finished_at DESC",
+    frozenset(): _Q + " ORDER BY s.finished_at DESC",
+    frozenset({"project_id"}): _Q
+    + " WHERE s.project_id = ? ORDER BY s.finished_at DESC",
+    frozenset({"project_name"}): _Q
+    + " WHERE s.project_name = ? ORDER BY s.finished_at DESC",
+    frozenset({"issue_id"}): _Q + " WHERE s.issue_id = ? ORDER BY s.finished_at DESC",
+    frozenset({"issue_identifier"}): _Q
+    + " WHERE s.issue_identifier = ? ORDER BY s.finished_at DESC",
+    frozenset({"since"}): _Q + " WHERE s.finished_at >= ? ORDER BY s.finished_at DESC",
+    frozenset({"project_id", "since"}): _Q
+    + " WHERE s.project_id = ? AND s.finished_at >= ? ORDER BY s.finished_at DESC",
+    frozenset({"project_name", "since"}): _Q
+    + " WHERE s.project_name = ? AND s.finished_at >= ? ORDER BY s.finished_at DESC",
+    frozenset({"issue_id", "since"}): _Q
+    + " WHERE s.issue_id = ? AND s.finished_at >= ? ORDER BY s.finished_at DESC",
+    frozenset({"issue_identifier", "since"}): _Q
+    + " WHERE s.issue_identifier = ? AND s.finished_at >= ? ORDER BY s.finished_at DESC",
+    frozenset({"project_id", "issue_id"}): _Q
+    + " WHERE s.project_id = ? AND s.issue_id = ? ORDER BY s.finished_at DESC",
+    frozenset({"project_name", "issue_identifier"}): _Q
+    + " WHERE s.project_name = ? AND s.issue_identifier = ? ORDER BY s.finished_at DESC",
+    frozenset({"project_id", "issue_id", "since"}): _Q
+    + " WHERE s.project_id = ? AND s.issue_id = ? AND s.finished_at >= ? ORDER BY s.finished_at DESC",
+    frozenset({"project_name", "issue_identifier", "since"}): _Q
+    + " WHERE s.project_name = ? AND s.issue_identifier = ? AND s.finished_at >= ? ORDER BY s.finished_at DESC",
 }
