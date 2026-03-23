@@ -48,6 +48,28 @@
    - [ ] Step 2: <description>
    ```
 
+   **Parallel groups:** When multiple steps are independent and touch different files/modules, wrap them in `[parallel]` / `[end-parallel]` markers:
+   ```
+   - [ ] Step 1: <sequential step>
+   [parallel]
+   - [ ] Step 2: <independent step A — modifies module X>
+   - [ ] Step 3: <independent step B — modifies module Y>
+   - [ ] Step 4: <independent step C — modifies module Z>
+   [end-parallel]
+   - [ ] Step 5: <sequential step that depends on 2-4>
+   ```
+
+   **When to use parallel groups:**
+   - Steps modify **different files or modules** with no shared-file edits
+   - Steps have **no data dependencies** on each other (step N does not need output from step M)
+   - All steps in the group share the same worktree, so file-level isolation is the planner's responsibility
+
+   **When NOT to use parallel groups:**
+   - Steps modify the same file (even different sections)
+   - Step N depends on code or output produced by step M
+   - Steps are trivially small — parallelism overhead outweighs the benefit
+   - When in doubt, **default to sequential**. Only mark parallel when clearly independent.
+
 7. **Wait for creator review:** After posting the plan, **do not auto-execute**. Instead:
    a. **Evaluate plan size:** Count the number of checklist items (`- [ ]` lines) in the plan.
    b. **Build the question for review-issue-flow:** Construct the question text as:

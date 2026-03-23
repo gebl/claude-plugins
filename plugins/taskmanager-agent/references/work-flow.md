@@ -62,6 +62,10 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_com
 ```
 
 **e. Work through each unchecked checklist item:**
+
+Parse the plan into an ordered sequence of **steps** and **parallel groups**. A parallel group is delimited by `[parallel]` and `[end-parallel]` markers on their own lines. Everything outside these markers is a sequential step.
+
+**Sequential steps** (items outside `[parallel]` blocks):
 - Do the work for the item.
 - After completing each item, update the plan comment with the item checked off:
   ```bash
@@ -75,6 +79,48 @@ ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_com
     --issue-id <issue-id> \
     --body "**[Activity]** Completed step <N>/<total>: <step description>"
   ```
+
+**Parallel groups** (items between `[parallel]` and `[end-parallel]`):
+
+1. Collect all unchecked items in the group.
+2. If only one unchecked item remains, execute it sequentially (no parallelism overhead).
+3. If multiple unchecked items exist, dispatch them as concurrent Agent tool calls — use the Agent tool with multiple invocations in a **single message**. Each subagent receives:
+   - The step description
+   - The worktree path (absolute path to the worktree)
+   - Project context (issue title, relevant files/modules)
+   - Instruction to make the changes and report what was done
+4. Wait for all subagents to complete.
+
+**Parallel group progress tracking:**
+
+After all subagents in a parallel group return:
+1. Identify which steps succeeded (subagent reported completion without errors).
+2. Update the plan comment to check off **all completed items at once** in a single update:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
+     --id <comment-id> \
+     --body "<updated body with all successful items changed from - [ ] to - [x]>"
+   ```
+3. Post a **single** journal entry summarizing the group:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
+     --issue-id <issue-id> \
+     --body "**[Activity]** Completed steps <N>-<M>/<total> (parallel group): <brief summary>"
+   ```
+
+**Parallel group error handling:**
+
+If any subagent in a parallel group fails or reports being blocked:
+1. Check off only the **successful** items in the plan comment.
+2. Leave failed items unchecked.
+3. Post a journal entry noting partial completion:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_comment.py \
+     --issue-id <issue-id> \
+     --body "**[Activity]** Parallel group partially complete (<succeeded>/<group-size>). Failed: <step description>. Falling back to sequential."
+   ```
+4. For each failed item, attempt it **sequentially** in the main context (not as a subagent).
+5. If sequential retry also fails, follow `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md` to block and request human input.
 
 **f. If blocked at any point:**
 Follow `${CLAUDE_PLUGIN_ROOT}/references/review-issue-flow.md`, then stop.

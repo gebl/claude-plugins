@@ -75,6 +75,20 @@ Breaks a large execution plan into ordered sub-issues, each with its own mini ex
 
 ---
 
+### Parallel Groups vs. Decomposition
+
+Prefer **parallel groups** (`[parallel]`/`[end-parallel]` in the plan) over decomposition into many tiny sub-issues when:
+- The steps are small and independent enough to run in one session
+- They touch different files but share the same conceptual change
+- The overhead of separate plan/execute/PR cycles per sub-issue outweighs the benefit
+
+Decomposition is better when:
+- Steps are large enough to warrant their own PR and review cycle
+- Steps have complex dependencies that benefit from explicit `blocked_by` tracking
+- The total work exceeds what fits in a single Claude session
+
+When decomposing a plan that already contains `[parallel]` markers, preserve the parallel grouping within each sub-issue's mini plan where applicable.
+
 ### How Sub-Issues Get Processed
 
 - `next-flow.md` Phase 4 fetches Todo issues sorted by priority and checks `blocked_by` relations
