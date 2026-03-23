@@ -11,21 +11,47 @@ The plugin operates in two modes:
 
 Both modes follow the same issue lifecycle:
 
-```
-Todo → In Progress → [Plan created] → Blocked (waiting for review)
-  → In Progress (plan approved) → [Work executed] → In Review (PR/document submitted)
-  → Done (PR merged or work accepted)
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    Backlog --> Todo : triaged
+
+    Todo --> InProgress : picked up
+    state InProgress {
+        direction TB
+        [*] --> Planning : no plan
+        Planning --> Blocked_Plan : plan posted\n+ review sub-issue
+        Blocked_Plan --> Executing : plan approved\n(review Done)
+        Executing --> [*] : all items checked
+    }
+    InProgress --> Blocked : needs human input\n(review sub-issue)
+    Blocked --> InProgress : review resolved\n(sub-issue Done)
+    InProgress --> InReview : PR/document submitted\n+ review sub-issue
+
+    InReview --> Done : PR merged
+    InReview --> Blocked : PR has comments\n(review sub-issue)
+    InReview --> Blocked : PR closed\n(rejected)
+    Blocked --> InReview : decompose requested\n(sub-issues created)
 ```
 
 A separate **conversation workflow** handles projectless issues — back-and-forth discussions that don't follow the plan/execute/PR pattern.
 
-### The Three Phases
+### The Issue Lifecycle
 
-**1. Planning** — Claude analyzes the issue, explores the codebase (for code tasks), and posts a checklist-style execution plan as a comment. A review sub-issue is created and assigned to the issue creator. The parent issue is blocked until the plan is approved.
+The process flow routes every issue based on its current status:
 
-**2. Execution** — Once the plan is approved, Claude works through each checklist item. For code tasks, work happens in an isolated git worktree. Each completed item is checked off in the plan comment. On completion, a PR is created and the issue moves to In Review.
+**Route C — Planning** (Todo or In Progress without a plan) — Claude analyzes the issue, explores the codebase (for code tasks), and posts a checklist-style execution plan as a comment. A review sub-issue is created and assigned to the human reviewer. The parent issue is set to Blocked until the plan is approved.
 
-**3. Review** — The creator reviews the PR or document. If changes are needed, comments on the PR move the issue back to In Progress for Claude to address. When the PR is merged, the next `/tm-next` run (or daemon poll) detects it and closes the issue automatically.
+**Route D — Execution** (In Progress with an approved plan) — Claude works through each unchecked plan item. For code tasks, work happens in an isolated git worktree. Each completed item is checked off in the plan comment. On completion, a PR is created and the issue moves to In Review with a review sub-issue for PR review.
+
+**Route A — PR Review** (In Review) — Checks the PR status. Merged → closes the issue and all sub-issues. Has review comments → creates a review sub-issue and blocks the parent for human triage. Open with no comments → no action (still under review). Closed without merge → marks the issue Blocked.
+
+**Route B — Unblock** (Blocked) — Checks for resolved review sub-issues (marked Done). If found, reads the reviewer's response, unblocks the parent to In Progress, and resumes work with the response as context. If the response requests decomposition, routes to Route F instead.
+
+**Route E — Wrap Up** (In Progress, all plan items checked) — Moves the issue to In Review. This handles the edge case where all work was completed but the status wasn't updated.
+
+**Route F — Decompose** (triggered from Route B) — Splits a large plan into individual sub-issues with dependency chains. The parent becomes a tracking umbrella in In Review.
 
 ### When Things Go Wrong
 
@@ -109,11 +135,12 @@ This bootstraps everything:
 
 ### Smart Selection (`/tm-next`)
 
-`/tm-next` selects the next issue to work on using a 5-phase priority system:
+`/tm-next` selects the next issue to work on using a 6-phase priority system:
 
 | Phase | What it checks | Action |
 |-------|---------------|--------|
-| 1. In Review | PRs for issues Claude submitted | Merged → close issue. Has comments → resume work. Closed → mark blocked. |
+| 1. In Review | PRs for issues Claude submitted | Merged → close issue. Has comments → create review sub-issue. Closed → mark blocked. |
+| 1.5. Bug Triage | Quarantined issues with new human comments on Bug sub-issues | Remove from quarantine, retry with human guidance as context. |
 | 2. Resolved Reviews | Review sub-issues marked Done | Unblock the parent issue, resume work with reviewer's feedback. |
 | 3. In Progress | Issues Claude already started | Resume where it left off (plan or execute). |
 | 4. Todo Backlog | Unblocked Todo issues by priority | Urgent → High → Normal → Low. Skips blocked issues. |
@@ -167,7 +194,7 @@ python scripts/tm_daemon.py [OPTIONS]
 **How it works:**
 
 1. Loads state from `~/.claude/taskmanager/daemon-state.yaml` and acquires a PID lock (refuses to start if another instance is running).
-2. Polls for work using the same 5-phase selection as `/tm-next`.
+2. Polls for work using the same 6-phase selection as `/tm-next`.
 3. Spawns a Claude Code session (`claude --print` with `--output-format stream-json`) for the selected issue.
 4. Posts progress comments on the issue during the session (every 5 minutes or on checklist ticks).
 5. On completion, validates that the issue transitioned correctly and required artifacts exist.
@@ -255,7 +282,7 @@ python scripts/tm_session_report.py --format json > sessions.json
 | Command | Description |
 |---------|-------------|
 | `/tm-health` | Setup and validate the environment. Run first, re-run to repair. |
-| `/tm-next` | Pull the next work item using smart 5-phase selection. |
+| `/tm-next` | Pull the next work item using smart 6-phase selection. |
 | `/tm-assign <id>` | Assign a specific issue to Claude and begin working on it. |
 | `/tm-plan <id>` | Create an execution plan for an issue (posts checklist, creates review sub-issue, blocks until approved). |
 | `/tm-work <id>` | Execute the approved plan (git worktree + PR for code, documents for non-code). |
@@ -385,7 +412,7 @@ taskmanager/        Core Python package
     runner.py           Main daemon loop and signal handling
     session.py          Claude Code session spawning
     poller.py           Adaptive polling with backoff tiers
-    selector.py         Issue selection (5-phase priority)
+    selector.py         Issue selection (6-phase priority)
     progress.py         Progress comment posting during sessions
     database.py         SQLite session metrics and PR tracking
     validator.py        Workflow transition and artifact validation
