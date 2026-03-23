@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import re
 
 import httpx
+
+from taskmanager.secrets import EnvSecretProvider, SecretProvider
 
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
@@ -46,9 +47,15 @@ ISSUE_FIELDS_WITH_RELATIONS = (
 class LinearBackend:
     """TaskBackend implementation backed by Linear's GraphQL API."""
 
-    def __init__(self, config: dict, token: str | None = None) -> None:
+    def __init__(
+        self,
+        config: dict,
+        token: str | None = None,
+        secret_provider: SecretProvider | None = None,
+    ) -> None:
+        provider = secret_provider or EnvSecretProvider()
         token_env = config.get("linear", {}).get("token_env", "LINEAR_TOKEN")
-        self._token = token or os.environ.get(token_env, "")
+        self._token = token or provider.get(token_env, "")
         self._config = config
 
     def _request(self, query: str, variables: dict | None = None) -> dict:

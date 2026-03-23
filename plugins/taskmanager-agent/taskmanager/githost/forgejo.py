@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 
 import httpx
@@ -12,16 +11,23 @@ from taskmanager.githost.base import (
     parse_repo_url,
     repo_url_to_https_base,
 )
+from taskmanager.secrets import EnvSecretProvider, SecretProvider
 
 
 class ForgejoBackend:
     """Git hosting backend for Forgejo/Gitea instances."""
 
-    def __init__(self, token: str | None = None) -> None:
-        self._token = token or os.environ.get("FORGEJO_TOKEN", "")
+    def __init__(
+        self,
+        token: str | None = None,
+        secret_provider: SecretProvider | None = None,
+        token_env: str = "FORGEJO_TOKEN",
+    ) -> None:
+        provider = secret_provider or EnvSecretProvider()
+        self._token = token or provider.get(token_env, "")
         if not self._token:
             print(
-                "Error: FORGEJO_TOKEN environment variable is not set", file=sys.stderr
+                f"Error: {token_env} environment variable is not set", file=sys.stderr
             )
             sys.exit(1)
 

@@ -1,6 +1,7 @@
 """Backend factory."""
 
 from taskmanager.backends.base import TaskBackend
+from taskmanager.secrets import get_secret_provider
 
 
 def get_backend() -> TaskBackend:
@@ -8,9 +9,10 @@ def get_backend() -> TaskBackend:
     from taskmanager.config import load_config
 
     config = load_config()
+    provider = get_secret_provider(config)
     backend_name = config.get("backend", "linear")
     if backend_name == "linear":
         from taskmanager.backends.linear import LinearBackend
 
-        return LinearBackend(config)
+        return LinearBackend(config, secret_provider=provider)
     raise ValueError(f"Unknown backend: {backend_name}")
