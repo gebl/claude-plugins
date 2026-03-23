@@ -617,33 +617,23 @@ class DaemonRunner:
 
 
 def verify_claude_plugin_version() -> str | None:
-    """Spawn Claude to report its installed plugin version. Returns the version string or None on failure."""
+    """Read the installed plugin version from Claude's plugin registry. Returns the version string or None on failure."""
+    registry_path = Path.home() / ".claude" / "plugins" / "installed_plugins.json"
     try:
-        proc = subprocess.run(
-            [
-                "claude",
-                "-p",
-                "What version of the taskmanager-agent plugin do you have installed? Reply with ONLY the version number, nothing else.",
-                "--dangerously-skip-permissions",
-                "--output-format",
-                "text",
-                "--max-turns",
-                "1",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if proc.returncode != 0:
-            log.warning("Claude process exited with code %d", proc.returncode)
-            return None
-        return proc.stdout.strip()
-    except subprocess.TimeoutExpired:
-        log.warning("Claude version check timed out")
+        data = json.loads(registry_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        log.warning("Could not read plugin registry at %s: %s", registry_path, exc)
         return None
-    except FileNotFoundError:
-        log.warning("Claude CLI not found on PATH")
-        return None
+
+    for key, entries in data.get("plugins", {}).items():
+        if not key.startswith("taskmanager-agent@"):
+            continue
+        if not entries:
+            continue
+        return entries[0].get("version")
+
+    log.warning("taskmanager-agent not found in plugin registry")
+    return None
 
 
 def _now_iso() -> str:
