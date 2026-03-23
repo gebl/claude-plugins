@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import logging
 import re
+from pathlib import Path
 
+from taskmanager.config import load_config
 from taskmanager.daemon.selector import (
     _find_scripts_dir,
     _find_venv_python,
@@ -19,7 +21,7 @@ from taskmanager.daemon.selector import (
 
 log = logging.getLogger("tm-daemon.reconciler")
 
-_PR_URL_RE = re.compile(r"https?://\S+/pulls?/\d+")
+_PR_URL_RE = re.compile(r"https?://[^\s\]\)>]+/pulls?/\d+")
 _PR_COMMENT_PREFIX = "**[PR Comment]**"
 
 
@@ -128,6 +130,84 @@ def _auto_close_review(issue: dict, reason: str) -> None:
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         log.error("Reconciler: failed to close %s", identifier)
+
+    # Clean up worktree and local branch for merged PRs
+    if reason == "PR was merged":
+        _cleanup_worktree(issue, identifier)
+
+
+def _cleanup_worktree(issue: dict, identifier: str) -> None:
+    """Remove the worktree and local branch for a merged PR's parent issue."""
+    import subprocess
+
+    parent_id = issue.get("parent_id")
+    if not parent_id:
+        log.debug("Reconciler: %s has no parent, skipping worktree cleanup", identifier)
+        return
+
+    parent = _run_dict_script("tm_get_issue.py", parent_id)
+    if not parent:
+        log.warning("Reconciler: could not fetch parent %s for cleanup", parent_id)
+        return
+
+    branch_name = parent.get("branch_name")
+    project_id = parent.get("project_id")
+    if not branch_name or not project_id:
+        log.debug(
+            "Reconciler: parent %s missing branch_name or project_id, skipping cleanup",
+            parent_id,
+        )
+        return
+
+    # Find the project's local_path from config
+    config = load_config()
+    projects = config.get("projects", [])
+    local_path = None
+    for project in projects:
+        if project.get("id") == project_id:
+            local_path = project.get("local_path")
+            break
+
+    if not local_path:
+        log.debug(
+            "Reconciler: no local_path for project %s, skipping cleanup", project_id
+        )
+        return
+
+    repo_path = Path(local_path)
+    if not repo_path.exists():
+        return
+
+    worktree_path = repo_path / ".worktrees" / branch_name
+    parent_identifier = parent.get("identifier", parent_id)
+
+    # Remove worktree
+    if worktree_path.exists():
+        try:
+            subprocess.run(
+                ["git", "worktree", "remove", str(worktree_path), "--force"],
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            log.info("Reconciler: removed worktree for %s", parent_identifier)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            log.error("Reconciler: failed to remove worktree for %s", parent_identifier)
+
+    # Delete local branch
+    try:
+        subprocess.run(
+            ["git", "branch", "-d", branch_name],
+            cwd=str(repo_path),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        log.info("Reconciler: deleted local branch %s", branch_name)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        # Branch may not exist locally or may not be fully merged — not critical
+        log.debug("Reconciler: could not delete branch %s (may not exist)", branch_name)
 
 
 def _mirror_pr_comments(issue: dict, pr_comments: list[dict]) -> None:

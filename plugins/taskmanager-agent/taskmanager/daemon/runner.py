@@ -146,8 +146,7 @@ class DaemonRunner:
                 selected.identifier,
             )
             self._state.quarantine = [
-                q for q in self._state.quarantine
-                if q.issue_id != selected.issue_id
+                q for q in self._state.quarantine if q.issue_id != selected.issue_id
             ]
             self._state.save()
 
@@ -233,7 +232,7 @@ class DaemonRunner:
 
         if (
             post_status == pre_status
-            and pre_status != "In Review"
+            and pre_status not in ("In Review", "Blocked")
             and not is_conversation
         ):
             log.warning(
@@ -253,7 +252,9 @@ class DaemonRunner:
                 output_tokens=result.output_tokens,
                 num_turns=result.num_turns,
             )
-            self._record_session_to_db(selected, result, "unchanged", session_started_at)
+            self._record_session_to_db(
+                selected, result, "unchanged", session_started_at
+            )
             self._post_session_summary(selected, result, "unchanged")
         else:
             log.info(
@@ -357,7 +358,9 @@ class DaemonRunner:
                 started_at=started_at,
             )
         except Exception:
-            log.exception("Failed to record session to database for %s", selected.identifier)
+            log.exception(
+                "Failed to record session to database for %s", selected.identifier
+            )
             return None
 
     def _post_session_summary(
@@ -477,8 +480,14 @@ class DaemonRunner:
             log.info("Bug triage: closing %s", child_ident)
             try:
                 subprocess.run(
-                    [python, str(scripts_dir / "tm_save_issue.py"),
-                     "--id", child_id, "--state", "Done"],
+                    [
+                        python,
+                        str(scripts_dir / "tm_save_issue.py"),
+                        "--id",
+                        child_id,
+                        "--state",
+                        "Done",
+                    ],
                     capture_output=True,
                     text=True,
                     timeout=30,
