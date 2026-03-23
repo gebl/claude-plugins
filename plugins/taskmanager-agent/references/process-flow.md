@@ -148,11 +148,12 @@ If the issue status is **Blocked**:
 
 If the issue status is **Todo**, or **In Progress** with no plan comment (no comment starting with `## Execution Plan`):
 
-1. Set status to In Progress and apply the Claude label (if not already):
+1. Set status to In Progress, assign to operator, and apply the Claude label (if not already):
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --id <issue-id> \
      --state "In Progress" \
+     --assignee <operator> \
      --label "Claude"
    ```
 2. Follow `${CLAUDE_PLUGIN_ROOT}/references/plan-flow.md` to create an execution plan.
@@ -165,11 +166,12 @@ If the issue status is **Todo**, or **In Progress** with no plan comment (no com
 
 If the issue status is **In Progress** and a plan comment exists with unchecked items (`- [ ]`):
 
-1. Set status to In Progress and apply the Claude label (if not already):
+1. Set status to In Progress, assign to operator, and apply the Claude label (if not already):
    ```bash
    ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python ${CLAUDE_PLUGIN_ROOT}/scripts/tm_save_issue.py \
      --id <issue-id> \
      --state "In Progress" \
+     --assignee <operator> \
      --label "Claude"
    ```
 2. Follow `${CLAUDE_PLUGIN_ROOT}/references/work-flow.md` with `<issue-id>`.
