@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from taskmanager import config
+from taskmanager import get_version
 from taskmanager.daemon import database
 from taskmanager.daemon import logging_config
 from taskmanager.daemon import poller
@@ -48,6 +49,23 @@ class DaemonRunner:
     def run(self) -> None:
         """Start the daemon main loop."""
         logging_config.setup_logging(**self._log_channels)
+
+        version = get_version()
+        print(f"taskmanager-agent v{version}")
+        log.info("Plugin version: %s", version)
+
+        claude_version = verify_claude_plugin_version()
+        if claude_version is None:
+            log.warning("Could not verify Claude plugin version — continuing anyway")
+        elif claude_version != version:
+            log.error(
+                "Version mismatch! Daemon: %s, Claude plugin: %s",
+                version,
+                claude_version,
+            )
+            sys.exit(1)
+        else:
+            log.info("Claude plugin version verified: %s", claude_version)
 
         self._state = state.DaemonState.load()
         self._check_pid_lock()
@@ -596,6 +614,36 @@ class DaemonRunner:
                 signum,
             )
             self._draining = True
+
+
+def verify_claude_plugin_version() -> str | None:
+    """Spawn Claude to report its installed plugin version. Returns the version string or None on failure."""
+    try:
+        proc = subprocess.run(
+            [
+                "claude",
+                "-p",
+                "What version of the taskmanager-agent plugin do you have installed? Reply with ONLY the version number, nothing else.",
+                "--dangerously-skip-permissions",
+                "--output-format",
+                "text",
+                "--max-turns",
+                "1",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if proc.returncode != 0:
+            log.warning("Claude process exited with code %d", proc.returncode)
+            return None
+        return proc.stdout.strip()
+    except subprocess.TimeoutExpired:
+        log.warning("Claude version check timed out")
+        return None
+    except FileNotFoundError:
+        log.warning("Claude CLI not found on PATH")
+        return None
 
 
 def _now_iso() -> str:
