@@ -56,6 +56,24 @@ def detect_platform(repo_url: str) -> str:
     return "forgejo"
 
 
+def parse_pr_url(url: str) -> tuple[str, str, str, int]:
+    """Extract base URL, owner, repo, and PR number from a pull request URL.
+
+    Handles URLs like: https://host[:port]/owner/repo/pulls/123
+    Returns (base_url, owner, repo, pr_number).
+    """
+    parsed = urlparse(url)
+    base = f"{parsed.scheme}://{parsed.hostname}"
+    if parsed.port:
+        base += f":{parsed.port}"
+
+    # Path: /owner/repo/pulls/123 or /owner/repo/pull/123
+    parts = parsed.path.strip("/").split("/")
+    if len(parts) < 4 or parts[2] not in ("pulls", "pull"):
+        raise ValueError(f"Cannot parse PR URL: {url}")
+    return base, parts[0], parts[1], int(parts[3])
+
+
 class GitHostBackend(Protocol):
     """Protocol that all git hosting backends must satisfy."""
 
@@ -78,5 +96,12 @@ class GitHostBackend(Protocol):
           - comments: list of {author, body, state}
           - pr_url: str
           - pr_number: int (if found)
+        """
+        ...
+
+    def check_pr_status_by_url(self, pr_url: str) -> dict:
+        """Check PR status by PR URL.
+
+        Returns same dict shape as check_pr_status.
         """
         ...

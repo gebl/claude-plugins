@@ -1,4 +1,4 @@
-"""Check the status of a pull request by branch name."""
+"""Check the status of a pull request by branch name or PR URL."""
 
 import argparse
 import json
@@ -12,17 +12,23 @@ from taskmanager.githost import get_githost_backend
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Check PR status by branch name")
+    parser = argparse.ArgumentParser(description="Check PR status")
+    parser.add_argument("--repo-url", help="Full repo URL (SSH or HTTPS)")
+    parser.add_argument("--branch", help="Head branch name to find PR for")
     parser.add_argument(
-        "--repo-url", required=True, help="Full repo URL (SSH or HTTPS)"
-    )
-    parser.add_argument(
-        "--branch", required=True, help="Head branch name to find PR for"
+        "--pr-url", help="Direct PR URL (alternative to --repo-url/--branch)"
     )
     args = parser.parse_args()
 
-    backend = get_githost_backend(args.repo_url)
-    result = backend.check_pr_status(args.repo_url, args.branch)
+    if args.pr_url:
+        backend = get_githost_backend(args.pr_url)
+        result = backend.check_pr_status_by_url(args.pr_url)
+    elif args.repo_url and args.branch:
+        backend = get_githost_backend(args.repo_url)
+        result = backend.check_pr_status(args.repo_url, args.branch)
+    else:
+        parser.error("Either --pr-url or both --repo-url and --branch are required")
+
     print(json.dumps(result))
 
 

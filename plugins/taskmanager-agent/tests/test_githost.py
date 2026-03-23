@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from taskmanager.githost.base import (
     detect_platform,
+    parse_pr_url,
     parse_repo_url,
     repo_url_to_https_base,
 )
@@ -292,3 +293,115 @@ class TestForgejoBackend:
             "https://forgejo.example.com/Org/repo", "merged-branch"
         )
         assert result["state"] == "merged"
+
+    def test_check_pr_status_by_url_open(self, httpx_mock):
+        httpx_mock.add_response(
+            url="https://forgejo.example.com/api/v1/repos/Org/repo/pulls/42",
+            method="GET",
+            json={
+                "number": 42,
+                "html_url": "https://forgejo.example.com/Org/repo/pulls/42",
+                "state": "open",
+                "merged": False,
+            },
+        )
+        httpx_mock.add_response(
+            url=re.compile(
+                r"https://forgejo\.example\.com/api/v1/repos/Org/repo/pulls/42/reviews"
+            ),
+            method="GET",
+            json=[
+                {"user": {"login": "gabe"}, "body": "Needs work", "state": "COMMENT"},
+            ],
+        )
+        httpx_mock.add_response(
+            url=re.compile(
+                r"https://forgejo\.example\.com/api/v1/repos/Org/repo/issues/42/comments"
+            ),
+            method="GET",
+            json=[],
+        )
+        backend = ForgejoBackend(token="test-token")
+        result = backend.check_pr_status_by_url(
+            "https://forgejo.example.com/Org/repo/pulls/42"
+        )
+        assert result["state"] == "open"
+        assert result["pr_number"] == 42
+        assert len(result["comments"]) == 1
+        assert result["comments"][0]["author"] == "gabe"
+
+    def test_check_pr_status_by_url_merged(self, httpx_mock):
+        httpx_mock.add_response(
+            url="https://forgejo.example.com/api/v1/repos/Org/repo/pulls/10",
+            method="GET",
+            json={
+                "number": 10,
+                "html_url": "https://forgejo.example.com/Org/repo/pulls/10",
+                "state": "closed",
+                "merged": True,
+            },
+        )
+        httpx_mock.add_response(
+            url=re.compile(
+                r"https://forgejo\.example\.com/api/v1/repos/Org/repo/pulls/10/reviews"
+            ),
+            method="GET",
+            json=[],
+        )
+        httpx_mock.add_response(
+            url=re.compile(
+                r"https://forgejo\.example\.com/api/v1/repos/Org/repo/issues/10/comments"
+            ),
+            method="GET",
+            json=[],
+        )
+        backend = ForgejoBackend(token="test-token")
+        result = backend.check_pr_status_by_url(
+            "https://forgejo.example.com/Org/repo/pulls/10"
+        )
+        assert result["state"] == "merged"
+
+    def test_check_pr_status_by_url_not_found(self, httpx_mock):
+        httpx_mock.add_response(
+            url="https://forgejo.example.com/api/v1/repos/Org/repo/pulls/999",
+            method="GET",
+            status_code=404,
+        )
+        backend = ForgejoBackend(token="test-token")
+        result = backend.check_pr_status_by_url(
+            "https://forgejo.example.com/Org/repo/pulls/999"
+        )
+        assert result["state"] == "not_found"
+
+
+class TestParsePrUrl:
+    def test_standard_url(self):
+        base, owner, repo, number = parse_pr_url(
+            "https://forgejo.example.com/Org/repo/pulls/42"
+        )
+        assert base == "https://forgejo.example.com"
+        assert owner == "Org"
+        assert repo == "repo"
+        assert number == 42
+
+    def test_url_with_port(self):
+        base, owner, repo, number = parse_pr_url(
+            "https://forgejo.example.com:3000/Org/repo/pulls/7"
+        )
+        assert base == "https://forgejo.example.com:3000"
+        assert owner == "Org"
+        assert repo == "repo"
+        assert number == 7
+
+    def test_github_pull_singular(self):
+        base, owner, repo, number = parse_pr_url(
+            "https://github.com/owner/project/pull/123"
+        )
+        assert base == "https://github.com"
+        assert owner == "owner"
+        assert repo == "project"
+        assert number == 123
+
+    def test_invalid_url_raises(self):
+        with pytest.raises(ValueError, match="Cannot parse PR URL"):
+            parse_pr_url("https://example.com/not-a-pr")

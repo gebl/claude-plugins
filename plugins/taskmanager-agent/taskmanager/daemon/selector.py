@@ -179,6 +179,10 @@ def _has_human_comments(
         if body.startswith("**[Activity]**"):
             continue
 
+        # Skip mirrored PR comments
+        if body.startswith("**[PR Comment]**"):
+            continue
+
         log.info(
             "  → %s has human comment from %s",
             issue.get("identifier", issue_id),

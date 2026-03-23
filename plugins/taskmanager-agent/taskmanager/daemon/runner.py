@@ -16,6 +16,7 @@ from taskmanager import config
 from taskmanager.daemon import database
 from taskmanager.daemon import logging_config
 from taskmanager.daemon import poller
+from taskmanager.daemon import reconciler
 from taskmanager.daemon import selector
 from taskmanager.daemon import session
 from taskmanager.daemon import state
@@ -84,6 +85,10 @@ class DaemonRunner:
                 self._state.poll_count,
                 quarantine_note,
             )
+
+            # Pre-pass: sync Review sub-issues with git host PR state
+            reconciler.reconcile_review_issues()
+
             selected = selector.select_next_issue(
                 quarantined_ids, seen_comments=self._state.seen_comments
             )
