@@ -105,7 +105,9 @@ def _output_table(
     console.print(f"  Total sessions:  {stats['total_sessions']}")
     console.print(f"  Unique issues:   {stats['unique_issues']}")
     console.print(f"  Total cost:      ${stats['total_cost']:.4f}")
-    console.print(f"  Total tokens:    {stats['total_input_tokens']:,} in / {stats['total_output_tokens']:,} out")
+    console.print(
+        f"  Total tokens:    {stats['total_input_tokens']:,} in / {stats['total_output_tokens']:,} out"
+    )
     console.print(f"  Avg duration:    {stats['avg_duration'] / 60:.1f}m")
     console.print(f"  Total turns:     {int(stats['total_turns']):,}")
     console.print()
@@ -115,6 +117,8 @@ def _output_table(
     table.add_column("Issue", style="cyan", no_wrap=True)
     table.add_column("Project", style="green")
     table.add_column("Outcome", style="bold")
+    table.add_column("Summary", max_width=50)
+    table.add_column("PR", style="blue")
     table.add_column("Duration", justify="right")
     table.add_column("Cost", justify="right")
     table.add_column("Tokens (in/out)", justify="right")
@@ -130,6 +134,8 @@ def _output_table(
         finished = s.get("finished_at", "-")
         if isinstance(finished, str) and len(finished) > 19:
             finished = finished[:19]
+        summary = s.get("summary") or "-"
+        pr_url = s.get("pr_url") or "-"
 
         outcome_style = {
             "completed": "green",
@@ -139,12 +145,18 @@ def _output_table(
             "missing_artifacts": "yellow",
         }.get(s.get("outcome", ""), "")
 
-        outcome_text = f"[{outcome_style}]{s.get('outcome', '-')}[/{outcome_style}]" if outcome_style else s.get("outcome", "-")
+        outcome_text = (
+            f"[{outcome_style}]{s.get('outcome', '-')}[/{outcome_style}]"
+            if outcome_style
+            else s.get("outcome", "-")
+        )
 
         table.add_row(
             s.get("issue_identifier", "-"),
             s.get("project_name", "-"),
             outcome_text,
+            summary,
+            pr_url,
             duration,
             cost,
             f"{tokens_in}/{tokens_out}",
@@ -189,6 +201,7 @@ def _output_table(
     breakdown.add_column("Total Cost", justify="right")
     breakdown.add_column("Total Duration", justify="right")
     breakdown.add_column("Outcomes")
+    breakdown.add_column("Latest Summary", max_width=50)
 
     for issue_key, issue_sessions in sorted(issue_map.items()):
         total_cost = sum(s.get("total_cost_usd") or 0 for s in issue_sessions)
@@ -199,12 +212,20 @@ def _output_table(
             outcomes[o] = outcomes.get(o, 0) + 1
         outcomes_str = ", ".join(f"{k}:{v}" for k, v in sorted(outcomes.items()))
 
+        # Latest summary from most recent session that has one
+        latest_summary = "-"
+        for s in issue_sessions:
+            if s.get("summary"):
+                latest_summary = s["summary"]
+                break
+
         breakdown.add_row(
             issue_key,
             str(len(issue_sessions)),
             f"${total_cost:.4f}",
             f"{total_duration / 60:.1f}m",
             outcomes_str,
+            latest_summary,
         )
 
     console.print(breakdown)
