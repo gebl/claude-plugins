@@ -21,7 +21,7 @@ class ForgejoBackend:
         self,
         token: str | None = None,
         secret_provider: SecretProvider | None = None,
-        token_env: str = "FORGEJO_TOKEN",
+        token_env: str = "TASKMANAGER_AGENT_FORGEJO_TOKEN",
     ) -> None:
         provider = secret_provider or EnvSecretProvider()
         self._token = token or provider.get(token_env, "")

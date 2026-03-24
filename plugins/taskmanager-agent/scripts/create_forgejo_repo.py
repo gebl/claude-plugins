@@ -24,7 +24,7 @@ def main() -> None:
     parser.add_argument(
         "--forgejo-url",
         default=None,
-        help="Forgejo base URL (defaults to FORGEJO_URL env var)",
+        help="Forgejo base URL (defaults to TASKMANAGER_AGENT_FORGEJO_URL env var)",
     )
     parser.add_argument(
         "--org",
@@ -41,10 +41,10 @@ def main() -> None:
 
     import os
 
-    forgejo_url = args.forgejo_url or os.environ.get("FORGEJO_URL", "")
+    forgejo_url = args.forgejo_url or os.environ.get("TASKMANAGER_AGENT_FORGEJO_URL", "")
     if not forgejo_url:
         print(
-            "Error: --forgejo-url or FORGEJO_URL environment variable required",
+            "Error: --forgejo-url or TASKMANAGER_AGENT_FORGEJO_URL environment variable required",
             file=sys.stderr,
         )
         sys.exit(1)

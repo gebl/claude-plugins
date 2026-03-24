@@ -68,12 +68,12 @@ class TestLinearBackendWithProvider:
 
         class StubProvider:
             def get(self, key: str, default: str = "") -> str:
-                if key == "LINEAR_TOKEN":
+                if key == "TASKMANAGER_AGENT_LINEAR_TOKEN":
                     return "injected-token"
                 return default
 
         backend = LinearBackend(
-            config={"linear": {"token_env": "LINEAR_TOKEN"}},
+            config={"linear": {"token_env": "TASKMANAGER_AGENT_LINEAR_TOKEN"}},
             secret_provider=StubProvider(),
         )
         assert backend._token == "injected-token"
@@ -99,7 +99,7 @@ class TestForgejoBackendWithProvider:
 
         class StubProvider:
             def get(self, key: str, default: str = "") -> str:
-                if key == "FORGEJO_TOKEN":
+                if key == "TASKMANAGER_AGENT_FORGEJO_TOKEN":
                     return "forgejo-injected"
                 return default
 
@@ -111,12 +111,12 @@ class TestForgejoBackendWithProvider:
 
         class StubProvider:
             def get(self, key: str, default: str = "") -> str:
-                if key == "MY_FORGEJO_TOKEN":
+                if key == "MY_TASKMANAGER_AGENT_FORGEJO_TOKEN":
                     return "custom-env-token"
                 return default
 
         backend = ForgejoBackend(
             secret_provider=StubProvider(),
-            token_env="MY_FORGEJO_TOKEN",
+            token_env="MY_TASKMANAGER_AGENT_FORGEJO_TOKEN",
         )
         assert backend._token == "custom-env-token"

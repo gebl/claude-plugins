@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Protocol, runtime_checkable
 
+from dotenv import load_dotenv
+
 
 @runtime_checkable
 class SecretProvider(Protocol):
@@ -14,7 +16,15 @@ class SecretProvider(Protocol):
 
 
 class EnvSecretProvider:
-    """Retrieves secrets from environment variables."""
+    """Retrieves secrets from environment variables.
+
+    Loads a ``.env`` file (if present) on first instantiation so that
+    ``TASKMANAGER_AGENT_*`` variables can be defined in a file rather
+    than exported in the shell.
+    """
+
+    def __init__(self) -> None:
+        load_dotenv()
 
     def get(self, key: str, default: str = "") -> str:
         return os.environ.get(key, default)

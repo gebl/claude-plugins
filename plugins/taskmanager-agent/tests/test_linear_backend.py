@@ -11,7 +11,7 @@ from taskmanager.models import Comment, Issue, Label, Status, Team
 
 @pytest.fixture
 def backend():
-    config = {"backend": "linear", "linear": {"token_env": "LINEAR_TOKEN"}}
+    config = {"backend": "linear", "linear": {"token_env": "TASKMANAGER_AGENT_LINEAR_TOKEN"}}
     return LinearBackend(config, token="test-token")
 
 

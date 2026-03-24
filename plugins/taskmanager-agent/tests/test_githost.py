@@ -118,7 +118,7 @@ class TestDetectPlatform:
 
 class TestGetGithostBackend:
     def test_forgejo_url_returns_forgejo_backend(self):
-        with patch.dict("os.environ", {"FORGEJO_TOKEN": "test-token"}):
+        with patch.dict("os.environ", {"TASKMANAGER_AGENT_FORGEJO_TOKEN": "test-token"}):
             backend = get_githost_backend("https://forgejo.example.com/Org/repo")
             assert isinstance(backend, ForgejoBackend)
 
@@ -127,7 +127,7 @@ class TestGetGithostBackend:
             get_githost_backend("https://github.com/owner/repo")
 
     def test_forgejo_ssh_returns_forgejo_backend(self):
-        with patch.dict("os.environ", {"FORGEJO_TOKEN": "test-token"}):
+        with patch.dict("os.environ", {"TASKMANAGER_AGENT_FORGEJO_TOKEN": "test-token"}):
             backend = get_githost_backend("git@forgejo.example.com:Org/repo.git")
             assert isinstance(backend, ForgejoBackend)
 

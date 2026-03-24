@@ -39,10 +39,10 @@ def test_create_forgejo_pr_missing_token(run_script):
         "test",
         "--body",
         "test",
-        env_override={"FORGEJO_TOKEN": ""},
+        env_override={"TASKMANAGER_AGENT_FORGEJO_TOKEN": ""},
     )
     assert result.returncode != 0
-    assert "FORGEJO_TOKEN" in result.stderr
+    assert "TASKMANAGER_AGENT_FORGEJO_TOKEN" in result.stderr
 
 
 def test_create_forgejo_pr_has_help(run_script):
@@ -66,10 +66,10 @@ def test_create_pr_missing_token(run_script):
         "test",
         "--body",
         "test",
-        env_override={"FORGEJO_TOKEN": ""},
+        env_override={"TASKMANAGER_AGENT_FORGEJO_TOKEN": ""},
     )
     assert result.returncode != 0
-    assert "FORGEJO_TOKEN" in result.stderr
+    assert "TASKMANAGER_AGENT_FORGEJO_TOKEN" in result.stderr
 
 
 def test_create_forgejo_repo_has_help(run_script):
@@ -83,10 +83,10 @@ def test_create_forgejo_repo_missing_token(run_script):
         "create_forgejo_repo.py",
         "--name",
         "test-repo",
-        env_override={"FORGEJO_TOKEN": "", "FORGEJO_URL": "https://example.com"},
+        env_override={"TASKMANAGER_AGENT_FORGEJO_TOKEN": "", "TASKMANAGER_AGENT_FORGEJO_URL": "https://example.com"},
     )
     assert result.returncode != 0
-    assert "FORGEJO_TOKEN" in result.stderr
+    assert "TASKMANAGER_AGENT_FORGEJO_TOKEN" in result.stderr
 
 
 def test_create_forgejo_repo_missing_url(run_script):
@@ -94,7 +94,7 @@ def test_create_forgejo_repo_missing_url(run_script):
         "create_forgejo_repo.py",
         "--name",
         "test-repo",
-        env_override={"FORGEJO_TOKEN": "test-token", "FORGEJO_URL": ""},
+        env_override={"TASKMANAGER_AGENT_FORGEJO_TOKEN": "test-token", "TASKMANAGER_AGENT_FORGEJO_URL": ""},
     )
     assert result.returncode != 0
-    assert "FORGEJO_URL" in result.stderr
+    assert "TASKMANAGER_AGENT_FORGEJO_URL" in result.stderr

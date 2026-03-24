@@ -102,9 +102,16 @@ Every intervention point follows the same pattern: Claude creates a trackable su
 
 ## Setup
 
-1. **Set your Linear API token:**
+1. **Set your API tokens** — either export them or copy `.env.example` to `.env`:
    ```bash
-   export LINEAR_TOKEN="lin_api_..."
+   cp .env.example .env
+   # Edit .env and fill in your values
+   ```
+   Or export directly:
+   ```bash
+   export TASKMANAGER_AGENT_LINEAR_TOKEN="lin_api_..."
+   export TASKMANAGER_AGENT_FORGEJO_TOKEN="your_forgejo_token"
+   export TASKMANAGER_AGENT_FORGEJO_URL="https://forgejo.example.com"
    ```
 
 2. **Install the plugin** — add it to your Claude Code plugins or clone locally.
@@ -312,7 +319,7 @@ The plugin automatically determines the mode based on the project configuration:
 PR creation and status checks go through a `GitHostBackend` protocol in `taskmanager/githost/`, making the plugin independent of any single git hosting platform.
 
 **Current backends:**
-- **Forgejo/Gitea** — fully implemented. Authenticates via `FORGEJO_TOKEN`.
+- **Forgejo/Gitea** — fully implemented. Authenticates via `TASKMANAGER_AGENT_FORGEJO_TOKEN`.
 
 **Platform detection:** `detect_platform(repo_url)` inspects the hostname — `github.com` maps to `"github"`, everything else defaults to `"forgejo"`. The factory function `get_githost_backend()` returns the matching backend instance.
 
@@ -329,8 +336,11 @@ PR creation and status checks go through a `GitHostBackend` protocol in `taskman
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `LINEAR_TOKEN` | Yes | Linear API token for reading/writing issues, comments, and projects |
-| `FORGEJO_TOKEN` | For Forgejo PRs | Forgejo/Gitea API token for creating pull requests |
+| `TASKMANAGER_AGENT_LINEAR_TOKEN` | Yes | Linear API token for reading/writing issues, comments, and projects |
+| `TASKMANAGER_AGENT_FORGEJO_TOKEN` | For Forgejo PRs | Forgejo/Gitea API token for creating pull requests |
+| `TASKMANAGER_AGENT_FORGEJO_URL` | For repo creation | Forgejo/Gitea base URL (e.g. `https://forgejo.example.com`) |
+
+All variables can be set in a `.env` file at the project root (see `.env.example`). The agent loads `.env` automatically via `python-dotenv`.
 
 **Daemon git identity:** Sessions spawned by the daemon use a fixed git identity — `Claude Daemon <claude-daemon@local>` — set via `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME`, `GIT_AUTHOR_EMAIL`, and `GIT_COMMITTER_EMAIL` in the session subprocess.
 

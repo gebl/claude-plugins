@@ -54,7 +54,7 @@ class LinearBackend:
         secret_provider: SecretProvider | None = None,
     ) -> None:
         provider = secret_provider or EnvSecretProvider()
-        token_env = config.get("linear", {}).get("token_env", "LINEAR_TOKEN")
+        token_env = config.get("linear", {}).get("token_env", "TASKMANAGER_AGENT_LINEAR_TOKEN")
         self._token = token or provider.get(token_env, "")
         self._config = config
 
