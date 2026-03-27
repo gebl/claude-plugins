@@ -136,6 +136,61 @@
       "local_modifications": false,
       "has_executable_code": false,
       "verified": false
+    },
+    "review": {
+      "upstream_repo": "https://github.com/garrytan/gstack.git",
+      "upstream_path": "review",
+      "upstream_ref": "main",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "11695e3acafe16d5a524ce37c243714b9eb6d154",
+      "last_checked": "2026-03-27T22:47:36.778551+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": false
+    },
+    "investigate": {
+      "upstream_repo": "https://github.com/garrytan/gstack.git",
+      "upstream_path": "investigate",
+      "upstream_ref": "main",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "11695e3acafe16d5a524ce37c243714b9eb6d154",
+      "last_checked": "2026-03-27T22:51:55.585513+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": false
+    },
+    "office-hours": {
+      "upstream_repo": "https://github.com/garrytan/gstack.git",
+      "upstream_path": "office-hours",
+      "upstream_ref": "main",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "11695e3acafe16d5a524ce37c243714b9eb6d154",
+      "last_checked": "2026-03-27T22:55:01.897406+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": false
+    },
+    "careful": {
+      "upstream_repo": "https://github.com/garrytan/gstack.git",
+      "upstream_path": "careful",
+      "upstream_ref": "main",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "11695e3acafe16d5a524ce37c243714b9eb6d154",
+      "last_checked": "2026-03-27T22:55:34.070366+00:00",
+      "local_modifications": false,
+      "has_executable_code": true,
+      "verified": false
+    },
+    "ship": {
+      "upstream_repo": "https://github.com/garrytan/gstack.git",
+      "upstream_path": "ship",
+      "upstream_ref": "main",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "11695e3acafe16d5a524ce37c243714b9eb6d154",
+      "last_checked": "2026-03-27T22:56:13.468192+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": false
     }
   }
 }

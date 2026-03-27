@@ -8,14 +8,19 @@ Plugin marketplace for Claude Code, hosted on github/forgejo to integrate with c
 |--------|-------------|--------|--------|
 | ask-questions-if-underspecified | Clarify ambiguous requirements by asking questions before implementing | Kevin Valerio | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | avoid-ai-writing | Audit and rewrite content to remove AI writing patterns ("AI-isms") | Conor Bronsdon | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) |
+| careful | Safety guardrail that intercepts destructive bash commands (rm -rf, DROP TABLE, force push) | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | devcontainer-setup | Create pre-configured devcontainers with Claude Code and language-specific tooling | Alexis Challande | [trailofbits/skills](https://github.com/trailofbits/skills) |
-| file-organizer | Intelligently organizes files and folders — finds duplicates, suggests structures, automates cleanup | ComposioHQ | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) |
 | differential-review | Security-focused differential review of code changes with blast radius estimation | Omar Inuwa | [trailofbits/skills](https://github.com/trailofbits/skills) |
+| file-organizer | Intelligently organizes files and folders — finds duplicates, suggests structures, automates cleanup | ComposioHQ | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) |
 | git-cleanup | Safely analyzes and cleans up local git branches and worktrees | Henrik Brodin | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | grill-me | Stress-test a plan or design through relentless questioning | Matt Pocock | [mattpocock/skills](https://github.com/mattpocock/skills) |
 | insecure-defaults | Detects insecure default configurations (hardcoded creds, weak auth, etc.) | Trail of Bits | [trailofbits/skills](https://github.com/trailofbits/skills) |
+| investigate | Systematic root-cause debugging — enforces evidence gathering before touching code | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | modern-python | Modern Python best practices with uv, ruff, and ty | William Tan | [trailofbits/skills](https://github.com/trailofbits/skills) |
+| office-hours | Brainstorming and design planning with startup validation and builder modes | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
+| review | Pre-landing PR review for structural issues, race conditions, and scope drift | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | semgrep-rule-creator | Create custom Semgrep rules for detecting bugs and security vulnerabilities | Maciej Domanski | [trailofbits/skills](https://github.com/trailofbits/skills) |
+| ship | Automates pre-merge: tests, review, version bump, changelog, PR creation | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | taskmanager-agent | Backend-agnostic task management agent (Linear, etc.) with worktree-based execution | Anvil | Internal |
 | variant-analysis | Find similar vulnerabilities across codebases using pattern-based analysis | Axel Mierczuk | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | workflow-skill-design | Design patterns and review agent for workflow-based Claude Code skills | Benjamin Samuels | [trailofbits/skills](https://github.com/trailofbits/skills) |

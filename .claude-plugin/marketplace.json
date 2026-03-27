@@ -132,6 +132,36 @@
       "version": "0.1.0",
       "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
       "source": "./plugins/file-organizer"
+    },
+    {
+      "name": "review",
+      "version": "1.0.0",
+      "description": "|",
+      "source": "./plugins/review"
+    },
+    {
+      "name": "investigate",
+      "version": "1.0.0",
+      "description": "|",
+      "source": "./plugins/investigate"
+    },
+    {
+      "name": "office-hours",
+      "version": "2.0.0",
+      "description": "|",
+      "source": "./plugins/office-hours"
+    },
+    {
+      "name": "careful",
+      "version": "0.1.0",
+      "description": "|",
+      "source": "./plugins/careful"
+    },
+    {
+      "name": "ship",
+      "version": "1.0.0",
+      "description": "|",
+      "source": "./plugins/ship"
     }
   ]
 }
