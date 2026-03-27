@@ -1,6 +1,6 @@
 # Anvil Claude Code Plugin Marketplace
 
-Private plugin marketplace for Claude Code, hosted on Forgejo.
+Plugin marketplace for Claude Code, hosted on github/forgejo to integrate with claud code and cowork.
 
 ## Setup
 
