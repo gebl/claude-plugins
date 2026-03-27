@@ -7,7 +7,7 @@ Private plugin marketplace for Claude Code, hosted on Forgejo.
 Add the marketplace to Claude Code:
 
 ```
-/plugin marketplace add git@forgejo.bishop.landq.net:Anvil/claude-plugins.git
+/plugin marketplace add git@<HOSTNAME>:Anvil/claude-plugins.git
 ```
 
 Browse and install plugins with `/plugin`.
@@ -80,7 +80,7 @@ Plugins don't have to live in this monorepo. Use a git URL in `marketplace.json`
   "name": "external-plugin",
   "source": {
     "source": "url",
-    "url": "https://forgejo.bishop.landq.net/Anvil/standalone-plugin.git"
+    "url": "https://<HOSTNAME>/Anvil/standalone-plugin.git"
   }
 }
 ```
