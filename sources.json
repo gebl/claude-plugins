@@ -125,6 +125,17 @@
       "local_modifications": false,
       "has_executable_code": false,
       "verified": false
+    },
+    "file-organizer": {
+      "upstream_repo": "https://github.com/ComposioHQ/awesome-claude-skills.git",
+      "upstream_path": "file-organizer",
+      "upstream_ref": "master",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "27904475d1270d8395acf07691966267d5abda2d",
+      "last_checked": "2026-03-27T22:37:28.405450+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": false
     }
   }
 }

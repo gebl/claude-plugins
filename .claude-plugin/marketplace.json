@@ -126,6 +126,12 @@
       "version": "3.1.0",
       "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.",
       "source": "./plugins/avoid-ai-writing"
+    },
+    {
+      "name": "file-organizer",
+      "version": "0.1.0",
+      "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
+      "source": "./plugins/file-organizer"
     }
   ]
 }
