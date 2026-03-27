@@ -120,6 +120,12 @@
       "version": "0.1.0",
       "description": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\".",
       "source": "./plugins/grill-me"
+    },
+    {
+      "name": "avoid-ai-writing",
+      "version": "3.1.0",
+      "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.",
+      "source": "./plugins/avoid-ai-writing"
     }
   ]
 }

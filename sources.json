@@ -114,6 +114,17 @@
       "local_modifications": false,
       "has_executable_code": false,
       "verified": true
+    },
+    "avoid-ai-writing": {
+      "upstream_repo": "https://github.com/conorbronsdon/avoid-ai-writing.git",
+      "upstream_path": ".",
+      "upstream_ref": "main",
+      "upstream_type": "raw-skill",
+      "last_synced_commit": "1d57e38bdad360caf44dbb3c95a6b01b388208e5",
+      "last_checked": "2026-03-27T22:21:33.823460+00:00",
+      "local_modifications": false,
+      "has_executable_code": false,
+      "verified": false
     }
   }
 }

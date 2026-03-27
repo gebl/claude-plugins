@@ -7,6 +7,7 @@ Plugin marketplace for Claude Code, hosted on github/forgejo to integrate with c
 | Plugin | Description | Author | Source |
 |--------|-------------|--------|--------|
 | ask-questions-if-underspecified | Clarify ambiguous requirements by asking questions before implementing | Kevin Valerio | [trailofbits/skills](https://github.com/trailofbits/skills) |
+| avoid-ai-writing | Audit and rewrite content to remove AI writing patterns ("AI-isms") | Conor Bronsdon | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) |
 | devcontainer-setup | Create pre-configured devcontainers with Claude Code and language-specific tooling | Alexis Challande | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | differential-review | Security-focused differential review of code changes with blast radius estimation | Omar Inuwa | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | git-cleanup | Safely analyzes and cleans up local git branches and worktrees | Henrik Brodin | [trailofbits/skills](https://github.com/trailofbits/skills) |
