@@ -21,7 +21,6 @@ Plugin marketplace for Claude Code, hosted on github/forgejo to integrate with c
 | review | Pre-landing PR review for structural issues, race conditions, and scope drift | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | semgrep-rule-creator | Create custom Semgrep rules for detecting bugs and security vulnerabilities | Maciej Domanski | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | ship | Automates pre-merge: tests, review, version bump, changelog, PR creation | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
-| taskmanager-agent | Backend-agnostic task management agent (Linear, etc.) with worktree-based execution | Anvil | Internal |
 | variant-analysis | Find similar vulnerabilities across codebases using pattern-based analysis | Axel Mierczuk | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | workflow-skill-design | Design patterns and review agent for workflow-based Claude Code skills | Benjamin Samuels | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | yt-transcript | Fetch YouTube video transcripts and save as Markdown | Anvil | Internal |

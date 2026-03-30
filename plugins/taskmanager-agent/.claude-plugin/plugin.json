@@ -1,8 +1,0 @@
-{
-  "name": "taskmanager-agent",
-  "description": "Backend-agnostic task management agent. Pulls issues from your task tracker (Linear, etc.), creates execution plans, works through them via git worktrees and PRs, and updates statuses. Use /tm-health to set up, /tm-work-backlog to process the backlog, /tm-assign to work a specific issue.",
-  "version": "0.6.14",
-  "author": {
-    "name": "Gabriel Lawrence"
-  }
-}
