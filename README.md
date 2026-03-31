@@ -9,6 +9,7 @@ Plugin marketplace for Claude Code, hosted on github/forgejo to integrate with c
 | ask-questions-if-underspecified | Clarify ambiguous requirements by asking questions before implementing | Kevin Valerio | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | avoid-ai-writing | Audit and rewrite content to remove AI writing patterns ("AI-isms") | Conor Bronsdon | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) |
 | careful | Safety guardrail that intercepts destructive bash commands (rm -rf, DROP TABLE, force push) | Garry Tan | [garrytan/gstack](https://github.com/garrytan/gstack) |
+| claude-vis | Logs session activity, token usage, and cost to SQLite for analytics and visualization | Gabe | Internal |
 | devcontainer-setup | Create pre-configured devcontainers with Claude Code and language-specific tooling | Alexis Challande | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | differential-review | Security-focused differential review of code changes with blast radius estimation | Omar Inuwa | [trailofbits/skills](https://github.com/trailofbits/skills) |
 | file-organizer | Intelligently organizes files and folders — finds duplicates, suggests structures, automates cleanup | ComposioHQ | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) |

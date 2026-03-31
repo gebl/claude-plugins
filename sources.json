@@ -180,6 +180,17 @@
       "local_modifications": false,
       "has_executable_code": false,
       "verified": false
+    },
+    "claude-vis": {
+      "upstream_repo": "ssh://git@forgejo.bishop.landq.net:2222/Anvil/claude-vis.git",
+      "upstream_path": ".",
+      "upstream_ref": "main",
+      "upstream_type": "plugin",
+      "last_synced_commit": "e76a55cfa52f1f46989183125fd95f4eda5b23af",
+      "last_checked": "2026-03-31T23:29:40.564530+00:00",
+      "local_modifications": false,
+      "has_executable_code": true,
+      "verified": false
     }
   }
 }

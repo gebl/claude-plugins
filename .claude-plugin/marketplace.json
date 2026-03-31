@@ -156,6 +156,12 @@
       "version": "1.0.0",
       "description": "|",
       "source": "./plugins/ship"
+    },
+    {
+      "name": "claude-vis",
+      "version": "0.1.0",
+      "description": "Logs session activity, token usage, and cost to SQLite for analytics and visualization",
+      "source": "./plugins/claude-vis"
     }
   ]
 }
