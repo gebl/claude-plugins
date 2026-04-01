@@ -117,8 +117,8 @@
     },
     {
       "name": "avoid-ai-writing",
-      "version": "3.1.0",
-      "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.",
+      "version": "3.2.0",
+      "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.\" Supports a detection-only mode that flags patterns without rewriting.",
       "source": "./plugins/avoid-ai-writing"
     },
     {
