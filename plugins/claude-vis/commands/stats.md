@@ -1,5 +1,5 @@
 ---
-name: stats
+name: cv-stats
 description: "Query claude-vis session analytics: recent sessions, cost breakdown, token usage, and more"
 allowed-tools:
   - Bash
