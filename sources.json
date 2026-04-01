@@ -13,9 +13,9 @@
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/git-cleanup",
       "upstream_ref": "main",
-      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-31T23:45:32.830787+00:00",
-      "local_modifications": true,
+      "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+      "last_checked": "2026-04-01T00:15:58.608166+00:00",
+      "local_modifications": false,
       "has_executable_code": false,
       "verified": true
     },
@@ -23,18 +23,18 @@
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/differential-review",
       "upstream_ref": "main",
-      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-31T23:45:32.830787+00:00",
-      "local_modifications": true,
+      "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+      "last_checked": "2026-04-01T00:16:02.061922+00:00",
+      "local_modifications": false,
       "has_executable_code": false
     },
     "modern-python": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/modern-python",
       "upstream_ref": "main",
-      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-31T23:45:32.830787+00:00",
-      "local_modifications": true,
+      "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+      "last_checked": "2026-04-01T00:16:07.555693+00:00",
+      "local_modifications": false,
       "has_executable_code": true
     },
     "variant-analysis": {
@@ -68,9 +68,9 @@
       "upstream_repo": "https://github.com/trailofbits/skills.git",
       "upstream_path": "plugins/devcontainer-setup",
       "upstream_ref": "main",
-      "last_synced_commit": "5c15f4f5644b4bd3d48882a802a7232d501852b6",
-      "last_checked": "2026-03-31T23:45:32.830787+00:00",
-      "local_modifications": true,
+      "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+      "last_checked": "2026-04-01T00:16:10.687088+00:00",
+      "local_modifications": false,
       "has_executable_code": true
     },
     "workflow-skill-design": {
