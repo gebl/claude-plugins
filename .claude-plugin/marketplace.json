@@ -21,15 +21,35 @@
       "source": "./plugins/ask-questions-if-underspecified"
     },
     {
-      "name": "git-cleanup",
-      "version": "1.0.0",
-      "description": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work.",
+      "name": "avoid-ai-writing",
+      "version": "3.2.0",
+      "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.\" Supports a detection-only mode that flags patterns without rewriting.",
+      "source": "./plugins/avoid-ai-writing"
+    },
+    {
+      "name": "careful",
+      "version": "0.1.0",
+      "description": "",
+      "source": "./plugins/careful"
+    },
+    {
+      "name": "claude-vis",
+      "version": "0.1.0",
+      "description": "Logs session activity, token usage, and cost to SQLite for analytics and visualization",
       "author": {
-        "name": "Henrik Brodin",
-        "email": "opensource@trailofbits.com",
+        "name": "Gabe"
+      },
+      "source": "./plugins/claude-vis"
+    },
+    {
+      "name": "devcontainer-setup",
+      "version": "0.1.0",
+      "description": "Create pre-configured devcontainers with Claude Code and language-specific tooling",
+      "author": {
+        "name": "Alexis Challande",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/git-cleanup"
+      "source": "./plugins/devcontainer-setup"
     },
     {
       "name": "differential-review",
@@ -43,33 +63,27 @@
       "source": "./plugins/differential-review"
     },
     {
-      "name": "modern-python",
-      "version": "1.5.0",
-      "description": "Modern Python best practices. Use when creating new Python projects, and writing Python scripts, or migrating existing projects from legacy tools.",
+      "name": "file-organizer",
+      "version": "0.1.0",
+      "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
+      "source": "./plugins/file-organizer"
+    },
+    {
+      "name": "git-cleanup",
+      "version": "1.0.0",
+      "description": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work.",
       "author": {
-        "name": "William Tan",
+        "name": "Henrik Brodin",
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/modern-python"
+      "source": "./plugins/git-cleanup"
     },
     {
-      "name": "variant-analysis",
-      "version": "1.0.0",
-      "description": "Find similar vulnerabilities and bugs across codebases using pattern-based analysis",
-      "author": {
-        "name": "Axel Mierczuk"
-      },
-      "source": "./plugins/variant-analysis"
-    },
-    {
-      "name": "semgrep-rule-creator",
-      "version": "1.2.0",
-      "description": "Create custom Semgrep rules for detecting bug patterns and security vulnerabilities",
-      "author": {
-        "name": "Maciej Domanski"
-      },
-      "source": "./plugins/semgrep-rule-creator"
+      "name": "grill-me",
+      "version": "0.1.0",
+      "description": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\".",
+      "source": "./plugins/grill-me"
     },
     {
       "name": "insecure-defaults",
@@ -83,14 +97,57 @@
       "source": "./plugins/insecure-defaults"
     },
     {
-      "name": "devcontainer-setup",
-      "version": "0.1.0",
-      "description": "Create pre-configured devcontainers with Claude Code and language-specific tooling",
+      "name": "investigate",
+      "version": "1.0.0",
+      "description": "",
+      "source": "./plugins/investigate"
+    },
+    {
+      "name": "modern-python",
+      "version": "1.5.0",
+      "description": "Modern Python best practices. Use when creating new Python projects, and writing Python scripts, or migrating existing projects from legacy tools.",
       "author": {
-        "name": "Alexis Challande",
+        "name": "William Tan",
+        "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/devcontainer-setup"
+      "source": "./plugins/modern-python"
+    },
+    {
+      "name": "office-hours",
+      "version": "2.0.0",
+      "description": "",
+      "source": "./plugins/office-hours"
+    },
+    {
+      "name": "review",
+      "version": "1.0.0",
+      "description": "",
+      "source": "./plugins/review"
+    },
+    {
+      "name": "semgrep-rule-creator",
+      "version": "1.2.0",
+      "description": "Create custom Semgrep rules for detecting bug patterns and security vulnerabilities",
+      "author": {
+        "name": "Maciej Domanski"
+      },
+      "source": "./plugins/semgrep-rule-creator"
+    },
+    {
+      "name": "ship",
+      "version": "1.0.0",
+      "description": "",
+      "source": "./plugins/ship"
+    },
+    {
+      "name": "variant-analysis",
+      "version": "1.0.0",
+      "description": "Find similar vulnerabilities and bugs across codebases using pattern-based analysis",
+      "author": {
+        "name": "Axel Mierczuk"
+      },
+      "source": "./plugins/variant-analysis"
     },
     {
       "name": "workflow-skill-design",
@@ -107,61 +164,11 @@
       "name": "yt-transcript",
       "version": "0.1.0",
       "description": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
+      "author": {
+        "name": "Gabriel Lawrence",
+        "email": "gabriel.lawrence@gmail.com"
+      },
       "source": "./plugins/yt-transcript"
-    },
-    {
-      "name": "grill-me",
-      "version": "0.1.0",
-      "description": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\".",
-      "source": "./plugins/grill-me"
-    },
-    {
-      "name": "avoid-ai-writing",
-      "version": "3.2.0",
-      "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.\" Supports a detection-only mode that flags patterns without rewriting.",
-      "source": "./plugins/avoid-ai-writing"
-    },
-    {
-      "name": "file-organizer",
-      "version": "0.1.0",
-      "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
-      "source": "./plugins/file-organizer"
-    },
-    {
-      "name": "review",
-      "version": "1.0.0",
-      "description": "|",
-      "source": "./plugins/review"
-    },
-    {
-      "name": "investigate",
-      "version": "1.0.0",
-      "description": "|",
-      "source": "./plugins/investigate"
-    },
-    {
-      "name": "office-hours",
-      "version": "2.0.0",
-      "description": "|",
-      "source": "./plugins/office-hours"
-    },
-    {
-      "name": "careful",
-      "version": "0.1.0",
-      "description": "|",
-      "source": "./plugins/careful"
-    },
-    {
-      "name": "ship",
-      "version": "1.0.0",
-      "description": "|",
-      "source": "./plugins/ship"
-    },
-    {
-      "name": "claude-vis",
-      "version": "0.1.0",
-      "description": "Logs session activity, token usage, and cost to SQLite for analytics and visualization",
-      "source": "./plugins/claude-vis"
     }
   ]
 }
