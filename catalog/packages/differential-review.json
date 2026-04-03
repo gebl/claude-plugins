@@ -1,0 +1,122 @@
+{
+  "name": "differential-review",
+  "version": "1.0.0",
+  "description": "Security-focused differential review of code changes with git history analysis and blast radius estimation",
+  "authors": [
+    {
+      "name": "Omar Inuwa",
+      "email": "opensource@trailofbits.com",
+      "url": "https://github.com/trailofbits"
+    }
+  ],
+  "upstream": {
+    "repo": "https://github.com/trailofbits/skills.git",
+    "path": "plugins/differential-review",
+    "ref": "main",
+    "type": "plugin",
+    "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+    "last_checked": "2026-04-01T00:16:02.061922+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "full-plugin",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": true,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [
+        "Bash",
+        "Glob",
+        "Grep",
+        "Read",
+        "Write"
+      ],
+      "risk_level": "high",
+      "reasons": [
+        "Bash: shell execution or file mutation",
+        "Write: shell execution or file mutation"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "harness-specific",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unsupported"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "unsupported"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "HAS_COMMANDS_DIR",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "commands/",
+        "message": "Contains slash command definitions"
+      },
+      {
+        "code": "CLAUDE_HOME_PATH",
+        "kind": "harness",
+        "severity": "error",
+        "path": "skills/differential-review/reporting.md",
+        "message": "References ~/.claude paths (1 occurrences)"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Bash, Glob, Grep, Read, Write"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities",
+      "Replace ~/.claude path references with harness-neutral config",
+      "Slash commands need harness-specific packaging adaptation"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "differential-review": false
+    }
+  }
+}

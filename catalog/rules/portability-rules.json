@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "description": "Rules for detecting whether a package can travel across harnesses",
+  "rules": [
+    {
+      "code": "PURE_MARKDOWN_SKILL_ONLY",
+      "description": "Package contains only markdown skill files with no harness bindings",
+      "effect": "agnostic"
+    },
+    {
+      "code": "HAS_RUNTIME_SPECIFIC_HOME_PATH",
+      "description": "References a harness-specific home directory (e.g. ~/.claude, ~/.codex)",
+      "effect": "harness-specific",
+      "patterns": ["~/.claude", "~/.codex", "~/.cursor"]
+    },
+    {
+      "code": "HAS_RUNTIME_SPECIFIC_HOOK_LIFECYCLE",
+      "description": "Uses hook lifecycle events specific to a single harness",
+      "effect": "harness-specific"
+    },
+    {
+      "code": "HAS_RUNTIME_SPECIFIC_SCHEMA_REFERENCE",
+      "description": "References a harness-specific JSON schema",
+      "effect": "harness-specific",
+      "patterns": ["anthropic.com/claude-code", "codex.openai.com"]
+    }
+  ]
+}

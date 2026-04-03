@@ -7,7 +7,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-03-31T23:58:09.376171+00:00",
       "local_modifications": false,
-      "has_executable_code": false
+      "has_executable_code": false,
+      "verification": {
+        "skills": {
+          "ask-questions-if-underspecified": false
+        }
+      }
     },
     "git-cleanup": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -17,7 +22,11 @@
       "last_checked": "2026-04-01T00:15:58.608166+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": true
+      "verification": {
+        "skills": {
+          "git-cleanup": true
+        }
+      }
     },
     "differential-review": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -26,7 +35,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-04-01T00:16:02.061922+00:00",
       "local_modifications": false,
-      "has_executable_code": false
+      "has_executable_code": false,
+      "verification": {
+        "skills": {
+          "differential-review": false
+        }
+      }
     },
     "modern-python": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -35,7 +49,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-04-01T00:16:07.555693+00:00",
       "local_modifications": false,
-      "has_executable_code": true
+      "has_executable_code": true,
+      "verification": {
+        "skills": {
+          "modern-python": false
+        }
+      }
     },
     "variant-analysis": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -44,7 +63,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-03-31T23:58:19.484552+00:00",
       "local_modifications": false,
-      "has_executable_code": false
+      "has_executable_code": false,
+      "verification": {
+        "skills": {
+          "variant-analysis": false
+        }
+      }
     },
     "semgrep-rule-creator": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -53,7 +77,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-03-31T23:58:22.404148+00:00",
       "local_modifications": false,
-      "has_executable_code": false
+      "has_executable_code": false,
+      "verification": {
+        "skills": {
+          "semgrep-rule-creator": false
+        }
+      }
     },
     "insecure-defaults": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -62,7 +91,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-03-31T23:58:40.718568+00:00",
       "local_modifications": false,
-      "has_executable_code": false
+      "has_executable_code": false,
+      "verification": {
+        "skills": {
+          "insecure-defaults": false
+        }
+      }
     },
     "devcontainer-setup": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -71,7 +105,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-04-01T00:16:10.687088+00:00",
       "local_modifications": false,
-      "has_executable_code": true
+      "has_executable_code": true,
+      "verification": {
+        "skills": {
+          "devcontainer-setup": false
+        }
+      }
     },
     "workflow-skill-design": {
       "upstream_repo": "https://github.com/trailofbits/skills.git",
@@ -80,7 +119,12 @@
       "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
       "last_checked": "2026-03-31T23:58:49.160440+00:00",
       "local_modifications": false,
-      "has_executable_code": false
+      "has_executable_code": false,
+      "verification": {
+        "skills": {
+          "designing-workflow-skills": false
+        }
+      }
     },
     "yt-transcript": {
       "upstream_repo": "ssh://git@forgejo.bishop.landq.net:2222/secondbrain/yt-transcript.git",
@@ -91,7 +135,11 @@
       "last_checked": "2026-03-31T23:45:32.830787+00:00",
       "local_modifications": false,
       "has_executable_code": true,
-      "verified": false
+      "verification": {
+        "skills": {
+          "yt-transcript": false
+        }
+      }
     },
     "grill-me": {
       "upstream_repo": "https://github.com/mattpocock/skills.git",
@@ -102,7 +150,11 @@
       "last_checked": "2026-03-31T23:58:51.017938+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": true
+      "verification": {
+        "skills": {
+          "grill-me": true
+        }
+      }
     },
     "avoid-ai-writing": {
       "upstream_repo": "https://github.com/conorbronsdon/avoid-ai-writing.git",
@@ -113,7 +165,11 @@
       "last_checked": "2026-03-31T23:58:53.092559+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": false
+      "verification": {
+        "skills": {
+          "avoid-ai-writing": false
+        }
+      }
     },
     "file-organizer": {
       "upstream_repo": "https://github.com/ComposioHQ/awesome-claude-skills.git",
@@ -124,7 +180,11 @@
       "last_checked": "2026-03-31T23:45:32.830787+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": false
+      "verification": {
+        "skills": {
+          "file-organizer": false
+        }
+      }
     },
     "review": {
       "upstream_repo": "https://github.com/garrytan/gstack.git",
@@ -135,7 +195,11 @@
       "last_checked": "2026-04-01T00:07:08.690581+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": false
+      "verification": {
+        "skills": {
+          "review": false
+        }
+      }
     },
     "investigate": {
       "upstream_repo": "https://github.com/garrytan/gstack.git",
@@ -146,7 +210,11 @@
       "last_checked": "2026-04-01T00:08:59.897806+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": false
+      "verification": {
+        "skills": {
+          "investigate": false
+        }
+      }
     },
     "office-hours": {
       "upstream_repo": "https://github.com/garrytan/gstack.git",
@@ -157,7 +225,11 @@
       "last_checked": "2026-04-01T00:09:08.980423+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": false
+      "verification": {
+        "skills": {
+          "office-hours": false
+        }
+      }
     },
     "careful": {
       "upstream_repo": "https://github.com/garrytan/gstack.git",
@@ -168,7 +240,11 @@
       "last_checked": "2026-04-01T00:10:48.123770+00:00",
       "local_modifications": false,
       "has_executable_code": true,
-      "verified": false
+      "verification": {
+        "skills": {
+          "careful": false
+        }
+      }
     },
     "ship": {
       "upstream_repo": "https://github.com/garrytan/gstack.git",
@@ -179,7 +255,11 @@
       "last_checked": "2026-04-01T00:10:58.305612+00:00",
       "local_modifications": false,
       "has_executable_code": false,
-      "verified": false
+      "verification": {
+        "skills": {
+          "ship": false
+        }
+      }
     },
     "claude-vis": {
       "upstream_repo": "ssh://git@forgejo.bishop.landq.net:2222/Anvil/claude-vis.git",
@@ -190,7 +270,11 @@
       "last_checked": "2026-04-01T00:28:20.289206+00:00",
       "local_modifications": false,
       "has_executable_code": true,
-      "verified": false
+      "verification": {
+        "skills": {
+          "stats": false
+        }
+      }
     }
   }
 }

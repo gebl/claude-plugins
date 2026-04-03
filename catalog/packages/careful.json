@@ -1,0 +1,116 @@
+{
+  "name": "careful",
+  "version": "0.1.0",
+  "description": "",
+  "upstream": {
+    "repo": "https://github.com/garrytan/gstack.git",
+    "path": "careful",
+    "ref": "main",
+    "type": "raw-skill",
+    "last_synced_commit": "db35b8e5bffb596144c4c7f4a3b7eb5c078edaaf",
+    "last_checked": "2026-04-01T00:10:48.123770+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "skill-wrapper",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": true,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [
+        "Bash",
+        "Read"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Bash: shell execution or file mutation"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "adaptable",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "blocked"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "CLAUDE_PLUGIN_CONVENTION",
+        "kind": "harness",
+        "severity": "warn",
+        "path": "skills/careful/SKILL.md",
+        "message": "Uses ${CLAUDE_SKILL_DIR} variable"
+      },
+      {
+        "code": "CLAUDE_PLUGIN_CONVENTION",
+        "kind": "harness",
+        "severity": "warn",
+        "path": "skills/careful/SKILL.md.tmpl",
+        "message": "Uses ${CLAUDE_SKILL_DIR} variable"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Bash, Read"
+      },
+      {
+        "code": "EXECUTABLE_CODE_PRESENT",
+        "kind": "risk",
+        "severity": "warn",
+        "path": "skills/careful/bin/check-careful.sh",
+        "message": "Contains 1 executable file(s)"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "careful": false
+    }
+  }
+}

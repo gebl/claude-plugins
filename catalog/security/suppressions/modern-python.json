@@ -1,0 +1,20 @@
+{
+  "package": "modern-python",
+  "note": "These suppressions mirror inline nosemgrep comments in imported upstream files. Future assessment should use these external suppressions instead of requiring inline edits to imported content.",
+  "suppressions": [
+    {
+      "path": "skills/modern-python/references/security-setup.md",
+      "rule_id": "claude-pipe-to-shell",
+      "reason": "Reference documentation showing prek installer command",
+      "scope": "line-match",
+      "line_content": "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh"
+    },
+    {
+      "path": "skills/modern-python/references/uv-commands.md",
+      "rule_id": "claude-pipe-to-shell",
+      "reason": "Reference documentation showing official uv installer command",
+      "scope": "line-match",
+      "line_content": "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "package.schema.json",
+  "title": "Package Record",
+  "description": "Neutral catalog entry for a single package in the harness-agnostic marketplace",
+  "type": "object",
+  "required": ["name", "version", "description", "upstream", "source_model", "package_type", "files", "risk", "compatibility", "generation", "verification"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique package identifier"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the package"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable package summary"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "url": { "type": "string", "format": "uri" }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "required": ["repo", "path", "ref", "type", "last_synced_commit", "last_checked"],
+      "properties": {
+        "repo": {
+          "type": "string",
+          "description": "Upstream repository URL"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path within the upstream repository"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Branch or tag tracked"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["plugin", "raw-skill"],
+          "description": "Whether upstream is a full plugin or a raw skill directory"
+        },
+        "last_synced_commit": {
+          "type": "string",
+          "description": "SHA of last synced commit"
+        },
+        "last_checked": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When upstream was last checked"
+        }
+      },
+      "additionalProperties": false
+    },
+    "source_model": {
+      "type": "string",
+      "enum": ["upstream-mirror", "adapted-fork", "local-original"],
+      "description": "Relationship of this package to its source"
+    },
+    "canonical_harness": {
+      "type": ["string", "null"],
+      "description": "The harness this package was originally authored for, or null if agnostic"
+    },
+    "fork_of": {
+      "type": "object",
+      "properties": {
+        "package": { "type": "string" },
+        "repo": { "type": "string" },
+        "path": { "type": "string" }
+      },
+      "description": "Link to original package if this is an adapted-fork"
+    },
+    "package_type": {
+      "type": "string",
+      "enum": ["skill-only", "skill-wrapper", "full-plugin"],
+      "description": "Packaging complexity level"
+    },
+    "files": {
+      "type": "object",
+      "required": ["has_skill", "has_plugin_manifest", "has_hooks", "has_commands", "has_agents", "has_templates"],
+      "properties": {
+        "has_skill": { "type": "boolean" },
+        "has_plugin_manifest": { "type": "boolean" },
+        "has_hooks": { "type": "boolean" },
+        "has_commands": { "type": "boolean" },
+        "has_agents": { "type": "boolean" },
+        "has_templates": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "risk": {
+      "type": "object",
+      "required": ["has_executable_code", "dependency_files"],
+      "properties": {
+        "has_executable_code": { "type": "boolean" },
+        "dependency_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tool_risk": {
+          "type": "object",
+          "properties": {
+            "declared_tools": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "risk_level": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            },
+            "reasons": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "compatibility": {
+      "$ref": "compatibility.schema.json"
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["enabled", "mode"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "mode": {
+            "type": "string",
+            "enum": ["native", "generated", "adapted", "none"]
+          },
+          "transforms": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "marketplace": {
+            "type": "object",
+            "description": "Harness-specific marketplace overrides"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Per-harness generation configuration"
+    },
+    "verification": {
+      "type": "object",
+      "required": ["skills"],
+      "properties": {
+        "reviewed": { "type": "boolean" },
+        "skills": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

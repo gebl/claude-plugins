@@ -45,7 +45,10 @@ def load_sources() -> dict:
     if not SOURCES_FILE.exists():
         print(f"Error: {SOURCES_FILE} not found", file=sys.stderr)
         sys.exit(1)
-    return json.loads(SOURCES_FILE.read_text())
+    data = json.loads(SOURCES_FILE.read_text())
+    for plugin_name, info in data.get("plugins", {}).items():
+        _normalize_verification_state(plugin_name, info)
+    return data
 
 
 def save_sources(data: dict) -> None:
@@ -243,6 +246,81 @@ def detect_dependencies(directory: Path) -> list[str]:
     )
 
 
+def discover_plugin_skills(plugin_name: str) -> list[str]:
+    """Return skill names for a plugin, or the plugin name if none exist yet."""
+    skills_dir = REPO_ROOT / "plugins" / plugin_name / "skills"
+    if not skills_dir.exists():
+        return [plugin_name]
+
+    skills = sorted(path.name for path in skills_dir.iterdir() if path.is_dir())
+    return skills or [plugin_name]
+
+
+def _normalize_verification_state(plugin_name: str, info: dict) -> None:
+    """Migrate legacy plugin-level verification into per-skill verification."""
+    legacy_verified = bool(info.pop("verified", False))
+    existing = info.get("verification", {})
+    existing_skills = existing.get("skills", {})
+    skill_names = discover_plugin_skills(plugin_name)
+
+    normalized_skills = {
+        skill_name: bool(existing_skills.get(skill_name, legacy_verified))
+        for skill_name in skill_names
+    }
+    info["verification"] = {"skills": normalized_skills}
+
+
+def get_verification_skills(plugin_name: str, info: dict) -> dict[str, bool]:
+    """Return per-skill verification state for a plugin."""
+    _normalize_verification_state(plugin_name, info)
+    return info["verification"]["skills"]
+
+
+def get_unverified_skills(plugin_name: str, info: dict) -> list[str]:
+    """Return the unverified skill names for a plugin."""
+    return [
+        skill_name
+        for skill_name, verified in get_verification_skills(plugin_name, info).items()
+        if not verified
+    ]
+
+
+def is_plugin_verified(plugin_name: str, info: dict) -> bool:
+    """Return True when every tracked skill in the plugin has been verified."""
+    return not get_unverified_skills(plugin_name, info)
+
+
+def set_skill_verification(
+    plugin_name: str,
+    info: dict,
+    *,
+    verified: bool,
+    skill_name: str | None = None,
+) -> list[str]:
+    """Set verification state for one skill or all skills in a plugin."""
+    skills = get_verification_skills(plugin_name, info)
+    if skill_name:
+        if skill_name not in skills:
+            print(
+                f"Error: Skill '{skill_name}' not found in plugin '{plugin_name}'",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        skills[skill_name] = verified
+        return [skill_name]
+
+    for current_skill_name in skills:
+        skills[current_skill_name] = verified
+    return sorted(skills)
+
+
+def verification_summary(plugin_name: str, info: dict) -> str:
+    """Return a human-readable verification summary for a plugin."""
+    skills = get_verification_skills(plugin_name, info)
+    verified_count = sum(1 for verified in skills.values() if verified)
+    return f"{verified_count}/{len(skills)} skills verified"
+
+
 # --- Import skill ---
 
 
@@ -403,7 +481,7 @@ def import_skill(args: argparse.Namespace) -> None:
                     "upstream_type": UPSTREAM_TYPE_RAW_SKILL,
                     "last_synced_commit": head,
                     "has_executable_code": bool(executables),
-                    "verified": False,
+                    "verification": {"skills": {args.name: False}},
                 },
                 marketplace_entry={
                     "name": args.name,
@@ -430,7 +508,7 @@ def import_skill(args: argparse.Namespace) -> None:
         "last_checked": now,
         "local_modifications": False,
         "has_executable_code": bool(executables),
-        "verified": False,
+        "verification": {"skills": {args.name: False}},
     }
     save_sources(data)
 
@@ -448,7 +526,8 @@ def import_skill(args: argparse.Namespace) -> None:
     print(f"Imported '{args.name}' as plugin from {args.repo} @ {args.ref}")
     if executables:
         _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
-    print("  Verified: no (use --mark-verified to approve after review)")
+    print(f"  Verification: {verification_summary(args.name, data['plugins'][args.name])}")
+    print("  Use --mark-verified to approve after review")
 
 
 # --- Add plugin (existing, updated with new fields) ---
@@ -523,7 +602,9 @@ def add_plugin(args: argparse.Namespace) -> None:
                     "upstream_type": UPSTREAM_TYPE_PLUGIN,
                     "last_synced_commit": head,
                     "has_executable_code": bool(executables),
-                    "verified": False,
+                    "verification": {
+                        "skills": dict.fromkeys(discover_plugin_skills(args.name), False)
+                    },
                 },
                 marketplace_entry={
                     "name": args.name,
@@ -549,7 +630,9 @@ def add_plugin(args: argparse.Namespace) -> None:
         "last_checked": now,
         "local_modifications": False,
         "has_executable_code": bool(executables),
-        "verified": False,
+        "verification": {
+            "skills": dict.fromkeys(discover_plugin_skills(args.name), False)
+        },
     }
     save_sources(data)
 
@@ -568,7 +651,8 @@ def add_plugin(args: argparse.Namespace) -> None:
     print(f"Added '{args.name}' from {args.repo} @ {args.ref} ({head[:12]})")
     if executables:
         _print_executable_summary(executables, max_display=MAX_DISPLAY_EXECUTABLES)
-    print("  Verified: no (use --mark-verified to approve after review)")
+    print(f"  Verification: {verification_summary(args.name, data['plugins'][args.name])}")
+    print("  Use --mark-verified to approve after review")
 
 
 # --- Sync upstream changes ---
@@ -670,6 +754,7 @@ def _sync_single_plugin(  # noqa: PLR0913
     data["plugins"][name]["last_checked"] = now
     data["plugins"][name]["local_modifications"] = False
     data["plugins"][name]["has_executable_code"] = bool(executables)
+    set_skill_verification(name, data["plugins"][name], verified=False)
     _update_marketplace_entry(name, metadata)
 
     print(f"  Synced to {head[:12]}")
@@ -680,7 +765,6 @@ def sync_plugin(args: argparse.Namespace) -> None:
     """Pull upstream changes for a plugin (or all outdated plugins)."""
     data = load_sources()
     plugins = data["plugins"]
-
     if args.plugin:
         if args.plugin not in plugins:
             print(f"Error: Plugin '{args.plugin}' not tracked", file=sys.stderr)
@@ -845,9 +929,13 @@ def check_single_plugin(name: str, info: dict, *, show_diff: bool = False) -> di
     print(f"  Status: {status}")
     print(f"  Action: {status_action(status)}")
 
+    print(f"  Verification: {verification_summary(name, info)}")
+    unverified_skills = get_unverified_skills(name, info)
+    if unverified_skills:
+        print(f"  Unverified skills: {', '.join(unverified_skills)}")
+
     if info.get("has_executable_code"):
-        verified = info.get("verified", False)
-        print(f"  Executable code: yes (verified: {'yes' if verified else 'no'})")
+        print(f"  Executable code: yes ({verification_summary(name, info)})")
 
     if upstream_changed:
         changed = get_upstream_diff(
@@ -921,7 +1009,7 @@ def mark_synced(args: argparse.Namespace) -> None:
 
 
 def mark_verified(args: argparse.Namespace) -> None:
-    """Mark a plugin as reviewed and verified."""
+    """Mark one skill or all skills in a plugin as reviewed and verified."""
     if not args.plugin:
         print("Error: --mark-verified requires --plugin", file=sys.stderr)
         sys.exit(1)
@@ -931,9 +1019,19 @@ def mark_verified(args: argparse.Namespace) -> None:
         print(f"Error: Plugin '{args.plugin}' not tracked", file=sys.stderr)
         sys.exit(1)
 
-    data["plugins"][args.plugin]["verified"] = True
+    updated_skills = set_skill_verification(
+        args.plugin,
+        data["plugins"][args.plugin],
+        verified=True,
+        skill_name=args.skill,
+    )
     save_sources(data)
-    print(f"Marked '{args.plugin}' as verified")
+    if args.skill:
+        print(f"Marked skill '{args.skill}' in plugin '{args.plugin}' as verified")
+    else:
+        print(
+            f"Marked {len(updated_skills)} skill(s) in plugin '{args.plugin}' as verified"
+        )
 
 
 # --- Pending verification ---
@@ -982,7 +1080,7 @@ def remove_plugin(args: argparse.Namespace) -> None:
 
 
 def list_pending(_args: argparse.Namespace) -> None:
-    """List all plugins pending verification. Always rescans for executable code."""
+    """List all skills pending verification. Always rescans for executable code."""
     data = load_sources()
     pending = []
     changed = False
@@ -996,18 +1094,25 @@ def list_pending(_args: argparse.Namespace) -> None:
             data["plugins"][name]["has_executable_code"] = has_exec
             changed = True
 
-        if not info.get("verified", False):
-            pending.append((name, info, executables))
+        unverified_skills = get_unverified_skills(name, info)
+        if unverified_skills:
+            pending.append((name, info, executables, unverified_skills))
 
     if changed:
         save_sources(data)
 
     if not pending:
-        print("All plugins have been verified.")
+        print("All tracked skills have been verified.")
         return
 
-    print(f"Plugins pending verification ({len(pending)}):\n")
-    for name, info, executables in pending:
+    total_unverified_skills = sum(
+        len(unverified_skills) for _, _, _, unverified_skills in pending
+    )
+    print(
+        "Skills pending verification "
+        f"({total_unverified_skills} across {len(pending)} plugin(s)):\n"
+    )
+    for name, info, executables, unverified_skills in pending:
         upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
         repo = info["upstream_repo"]
         short_repo = repo.replace("https://github.com/", "").replace(".git", "")
@@ -1015,6 +1120,7 @@ def list_pending(_args: argparse.Namespace) -> None:
         print(f"  {name}")
         print(f"    Source: {short_repo}")
         print(f"    Type: {upstream_type}")
+        print(f"    Unverified skills: {', '.join(unverified_skills)}")
         if executables:
             print(f"    !! Contains executable code ({len(executables)} file(s)):")
             for e in executables[:MAX_DISPLAY_PENDING]:
@@ -1148,10 +1254,11 @@ def _scan_single_plugin(
 
 
 def scan_plugins(args: argparse.Namespace) -> None:
-    """Run semgrep security scan on unverified plugins (or a specific plugin)."""
+    """Run semgrep security scan on plugins with unverified skills."""
     semgrep_bin = _find_semgrep()
     data = load_sources()
     plugins = data["plugins"]
+    scanning_specific_plugin = bool(args.plugin)
 
     if args.plugin:
         if args.plugin not in plugins:
@@ -1159,13 +1266,18 @@ def scan_plugins(args: argparse.Namespace) -> None:
             sys.exit(1)
         targets = {args.plugin: plugins[args.plugin]}
     else:
-        targets = {name: info for name, info in plugins.items() if not info.get("verified", False)}
+        targets = {
+            name: info for name, info in plugins.items() if get_unverified_skills(name, info)
+        }
 
     if not targets:
-        print("No unverified plugins to scan.")
+        print("No plugins with unverified skills to scan.")
         return
 
-    print(f"Scanning {len(targets)} plugin(s) with semgrep...")
+    if scanning_specific_plugin:
+        print(f"Scanning {len(targets)} selected plugin(s)...")
+    else:
+        print(f"Scanning {len(targets)} plugin(s) with unverified skills...")
     print(f"  Rulesets: {', '.join(SEMGREP_CONFIGS)}\n")
 
     total_findings = 0
@@ -1177,15 +1289,20 @@ def scan_plugins(args: argparse.Namespace) -> None:
 
         print(f"{name}:")
         upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
+        unverified_skills = get_unverified_skills(name, info)
         print(f"  Type: {upstream_type}")
-        print(f"  Verified: {'yes' if info.get('verified', False) else 'no'}")
+        print(f"  Verification: {verification_summary(name, info)}")
+        if unverified_skills:
+            print(f"  Unverified skills: {', '.join(unverified_skills)}")
+        else:
+            print("  Unverified skills: none")
         print(f"  Scanning {plugin_dir}...")
 
         total_findings += _scan_single_plugin(plugin_dir, semgrep_bin)
 
     print(f"Scan complete. Total findings across {len(targets)} plugin(s): {total_findings}")
     if total_findings > 0:
-        print("Review findings before marking plugins as verified.")
+        print("Review findings before marking skills as verified.")
 
 
 # --- Main ---
@@ -1196,6 +1313,7 @@ def main() -> None:
         description="Manage upstream plugin sources: check, import, verify"
     )
     parser.add_argument("--plugin", help="Target a specific plugin")
+    parser.add_argument("--skill", help="Target a specific skill within --plugin")
     parser.add_argument(
         "--diff", action="store_true", help="Show full diff for local/upstream changes"
     )
@@ -1220,12 +1338,12 @@ def main() -> None:
     group.add_argument(
         "--mark-verified",
         action="store_true",
-        help="Mark plugin as reviewed and verified",
+        help="Mark a plugin's skills as reviewed and verified",
     )
     group.add_argument(
         "--pending",
         action="store_true",
-        help="List plugins pending verification",
+        help="List skills pending verification",
     )
     group.add_argument(
         "--remove",
@@ -1235,7 +1353,7 @@ def main() -> None:
     group.add_argument(
         "--scan",
         action="store_true",
-        help="Run semgrep security scan on unverified plugins",
+        help="Run semgrep security scan on plugins with unverified skills",
     )
 
     parser.add_argument("--name", help="Plugin name (default: last component of --path)")

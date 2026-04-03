@@ -1,0 +1,55 @@
+{
+  "package": "devcontainer-setup",
+  "note": "These suppressions mirror inline nosemgrep comments in imported upstream files. Future assessment should use these external suppressions instead of requiring inline edits to imported content.",
+  "suppressions": [
+    {
+      "path": "skills/devcontainer-setup/references/dockerfile-best-practices.md",
+      "rule_id": "claude-pipe-to-shell",
+      "reason": "Example showing best-practice pipe-to-shell pattern with set -o pipefail",
+      "scope": "line-match",
+      "line_content": "RUN set -o pipefail && curl -fsSL https://example.com/install.sh | bash"
+    },
+    {
+      "path": "skills/devcontainer-setup/resources/install.sh",
+      "rule_id": "claude-write-gitconfig",
+      "reason": "Filtering default gitconfig mount during rebuild — container context only",
+      "scope": "line-match",
+      "line_content": "# nosemgrep: claude-write-gitconfig -- filtering default gitconfig mount during rebuild"
+    },
+    {
+      "path": "skills/devcontainer-setup/resources/post_install.py",
+      "rule_id": "claude-sudo-execution",
+      "reason": "Fixing volume ownership in container only — not host sudo",
+      "scope": "line-match",
+      "line_content": "# nosemgrep: claude-sudo-execution -- fixing volume ownership in container only"
+    },
+    {
+      "path": "skills/devcontainer-setup/resources/post_install.py",
+      "rule_id": "claude-write-gitconfig",
+      "reason": "Container-local gitconfig workaround for read-only host mount",
+      "scope": "line-match",
+      "line_content": "Since ~/.gitconfig is mounted read-only from host, we create a local"
+    },
+    {
+      "path": "skills/devcontainer-setup/resources/Dockerfile",
+      "rule_id": "claude-pipe-to-shell",
+      "reason": "Trusted installer for Claude Code binary inside container build",
+      "scope": "line-match",
+      "line_content": "# nosemgrep: claude-pipe-to-shell -- trusted installer for Claude Code binary"
+    },
+    {
+      "path": "skills/devcontainer-setup/resources/Dockerfile",
+      "rule_id": "claude-pipe-to-shell",
+      "reason": "Trusted installer for fnm (Fast Node Manager) inside container build",
+      "scope": "line-match",
+      "line_content": "# nosemgrep: claude-pipe-to-shell -- trusted installer for fnm (Fast Node Manager)"
+    },
+    {
+      "path": "skills/devcontainer-setup/resources/Dockerfile",
+      "rule_id": "claude-write-shell-rc",
+      "reason": "Container-only zshrc, not host shell config",
+      "scope": "line-match",
+      "line_content": "# nosemgrep: claude-write-shell-rc -- container-only zshrc, not host"
+    }
+  ]
+}

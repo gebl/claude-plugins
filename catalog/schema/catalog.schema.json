@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "catalog.schema.json",
+  "title": "Package Catalog",
+  "description": "Top-level catalog metadata for the harness-agnostic package marketplace",
+  "type": "object",
+  "required": ["catalog_schema_version", "generated_at", "package_count", "supported_harnesses"],
+  "properties": {
+    "catalog_schema_version": {
+      "type": "string",
+      "description": "Semantic version of the catalog schema"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of last catalog generation"
+    },
+    "package_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of packages in the catalog"
+    },
+    "supported_harnesses": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Harnesses this catalog can generate output for"
+    }
+  },
+  "additionalProperties": false
+}

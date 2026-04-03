@@ -1,0 +1,124 @@
+{
+  "name": "yt-transcript",
+  "version": "0.1.0",
+  "description": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
+  "authors": [
+    {
+      "name": "Gabriel Lawrence",
+      "email": "gabriel.lawrence@gmail.com"
+    }
+  ],
+  "upstream": {
+    "repo": "ssh://git@forgejo.bishop.landq.net:2222/secondbrain/yt-transcript.git",
+    "path": ".",
+    "ref": "main",
+    "type": "plugin",
+    "last_synced_commit": "ea9d8d315222a66119d8c2567251becd471a5ac4",
+    "last_checked": "2026-03-31T23:45:32.830787+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "full-plugin",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": true,
+    "dependency_files": [
+      "pyproject.toml"
+    ],
+    "tool_risk": {
+      "declared_tools": [
+        "Bash",
+        "Read"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Bash: shell execution or file mutation"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "adaptable",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "blocked"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "CLAUDE_PLUGIN_CONVENTION",
+        "kind": "harness",
+        "severity": "warn",
+        "path": "skills/yt-transcript/SKILL.md",
+        "message": "Uses ${CLAUDE_PLUGIN_ROOT} variable"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Bash, Read"
+      },
+      {
+        "code": "EXECUTABLE_CODE_PRESENT",
+        "kind": "risk",
+        "severity": "warn",
+        "path": "yt_transcript.py",
+        "message": "Contains 1 executable file(s)"
+      },
+      {
+        "code": "DEPENDENCY_FILE_PRESENT",
+        "kind": "risk",
+        "severity": "warn",
+        "path": "pyproject.toml",
+        "message": "Contains dependency manifest(s)"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "yt-transcript": false
+    }
+  }
+}

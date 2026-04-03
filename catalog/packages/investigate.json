@@ -1,0 +1,126 @@
+{
+  "name": "investigate",
+  "version": "1.0.0",
+  "description": "",
+  "upstream": {
+    "repo": "https://github.com/garrytan/gstack.git",
+    "path": "investigate",
+    "ref": "main",
+    "type": "raw-skill",
+    "last_synced_commit": "db35b8e5bffb596144c4c7f4a3b7eb5c078edaaf",
+    "last_checked": "2026-04-01T00:08:59.897806+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "skill-wrapper",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [
+        "AskUserQuestion",
+        "Bash",
+        "Edit",
+        "Glob",
+        "Grep",
+        "Read",
+        "WebSearch",
+        "Write"
+      ],
+      "risk_level": "high",
+      "reasons": [
+        "Bash: shell execution or file mutation",
+        "Edit: indirect mutation or external access",
+        "WebSearch: indirect mutation or external access",
+        "Write: shell execution or file mutation"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "harness-specific",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unsupported"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "unsupported"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "CLAUDE_HOME_PATH",
+        "kind": "harness",
+        "severity": "error",
+        "path": "skills/investigate/SKILL.md",
+        "message": "References ~/.claude paths (27 occurrences)"
+      },
+      {
+        "code": "CLAUDE_PLUGIN_CONVENTION",
+        "kind": "harness",
+        "severity": "warn",
+        "path": "skills/investigate/SKILL.md",
+        "message": "Uses ${CLAUDE_SKILL_DIR} variable"
+      },
+      {
+        "code": "CLAUDE_PLUGIN_CONVENTION",
+        "kind": "harness",
+        "severity": "warn",
+        "path": "skills/investigate/SKILL.md.tmpl",
+        "message": "Uses ${CLAUDE_SKILL_DIR} variable"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: AskUserQuestion, Bash, Edit, Glob, Grep, Read, WebSearch, Write"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities",
+      "Replace ~/.claude path references with harness-neutral config"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "investigate": false
+    }
+  }
+}

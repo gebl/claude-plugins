@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "harness": "claude",
+  "description": "Detection rules for Claude-specific bindings",
+  "rules": [
+    {
+      "code": "CLAUDE_MARKETPLACE_SCHEMA",
+      "description": "References Claude marketplace schema",
+      "patterns": ["anthropic.com/claude-code/marketplace.schema.json"]
+    },
+    {
+      "code": "CLAUDE_HOME_PATH",
+      "description": "References ~/.claude paths",
+      "patterns": ["~/.claude"]
+    },
+    {
+      "code": "CLAUDE_HOOKS_JSON",
+      "description": "Contains Claude hooks.json file",
+      "file_patterns": ["hooks/hooks.json"]
+    },
+    {
+      "code": "CLAUDE_SETTINGS_HOOKS",
+      "description": "References Claude settings hook configuration",
+      "patterns": [".claude/settings.json", ".claude/settings.local.json"]
+    },
+    {
+      "code": "CLAUDE_SUBAGENT_MD",
+      "description": "Contains Claude agent markdown definitions",
+      "file_patterns": ["agents/*.md", ".claude/agents/*.md"]
+    },
+    {
+      "code": "CLAUDE_SLASH_COMMAND_MD",
+      "description": "Contains Claude slash command definitions",
+      "file_patterns": ["commands/*.md"]
+    },
+    {
+      "code": "CLAUDE_TOOL_NAME",
+      "description": "References Claude-specific tool names",
+      "tool_names": [
+        "Read", "Write", "Edit", "Bash", "Grep", "Glob", "Agent",
+        "AskUserQuestion", "WebSearch", "WebFetch", "TodoRead", "TodoWrite",
+        "NotebookEdit", "TaskCreate", "TaskUpdate", "EnterPlanMode"
+      ]
+    },
+    {
+      "code": "CLAUDE_PLUGIN_CONVENTION",
+      "description": "Uses .claude-plugin packaging convention",
+      "file_patterns": [".claude-plugin/plugin.json"],
+      "note": "Convention-only, not backed by official Anthropic docs yet"
+    }
+  ],
+  "official_features": [
+    ".claude/settings.json",
+    ".claude/settings.local.json",
+    "hook configuration in Claude settings",
+    ".claude/agents/*.md",
+    "custom slash command markdown files",
+    "Claude tool vocabulary",
+    "MCP integration"
+  ],
+  "convention_features": [
+    ".claude-plugin/plugin.json",
+    "marketplace.json in .claude-plugin/"
+  ]
+}

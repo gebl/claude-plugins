@@ -1,0 +1,97 @@
+{
+  "version": "1.0.0",
+  "description": "Registry of shallow transforms available for cross-harness generation",
+  "transforms": [
+    {
+      "transform_id": "tool-name-map",
+      "version": "1.0.0",
+      "input_contract": "neutral capability set plus source metadata",
+      "output_contract": "target harness tool metadata",
+      "reversible": false,
+      "description": "Maps neutral capabilities to target harness tool names",
+      "status": "planned",
+      "tests": []
+    },
+    {
+      "transform_id": "remove-claude-home-paths",
+      "version": "1.0.0",
+      "input_contract": "skill markdown with ~/.claude path references",
+      "output_contract": "skill markdown with harness-neutral path variables",
+      "reversible": false,
+      "description": "Replaces hardcoded ~/.claude paths with harness-neutral config directory references",
+      "status": "planned",
+      "tests": []
+    },
+    {
+      "transform_id": "plugin-manifest-rewrite",
+      "version": "1.0.0",
+      "input_contract": "neutral package metadata",
+      "output_contract": "target harness plugin manifest file",
+      "reversible": false,
+      "description": "Generates a harness-specific plugin manifest from neutral catalog metadata",
+      "status": "planned",
+      "tests": []
+    },
+    {
+      "transform_id": "marketplace-entry-generate",
+      "version": "1.0.0",
+      "input_contract": "neutral package metadata with generation config",
+      "output_contract": "harness-specific marketplace entry JSON",
+      "reversible": false,
+      "description": "Generates a marketplace entry in target harness format from neutral catalog data",
+      "status": "planned",
+      "tests": []
+    }
+  ],
+  "capability_mappings": [
+    {
+      "capability": "read_files",
+      "mappings": {
+        "claude": {"features": ["Read"], "mode": "one_to_one", "status": "exact"},
+        "codex": {"features": ["read_file"], "mode": "one_to_one", "status": "exact"}
+      }
+    },
+    {
+      "capability": "search_files",
+      "mappings": {
+        "claude": {"features": ["Grep", "Glob"], "mode": "one_to_many", "status": "exact"},
+        "codex": {"features": ["grep_search", "file_search"], "mode": "one_to_many", "status": "exact"}
+      }
+    },
+    {
+      "capability": "edit_files",
+      "mappings": {
+        "claude": {"features": ["Edit", "Write"], "mode": "one_to_many", "status": "exact"},
+        "codex": {"features": ["edit_file", "write_file"], "mode": "one_to_many", "status": "exact"}
+      }
+    },
+    {
+      "capability": "run_shell",
+      "mappings": {
+        "claude": {"features": ["Bash"], "mode": "one_to_one", "status": "exact"},
+        "codex": {"features": ["shell"], "mode": "one_to_one", "status": "exact"}
+      }
+    },
+    {
+      "capability": "browse_web",
+      "mappings": {
+        "claude": {"features": ["WebSearch", "WebFetch"], "mode": "one_to_many", "status": "approximate"},
+        "codex": {"features": [], "mode": "unsupported", "status": "unsupported", "note": "Codex does not currently expose web browsing tools"}
+      }
+    },
+    {
+      "capability": "ask_user",
+      "mappings": {
+        "claude": {"features": ["AskUserQuestion"], "mode": "one_to_one", "status": "exact"},
+        "codex": {"features": ["assistant_message"], "mode": "one_to_one", "status": "lossy", "note": "Interactive prompts degrade to plain-text questions"}
+      }
+    },
+    {
+      "capability": "spawn_subagent",
+      "mappings": {
+        "claude": {"features": ["Agent"], "mode": "one_to_one", "status": "exact"},
+        "codex": {"features": ["spawn_agent"], "mode": "one_to_one", "status": "approximate"}
+      }
+    }
+  ]
+}

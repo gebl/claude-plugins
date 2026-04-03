@@ -134,25 +134,28 @@ uv run scripts/sync-check.py --mark-synced --plugin NAME
 
 ## Verification Workflow
 
-Imported plugins start unverified. The recommended workflow:
+Imported skills start unverified. The recommended workflow:
 
 ```
-1. --pending        List what needs review
-2. --scan           Run semgrep on unverified plugins
+1. --pending        List what skills need review
+2. --scan           Run semgrep on plugins with unverified skills
 3. Review code      Read the findings and source
-4. --mark-verified  Mark as reviewed
+4. --mark-verified  Mark one skill or all skills in a plugin as reviewed
 ```
 
 ```bash
-# List unverified plugins (rescans for executable code)
+# List unverified skills (rescans for executable code)
 uv run scripts/sync-check.py --pending
 
 # Run semgrep security scan (auto + p/secrets + p/trailofbits rulesets)
 uv run scripts/sync-check.py --scan
 uv run scripts/sync-check.py --scan --plugin NAME
 
-# Mark as reviewed after inspection
+# Mark all skills in a plugin as reviewed after inspection
 uv run scripts/sync-check.py --mark-verified --plugin NAME
+
+# Or mark one skill inside a plugin
+uv run scripts/sync-check.py --mark-verified --plugin NAME --skill SKILL_NAME
 ```
 
 ## Repository Structure
@@ -192,7 +195,8 @@ uv run scripts/sync-check.py --diff --plugin NAME         # Full diff for one
 uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
 
 # Verification
-uv run scripts/sync-check.py --pending                     # List unverified
-uv run scripts/sync-check.py --scan                        # Semgrep scan unverified
-uv run scripts/sync-check.py --mark-verified --plugin NAME  # Approve after review
+uv run scripts/sync-check.py --pending                       # List unverified skills
+uv run scripts/sync-check.py --scan                          # Semgrep scan plugins with unverified skills
+uv run scripts/sync-check.py --mark-verified --plugin NAME   # Approve all skills in a plugin
+uv run scripts/sync-check.py --mark-verified --plugin NAME --skill SKILL_NAME
 ```

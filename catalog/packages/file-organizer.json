@@ -1,0 +1,89 @@
+{
+  "name": "file-organizer",
+  "version": "0.1.0",
+  "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
+  "upstream": {
+    "repo": "https://github.com/ComposioHQ/awesome-claude-skills.git",
+    "path": "file-organizer",
+    "ref": "master",
+    "type": "raw-skill",
+    "last_synced_commit": "27904475d1270d8395acf07691966267d5abda2d",
+    "last_checked": "2026-03-31T23:45:32.830787+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "skill-wrapper",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [],
+      "risk_level": "low",
+      "reasons": []
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "agnostic",
+    "supported_harnesses": [
+      "claude",
+      "codex"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "generated"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      }
+    ],
+    "adaptation_hints": []
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": true,
+      "mode": "generated",
+      "marketplace": {
+        "policy": {
+          "installation": "AVAILABLE",
+          "authentication": "ON_INSTALL"
+        },
+        "category": "Developer Tools"
+      }
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "file-organizer": false
+    }
+  }
+}

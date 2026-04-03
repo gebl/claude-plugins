@@ -1,0 +1,104 @@
+{
+  "name": "git-cleanup",
+  "version": "1.0.0",
+  "description": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work.",
+  "authors": [
+    {
+      "name": "Henrik Brodin",
+      "email": "opensource@trailofbits.com",
+      "url": "https://github.com/trailofbits"
+    }
+  ],
+  "upstream": {
+    "repo": "https://github.com/trailofbits/skills.git",
+    "path": "plugins/git-cleanup",
+    "ref": "main",
+    "type": "plugin",
+    "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+    "last_checked": "2026-04-01T00:15:58.608166+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "skill-wrapper",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [
+        "AskUserQuestion",
+        "Bash",
+        "Grep",
+        "Read"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Bash: shell execution or file mutation"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "adaptable",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "blocked"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: AskUserQuestion, Bash, Grep, Read"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": true,
+    "skills": {
+      "git-cleanup": true
+    }
+  }
+}

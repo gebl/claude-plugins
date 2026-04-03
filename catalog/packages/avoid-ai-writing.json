@@ -1,0 +1,97 @@
+{
+  "name": "avoid-ai-writing",
+  "version": "3.2.0",
+  "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.\" Supports a detection-only mode that flags patterns without rewriting.",
+  "upstream": {
+    "repo": "https://github.com/conorbronsdon/avoid-ai-writing.git",
+    "path": ".",
+    "ref": "main",
+    "type": "raw-skill",
+    "last_synced_commit": "f795c264bc05280a004e62d7516bff2b27b8aec2",
+    "last_checked": "2026-03-31T23:58:53.092559+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "skill-wrapper",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [
+        "Agent",
+        "Edit",
+        "Read"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Agent: indirect mutation or external access",
+        "Edit: indirect mutation or external access"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "adaptable",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "blocked"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Agent, Edit, Read"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "avoid-ai-writing": false
+    }
+  }
+}

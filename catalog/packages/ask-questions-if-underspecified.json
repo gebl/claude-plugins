@@ -1,0 +1,96 @@
+{
+  "name": "ask-questions-if-underspecified",
+  "version": "1.0.1",
+  "description": "Clarify ambiguous requirements by asking questions before implementing. Only when invoked explicitly.",
+  "authors": [
+    {
+      "name": "Kevin Valerio",
+      "email": "opensource@trailofbits.com",
+      "url": "https://github.com/trailofbits"
+    }
+  ],
+  "upstream": {
+    "repo": "https://github.com/trailofbits/skills.git",
+    "path": "plugins/ask-questions-if-underspecified",
+    "ref": "main",
+    "type": "plugin",
+    "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+    "last_checked": "2026-03-31T23:58:09.376171+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "skill-wrapper",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": false,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [],
+      "risk_level": "low",
+      "reasons": []
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "agnostic",
+    "supported_harnesses": [
+      "claude",
+      "codex"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "generated"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      }
+    ],
+    "adaptation_hints": []
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": true,
+      "mode": "generated",
+      "marketplace": {
+        "policy": {
+          "installation": "AVAILABLE",
+          "authentication": "ON_INSTALL"
+        },
+        "category": "Developer Tools"
+      }
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "ask-questions-if-underspecified": false
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "compatibility.schema.json",
+  "title": "Compatibility Assessment",
+  "description": "Schema for per-package compatibility assessment data",
+  "type": "object",
+  "required": ["assessment_version", "portability_class", "supported_harnesses", "support_basis", "status_by_harness", "findings"],
+  "properties": {
+    "assessment_version": {
+      "type": "string",
+      "description": "Version tag for the assessment rules that produced this result"
+    },
+    "portability_class": {
+      "type": "string",
+      "enum": ["agnostic", "adaptable", "harness-specific", "unknown"],
+      "description": "Overall portability classification"
+    },
+    "supported_harnesses": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Harnesses this package currently supports"
+    },
+    "support_basis": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["official", "adapter", "convention", "unsupported", "unknown"]
+      },
+      "description": "Why each harness is supported or not"
+    },
+    "status_by_harness": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["native", "generated", "adapted", "unsupported", "blocked", "unknown"]
+      },
+      "description": "Generation status per harness"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "kind", "severity", "path", "message"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Rule code that produced this finding"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["packaging", "portability", "harness", "risk"],
+            "description": "Category of the finding"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warn", "error"],
+            "description": "Severity level"
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative path within the plugin directory"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable explanation"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Structured findings from the assessment"
+    },
+    "adaptation_hints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Suggested actions to improve portability"
+    }
+  },
+  "additionalProperties": false
+}

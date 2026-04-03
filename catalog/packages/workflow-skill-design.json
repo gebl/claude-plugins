@@ -1,0 +1,127 @@
+{
+  "name": "workflow-skill-design",
+  "version": "1.0.1",
+  "description": "Teaches design patterns for workflow-based Claude Code skills and provides a review agent for auditing existing skills",
+  "authors": [
+    {
+      "name": "Benjamin Samuels",
+      "email": "opensource@trailofbits.com",
+      "url": "https://github.com/trailofbits"
+    }
+  ],
+  "upstream": {
+    "repo": "https://github.com/trailofbits/skills.git",
+    "path": "plugins/workflow-skill-design",
+    "ref": "main",
+    "type": "plugin",
+    "last_synced_commit": "635e186d1dd9b4ec6ab41b4ba581c03194fe1eba",
+    "last_checked": "2026-03-31T23:58:49.160440+00:00"
+  },
+  "source_model": "upstream-mirror",
+  "canonical_harness": "claude",
+  "package_type": "full-plugin",
+  "files": {
+    "has_skill": true,
+    "has_plugin_manifest": true,
+    "has_hooks": false,
+    "has_commands": false,
+    "has_agents": true,
+    "has_templates": false
+  },
+  "risk": {
+    "has_executable_code": false,
+    "dependency_files": [],
+    "tool_risk": {
+      "declared_tools": [
+        "Agent",
+        "AskUserQuestion",
+        "Bash",
+        "Edit",
+        "Glob",
+        "Grep",
+        "Read",
+        "TaskCreate",
+        "TaskUpdate",
+        "TodoRead",
+        "TodoWrite",
+        "WebFetch",
+        "WebSearch",
+        "Write"
+      ],
+      "risk_level": "high",
+      "reasons": [
+        "Agent: indirect mutation or external access",
+        "Bash: shell execution or file mutation",
+        "Edit: indirect mutation or external access",
+        "WebFetch: indirect mutation or external access",
+        "WebSearch: indirect mutation or external access",
+        "Write: shell execution or file mutation"
+      ]
+    }
+  },
+  "compatibility": {
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "adaptable",
+    "supported_harnesses": [
+      "claude"
+    ],
+    "support_basis": {
+      "claude": "convention",
+      "codex": "unknown"
+    },
+    "status_by_harness": {
+      "claude": "native",
+      "codex": "blocked"
+    },
+    "findings": [
+      {
+        "code": "HAS_SKILL_MD",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "skills/",
+        "message": "Contains skill definitions"
+      },
+      {
+        "code": "HAS_CLAUDE_PLUGIN_MANIFEST",
+        "kind": "packaging",
+        "severity": "info",
+        "path": ".claude-plugin/plugin.json",
+        "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "HAS_AGENTS_DIR",
+        "kind": "packaging",
+        "severity": "info",
+        "path": "agents/",
+        "message": "Contains agent definitions"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Agent, AskUserQuestion, Bash, Edit, Glob, Grep, Read, TaskCreate, TaskUpdate, TodoRead, TodoWrite, WebFetch, WebSearch, Write"
+      }
+    ],
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities",
+      "Agent definitions need harness-specific format adaptation"
+    ]
+  },
+  "generation": {
+    "claude": {
+      "enabled": true,
+      "mode": "native"
+    },
+    "codex": {
+      "enabled": false,
+      "mode": "none"
+    }
+  },
+  "verification": {
+    "reviewed": false,
+    "skills": {
+      "designing-workflow-skills": false
+    }
+  }
+}

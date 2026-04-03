@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "harness": "codex",
+  "description": "Detection rules for Codex-specific bindings",
+  "rules": [
+    {
+      "code": "CODEX_MARKETPLACE_FILE",
+      "description": "Contains or references .agents/plugins/marketplace.json",
+      "file_patterns": [".agents/plugins/marketplace.json"]
+    },
+    {
+      "code": "CODEX_PLUGIN_MANIFEST",
+      "description": "Contains .codex-plugin/plugin.json manifest",
+      "file_patterns": [".codex-plugin/plugin.json"]
+    },
+    {
+      "code": "CODEX_HOOKS_JSON",
+      "description": "Contains .codex/hooks.json",
+      "file_patterns": [".codex/hooks.json"]
+    },
+    {
+      "code": "CODEX_AGENT_TOML",
+      "description": "Contains Codex agent TOML definitions",
+      "file_patterns": [".codex/agents/*.toml"]
+    },
+    {
+      "code": "CODEX_APP_JSON",
+      "description": "Contains Codex .app.json connector config",
+      "file_patterns": [".app.json"]
+    },
+    {
+      "code": "CODEX_MCP_JSON",
+      "description": "Contains Codex .mcp.json MCP configuration",
+      "file_patterns": [".mcp.json"]
+    },
+    {
+      "code": "CODEX_TOOL_NAME",
+      "description": "References Codex-specific tool names",
+      "tool_names": [
+        "shell", "read_file", "write_file", "edit_file",
+        "list_directory", "grep_search", "file_search"
+      ]
+    }
+  ],
+  "official_features": [
+    ".codex-plugin/plugin.json",
+    ".agents/plugins/marketplace.json",
+    "~/.agents/plugins/marketplace.json",
+    ".app.json",
+    ".mcp.json",
+    ".codex/hooks.json",
+    ".codex/agents/*.toml",
+    "Codex marketplace policy and category fields"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "description": "Rules for detecting risk signals in packages",
+  "rules": [
+    {
+      "code": "EXECUTABLE_CODE_PRESENT",
+      "description": "Package contains executable script files",
+      "severity": "warn",
+      "extensions": [".py", ".sh", ".js", ".ts", ".rb", ".pl"]
+    },
+    {
+      "code": "DEPENDENCY_FILE_PRESENT",
+      "description": "Package contains dependency manifests that may pull external code",
+      "severity": "warn",
+      "filenames": [
+        "requirements.txt", "pyproject.toml", "package.json",
+        "go.mod", "Cargo.toml", "Gemfile"
+      ]
+    },
+    {
+      "code": "DANGEROUS_TOOL_DECLARATION",
+      "description": "Skill declares tools that can mutate the filesystem or execute arbitrary commands",
+      "severity": "info",
+      "tool_names": ["Bash", "Write", "shell", "write_file"]
+    },
+    {
+      "code": "NETWORK_SCRIPT_PRESENT",
+      "description": "Executable code makes network requests or downloads external resources",
+      "severity": "warn",
+      "patterns": ["urllib", "requests", "httpx", "fetch(", "curl ", "wget "]
+    }
+  ]
+}
