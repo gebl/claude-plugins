@@ -45,7 +45,7 @@
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.1",
+    "assessment_version": "2026-04-03.2",
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude"
