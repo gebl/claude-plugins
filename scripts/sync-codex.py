@@ -58,6 +58,22 @@ def remove_stale_plugins(expected_names: set[str]) -> list[str]:
     return removed
 
 
+def rewrite_marketplace_paths(marketplace: dict) -> dict:
+    """Rewrite plugin source paths so they resolve correctly from the repo root.
+
+    Codex resolves marketplace paths relative to the repo root, not relative to the
+    marketplace.json file.  The generated marketplace uses ./plugins/<name> (correct
+    within generated/codex/), but after syncing to .agents/plugins/ the actual plugin
+    directories live at .agents/plugins/plugins/<name>.
+    """
+    for plugin in marketplace.get("plugins", []):
+        src = plugin.get("source", {})
+        if src.get("source") == "local" and "path" in src:
+            name = plugin["name"]
+            src["path"] = f"./.agents/plugins/plugins/{name}"
+    return marketplace
+
+
 def sync(*, clean: bool) -> int:
     ensure_generated_exists()
     marketplace = load_marketplace(GENERATED_MARKETPLACE)
@@ -66,7 +82,12 @@ def sync(*, clean: bool) -> int:
 
     CODEX_DIR.mkdir(parents=True, exist_ok=True)
     CODEX_PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(GENERATED_MARKETPLACE, CODEX_MARKETPLACE)
+
+    # Rewrite paths and write the marketplace (not a raw copy)
+    rewritten = rewrite_marketplace_paths(marketplace)
+    with CODEX_MARKETPLACE.open("w") as f:
+        json.dump(rewritten, f, indent=2)
+        f.write("\n")
 
     for name in sorted(plugin_names):
         copy_plugin_dir(name)
@@ -89,12 +110,14 @@ def sync(*, clean: bool) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Sync generated Codex marketplace artifacts into .agents/plugins for local testing."
+        description=(
+            "Sync generated Codex marketplace artifacts into .agents/plugins for local testing."
+        ),
     )
     parser.add_argument(
         "--clean",
         action="store_true",
-        help="Remove plugin directories in .agents/plugins/plugins that are not in the generated marketplace.",
+        help=("Remove plugin directories not present in the generated marketplace."),
     )
     args = parser.parse_args()
     sys.exit(sync(clean=args.clean))
