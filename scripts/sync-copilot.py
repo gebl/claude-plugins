@@ -12,7 +12,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GENERATED_SKILLS_DIR = REPO_ROOT / "generated" / "copilot" / "skills"
 PROJECT_SKILLS_DIR = REPO_ROOT / ".github" / "skills"
-LEGACY_PROJECT_SKILLS_DIR = REPO_ROOT / ".claude" / "skills"
 USER_SKILLS_DIR = Path.home() / ".copilot" / "skills"
 MANIFEST_FILENAME = ".anvil-managed.json"
 
@@ -73,25 +72,6 @@ def remove_stale_skills(target_dir: Path, expected_names: set[str], managed_name
     return removed
 
 
-def cleanup_legacy_project_install(expected_names: set[str]) -> list[str]:
-    """Remove previously Anvil-managed skills from the old .claude/skills project path."""
-    removed: list[str] = []
-    managed_names = load_managed_skills(LEGACY_PROJECT_SKILLS_DIR)
-    if not managed_names:
-        return removed
-    for name in sorted(managed_names & expected_names):
-        child = LEGACY_PROJECT_SKILLS_DIR / name
-        if child.is_dir():
-            shutil.rmtree(child)
-            removed.append(name)
-    # Remove any stale legacy-managed skills too.
-    removed.extend(remove_stale_skills(LEGACY_PROJECT_SKILLS_DIR, set(), managed_names - set(removed)))
-    legacy_manifest = manifest_path(LEGACY_PROJECT_SKILLS_DIR)
-    if legacy_manifest.exists():
-        legacy_manifest.unlink()
-    return removed
-
-
 def sync(*, clean: bool, user: bool) -> int:
     ensure_generated_exists()
     skill_names = {path.name for path in GENERATED_SKILLS_DIR.iterdir() if path.is_dir()}
@@ -108,9 +88,6 @@ def sync(*, clean: bool, user: bool) -> int:
         removed = remove_stale_skills(target_dir, skill_names, managed_names)
 
     write_managed_skills(target_dir, skill_names)
-    migrated: list[str] = []
-    if not user:
-        migrated = cleanup_legacy_project_install(skill_names)
 
     print(f"Synced {target_dir}")
     print(f"  Installed skills: {len(skill_names)}")
@@ -120,10 +97,6 @@ def sync(*, clean: bool, user: bool) -> int:
             print(f"    - {name}")
     else:
         print("  Stale skills: preserved (use --clean to remove)")
-    if migrated:
-        print(f"  Removed legacy .claude/skills installs: {len(migrated)}")
-        for name in migrated:
-            print(f"    - {name}")
     return 0
 
 
