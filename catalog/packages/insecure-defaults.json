@@ -49,15 +49,18 @@
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude",
-      "codex"
+      "codex",
+      "copilot"
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "adapter"
+      "codex": "adapter",
+      "copilot": "adapter"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "adapted"
+      "codex": "adapted",
+      "copilot": "adapted"
     },
     "findings": [
       {
@@ -100,6 +103,14 @@
           "authentication": "ON_INSTALL"
         },
         "category": "Developer Tools"
+      },
+      "transforms": []
+    },
+    "copilot": {
+      "enabled": true,
+      "mode": "adapted",
+      "install": {
+        "target_dir": ".agents/skills"
       },
       "transforms": []
     }

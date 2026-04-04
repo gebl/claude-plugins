@@ -56,11 +56,13 @@
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "unknown"
+      "codex": "unknown",
+      "copilot": "unknown"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "blocked"
+      "codex": "blocked",
+      "copilot": "blocked"
     },
     "findings": [
       {
@@ -103,6 +105,10 @@
       "mode": "native"
     },
     "codex": {
+      "enabled": false,
+      "mode": "none"
+    },
+    "copilot": {
       "enabled": false,
       "mode": "none"
     }

@@ -34,8 +34,7 @@
     ],
     "tool_risk": {
       "declared_tools": [
-        "Bash",
-        "Read"
+        "Bash"
       ],
       "risk_level": "medium",
       "reasons": [
@@ -48,15 +47,18 @@
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude",
-      "codex"
+      "codex",
+      "copilot"
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "adapter"
+      "codex": "adapter",
+      "copilot": "adapter"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "adapted"
+      "codex": "adapted",
+      "copilot": "adapted"
     },
     "findings": [
       {
@@ -85,7 +87,7 @@
         "kind": "harness",
         "severity": "info",
         "path": "(multiple)",
-        "message": "References Claude tool names: Bash, Read"
+        "message": "References Claude tool names: Bash"
       },
       {
         "code": "EXECUTABLE_CODE_PRESENT",
@@ -122,6 +124,17 @@
         "category": "Developer Tools"
       },
       "transforms": []
+    },
+    "copilot": {
+      "enabled": true,
+      "mode": "adapted",
+      "install": {
+        "target_dir": ".agents/skills"
+      },
+      "transforms": [],
+      "extra_files": [
+        "yt_transcript.py"
+      ]
     }
   },
   "verification": {

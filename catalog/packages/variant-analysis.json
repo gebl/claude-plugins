@@ -30,16 +30,9 @@
     "has_executable_code": false,
     "dependency_files": [],
     "tool_risk": {
-      "declared_tools": [
-        "Bash",
-        "Glob",
-        "Grep",
-        "Read"
-      ],
-      "risk_level": "medium",
-      "reasons": [
-        "Bash: shell execution or file mutation"
-      ]
+      "declared_tools": [],
+      "risk_level": "low",
+      "reasons": []
     }
   },
   "compatibility": {
@@ -47,15 +40,18 @@
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude",
-      "codex"
+      "codex",
+      "copilot"
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "adapter"
+      "codex": "adapter",
+      "copilot": "adapter"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "adapted"
+      "codex": "adapted",
+      "copilot": "adapted"
     },
     "findings": [
       {
@@ -78,17 +74,9 @@
         "severity": "info",
         "path": "commands/",
         "message": "Contains slash command definitions"
-      },
-      {
-        "code": "CLAUDE_TOOL_NAME",
-        "kind": "harness",
-        "severity": "info",
-        "path": "(multiple)",
-        "message": "References Claude tool names: Bash, Glob, Grep, Read"
       }
     ],
     "adaptation_hints": [
-      "Map Claude tool names to neutral capabilities",
       "Slash commands need harness-specific packaging adaptation"
     ]
   },
@@ -106,6 +94,14 @@
           "authentication": "ON_INSTALL"
         },
         "category": "Developer Tools"
+      },
+      "transforms": []
+    },
+    "copilot": {
+      "enabled": true,
+      "mode": "adapted",
+      "install": {
+        "target_dir": ".agents/skills"
       },
       "transforms": []
     }

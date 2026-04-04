@@ -41,6 +41,16 @@
       "description": "Generates a marketplace entry in target harness format from neutral catalog data",
       "status": "planned",
       "tests": []
+    },
+    {
+      "transform_id": "copilot-frontmatter-normalize",
+      "version": "1.0.0",
+      "input_contract": "skill markdown with YAML frontmatter",
+      "output_contract": "Copilot-compatible skill markdown",
+      "reversible": false,
+      "description": "Normalizes skill frontmatter for GitHub Copilot CLI generation",
+      "status": "planned",
+      "tests": []
     }
   ],
   "capability_mappings": [
@@ -48,49 +58,56 @@
       "capability": "read_files",
       "mappings": {
         "claude": {"features": ["Read"], "mode": "one_to_one", "status": "exact"},
-        "codex": {"features": ["read_file"], "mode": "one_to_one", "status": "exact"}
+        "codex": {"features": ["read_file"], "mode": "one_to_one", "status": "exact"},
+        "copilot": {"features": ["view"], "mode": "one_to_one", "status": "exact"}
       }
     },
     {
       "capability": "search_files",
       "mappings": {
         "claude": {"features": ["Grep", "Glob"], "mode": "one_to_many", "status": "exact"},
-        "codex": {"features": ["grep_search", "file_search"], "mode": "one_to_many", "status": "exact"}
+        "codex": {"features": ["grep_search", "file_search"], "mode": "one_to_many", "status": "exact"},
+        "copilot": {"features": ["grep", "glob"], "mode": "one_to_many", "status": "exact"}
       }
     },
     {
       "capability": "edit_files",
       "mappings": {
         "claude": {"features": ["Edit", "Write"], "mode": "one_to_many", "status": "exact"},
-        "codex": {"features": ["edit_file", "write_file"], "mode": "one_to_many", "status": "exact"}
+        "codex": {"features": ["edit_file", "write_file"], "mode": "one_to_many", "status": "exact"},
+        "copilot": {"features": ["edit", "create"], "mode": "one_to_many", "status": "approximate", "note": "Copilot CLI separates editing existing files from creating new files"}
       }
     },
     {
       "capability": "run_shell",
       "mappings": {
         "claude": {"features": ["Bash"], "mode": "one_to_one", "status": "exact"},
-        "codex": {"features": ["shell"], "mode": "one_to_one", "status": "exact"}
+        "codex": {"features": ["shell"], "mode": "one_to_one", "status": "exact"},
+        "copilot": {"features": ["bash"], "mode": "one_to_one", "status": "exact"}
       }
     },
     {
       "capability": "browse_web",
       "mappings": {
         "claude": {"features": ["WebSearch", "WebFetch"], "mode": "one_to_many", "status": "approximate"},
-        "codex": {"features": [], "mode": "unsupported", "status": "unsupported", "note": "Codex does not currently expose web browsing tools"}
+        "codex": {"features": [], "mode": "unsupported", "status": "unsupported", "note": "Codex does not currently expose web browsing tools"},
+        "copilot": {"features": [], "mode": "unsupported", "status": "unsupported", "note": "Copilot CLI skills do not currently expose a documented web browsing tool in this registry"}
       }
     },
     {
       "capability": "ask_user",
       "mappings": {
         "claude": {"features": ["AskUserQuestion"], "mode": "one_to_one", "status": "exact"},
-        "codex": {"features": ["assistant_message"], "mode": "one_to_one", "status": "lossy", "note": "Interactive prompts degrade to plain-text questions"}
+        "codex": {"features": ["assistant_message"], "mode": "one_to_one", "status": "lossy", "note": "Interactive prompts degrade to plain-text questions"},
+        "copilot": {"features": ["ask_user"], "mode": "one_to_one", "status": "exact"}
       }
     },
     {
       "capability": "spawn_subagent",
       "mappings": {
         "claude": {"features": ["Agent"], "mode": "one_to_one", "status": "exact"},
-        "codex": {"features": ["spawn_agent"], "mode": "one_to_one", "status": "approximate"}
+        "codex": {"features": ["spawn_agent"], "mode": "one_to_one", "status": "approximate"},
+        "copilot": {"features": ["task"], "mode": "one_to_one", "status": "approximate"}
       }
     }
   ]

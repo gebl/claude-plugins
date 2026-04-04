@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "harness": "copilot",
+  "description": "Detection rules for GitHub Copilot CLI skill bindings",
+  "rules": [
+    {
+      "code": "COPILOT_SKILLS_DIR",
+      "description": "Contains a Copilot-compatible skills directory",
+      "file_patterns": [".agents/skills/*/SKILL.md", ".github/skills/*/SKILL.md", ".claude/skills/*/SKILL.md"]
+    },
+    {
+      "code": "COPILOT_SKILL_FILE",
+      "description": "Contains a SKILL.md file with Copilot-compatible metadata",
+      "file_patterns": ["skills/*/SKILL.md", "SKILL.md"]
+    },
+    {
+      "code": "COPILOT_ALLOWED_TOOLS",
+      "description": "Uses allowed-tools frontmatter compatible with Copilot CLI skills",
+      "patterns": ["allowed-tools:"]
+    }
+  ],
+  "official_features": [
+    "SKILL.md with YAML frontmatter",
+    "name and description frontmatter fields",
+    "optional allowed-tools frontmatter",
+    ".agents/skills/",
+    ".github/skills/",
+    "~/.copilot/skills"
+  ]
+}

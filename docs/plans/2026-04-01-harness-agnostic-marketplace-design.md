@@ -1,18 +1,19 @@
-# Harness-Agnostic Marketplace Design
+# Harness-Agnostic Registry Design
 
 ## Goal
 
 Evolve this repository from a Claude-native plugin marketplace into a harness-agnostic
-package catalog that can:
+registry that can:
 
 1. Store neutral package metadata once
 2. Import packages from upstream repos and assess compatibility during import
 3. List packages by supported harness and compatibility class
-4. Generate harness-specific marketplace outputs for Claude, Codex, and future
+4. Generate harness-specific outputs for Claude, Codex, Copilot, and future
    harnesses such as Cursor
 
 The repository should stop treating Claude's marketplace format as the source of truth.
-Claude output should become one generated artifact alongside Codex output.
+Claude, Codex, and Copilot should each be rendered as harness-specific outputs from
+the same neutral catalog.
 
 ## Problem Statement
 
@@ -32,10 +33,11 @@ model and packaging assumptions are Claude-specific:
 - Hook support assumes Claude lifecycle events
 - Skills often contain Claude-specific tool names, file paths, and behavior
 
-As a result, the repository can ingest useful content, but it cannot currently answer:
+As a result, the repository can ingest useful content, but it could not originally answer:
 
 - Which packages are harness-agnostic?
 - Which packages support Codex?
+- Which packages support Copilot CLI?
 - Which packages can be adapted automatically?
 - Which packages are Claude-only?
 
@@ -52,8 +54,20 @@ OpenAI docs:
 - Codex plugins may additionally bundle `skills/`, `.app.json`, `.mcp.json`, and
   `assets/` at the plugin root
 
-This removes the earlier uncertainty around whether Codex had a concrete marketplace
-surface. It does. The remaining work is compatibility modeling and generation.
+GitHub Copilot CLI's concrete skill packaging contract is now known from the official
+GitHub docs:
+
+- Copilot discovers skills from repo-local paths such as `.agents/skills/`,
+  `.github/skills/`, and `.claude/skills/`
+- Personal skills can also live under `~/.agents/skills/`, `~/.copilot/skills/`, or
+  `~/.claude/skills/`
+- Each Copilot skill is a directory containing a `SKILL.md` file with YAML frontmatter
+- `name` and `description` are required frontmatter fields
+- `allowed-tools` and additional scripts or resources may be colocated in the skill
+  directory
+
+This removes the earlier uncertainty around whether Codex and Copilot had concrete
+runtime surfaces. They do. The remaining work is compatibility modeling and generation.
 
 One more distinction is required for import-time metadata: not every harness feature
 should be treated as equally authoritative.

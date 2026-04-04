@@ -123,6 +123,45 @@ def scan_text_files(plugin_dir: Path) -> dict:
     }
 
 
+def extract_tool_references(text: str, tool_names: set[str]) -> set[str]:
+    """Extract likely tool references from skill text, avoiding generic prose false positives."""
+    refs: set[str] = set()
+    if not tool_names:
+        return refs
+
+    if text.startswith("---\n"):
+        _, _, remainder = text.partition("---\n")
+        frontmatter, sep, body = remainder.partition("\n---")
+        if sep:
+            in_allowed_tools = False
+            for line in frontmatter.splitlines():
+                if line.startswith("allowed-tools:"):
+                    in_allowed_tools = True
+                    continue
+                if in_allowed_tools:
+                    if not line.startswith("  - "):
+                        in_allowed_tools = False
+                        continue
+                    tool = line.removeprefix("  - ").strip()
+                    if tool in tool_names:
+                        refs.add(tool)
+            text = body
+
+    patterns = [
+        r"`{tool}`",
+        r"\b(?:Use|Call|Run|Invoke)\s+`?{tool}`?\b",
+        r"\b`?{tool}`?\s+tool\b",
+        r"\btools?\s+(?:such as|like)\s+`?{tool}`?\b",
+    ]
+    for tool in tool_names:
+        for pattern in patterns:
+            if re.search(pattern.format(tool=re.escape(tool)), text):
+                refs.add(tool)
+                break
+
+    return refs
+
+
 def classify_package(
     *,
     has_hooks: bool,
@@ -130,26 +169,27 @@ def classify_package(
     claude_tool_refs: list[str],
     has_commands: bool,
     has_agents: bool,
-) -> tuple[str, str, str]:
-    """Return (portability_class, claude_status, codex_status)."""
+    has_inline_hooks: bool,
+) -> tuple[str, str, str, str]:
+    """Return (portability_class, claude_status, codex_status, copilot_status)."""
     # Hook-driven or has ~/.claude paths -> harness-specific
-    if has_hooks or claude_home_count > 0:
-        return "harness-specific", "native", "unsupported"
+    if has_hooks or has_inline_hooks or claude_home_count > 0:
+        return "harness-specific", "native", "unsupported", "unsupported"
 
     # Has commands or agents (Claude-specific packaging concepts)
     if has_commands or has_agents:
         # Commands/agents exist in both harnesses conceptually, but
         # the packaging format differs. Adaptable if no other blockers.
         if not claude_tool_refs:
-            return "adaptable", "native", "blocked"
-        return "adaptable", "native", "blocked"
+            return "adaptable", "native", "blocked", "blocked"
+        return "adaptable", "native", "blocked", "blocked"
 
     # Pure skill with Claude tool names -> adaptable (tool names can be mapped)
     if claude_tool_refs:
-        return "adaptable", "native", "blocked"
+        return "adaptable", "native", "blocked", "blocked"
 
     # Pure markdown skill, no harness coupling -> agnostic
-    return "agnostic", "native", "generated"
+    return "agnostic", "native", "generated", "generated"
 
 
 def determine_package_type(
@@ -207,12 +247,32 @@ def build_package_record(
     dep_files = find_dependency_files(plugin_dir)
     scan = scan_text_files(plugin_dir)
 
-    portability_class, claude_status, codex_status = classify_package(
+    has_inline_hooks = False
+    for skill_md in plugin_dir.rglob("SKILL.md"):
+        try:
+            text = skill_md.read_text(errors="ignore")
+        except Exception:
+            continue
+        if text.startswith("---\n"):
+            _, _, remainder = text.partition("---\n")
+            frontmatter, sep, _body = remainder.partition("\n---")
+            if sep and re.search(r"(?m)^hooks\s*:", frontmatter):
+                has_inline_hooks = True
+                scan["findings"].append({
+                    "code": "INLINE_SKILL_HOOKS",
+                    "kind": "harness",
+                    "severity": "error",
+                    "path": str(skill_md.relative_to(plugin_dir)),
+                    "message": "Uses inline skill hooks/frontmatter not supported as a neutral portable skill feature",
+                })
+
+    portability_class, claude_status, codex_status, copilot_status = classify_package(
         has_hooks=has_hooks,
         claude_home_count=scan["claude_home_count"],
         claude_tool_refs=scan["claude_tool_refs"],
         has_commands=has_commands,
         has_agents=has_agents,
+        has_inline_hooks=has_inline_hooks,
     )
 
     package_type = determine_package_type(has_hooks, has_commands, has_agents, bool(dep_files))
@@ -250,6 +310,7 @@ def build_package_record(
     support_basis = {
         "claude": "convention",  # .claude-plugin is convention-only per plan
         "codex": "unsupported" if codex_status == "unsupported" else "unknown",
+        "copilot": "generated" if copilot_status == "generated" else "unsupported" if copilot_status == "unsupported" else "unknown",
     }
 
     # Codex generation config
@@ -263,6 +324,13 @@ def build_package_record(
             "category": "Developer Tools",
         }
 
+    copilot_gen = {
+        "enabled": copilot_status in ("generated", "adapted"),
+        "mode": "none" if copilot_status in ("unsupported", "blocked") else copilot_status,
+    }
+    if copilot_gen["enabled"]:
+        copilot_gen["install"] = {"target_dir": ".agents/skills"}
+
     # Adaptation hints
     hints = []
     if scan["claude_tool_refs"]:
@@ -271,6 +339,8 @@ def build_package_record(
         hints.append("Replace ~/.claude path references with harness-neutral config")
     if has_hooks:
         hints.append("Hooks require harness-specific lifecycle — consider forking for other harnesses")
+    if has_inline_hooks:
+        hints.append("Inline skill hooks are harness-specific and should remain blocked outside Claude-style runtimes")
     if has_commands:
         hints.append("Slash commands need harness-specific packaging adaptation")
     if has_agents:
@@ -280,6 +350,8 @@ def build_package_record(
     supported = ["claude"]
     if codex_status in ("generated", "adapted"):
         supported.append("codex")
+    if copilot_status in ("generated", "adapted"):
+        supported.append("copilot")
 
     # Findings for packaging
     packaging_findings = []
@@ -363,6 +435,7 @@ def build_package_record(
             "status_by_harness": {
                 "claude": claude_status,
                 "codex": codex_status,
+                "copilot": copilot_status,
             },
             "findings": all_findings,
             "adaptation_hints": hints if hints else [],
@@ -373,6 +446,7 @@ def build_package_record(
                 "mode": "native",
             },
             "codex": codex_gen,
+            "copilot": copilot_gen,
         },
         "verification": {
             "reviewed": all(skills_verified.values()) if skills_verified else False,

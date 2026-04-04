@@ -1,6 +1,6 @@
 {
   "catalog_schema_version": "1.0.0",
-  "generated_at": "2026-04-03T00:00:00Z",
+  "generated_at": "2026-04-04T00:00:00Z",
   "package_count": 19,
-  "supported_harnesses": ["claude", "codex"]
+  "supported_harnesses": ["claude", "codex", "copilot"]
 }

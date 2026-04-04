@@ -219,6 +219,9 @@ def generate_codex(packages: list[dict]) -> None:
     included: list[dict] = []
     excluded: list[tuple[str, str]] = []
 
+    if GENERATED_DIR.exists():
+        shutil.rmtree(GENERATED_DIR)
+
     for pkg in packages:
         codex_cfg = pkg.get("generation", {}).get("codex", {})
         if not codex_cfg.get("enabled", False):

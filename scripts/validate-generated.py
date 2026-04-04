@@ -30,6 +30,7 @@ def _import_from_file(name: str, filepath: Path):
 
 gen_marketplace = _import_from_file("gen_marketplace", SCRIPTS_DIR / "generate-marketplace.py")
 gen_codex = _import_from_file("gen_codex", SCRIPTS_DIR / "generate-codex.py")
+gen_copilot = _import_from_file("gen_copilot", SCRIPTS_DIR / "generate-copilot.py")
 
 
 def collect_tree(directory: Path) -> dict[str, bytes]:
@@ -79,14 +80,60 @@ def generate_to_temp(tmp: Path) -> None:
 
     orig_codex_dir = gen_codex.GENERATED_DIR
     gen_codex.GENERATED_DIR = tmp / "generated" / "codex"
+    orig_copilot_dir = gen_copilot.GENERATED_DIR
+    gen_copilot.GENERATED_DIR = tmp / "generated" / "copilot"
 
     try:
         with contextlib.redirect_stdout(io.StringIO()):
             gen_marketplace.generate_claude(packages)
             gen_codex.generate_codex(packages)
+            gen_copilot.generate_copilot(packages)
     finally:
         gen_marketplace.GENERATED_DIR = orig_claude_dir
         gen_codex.GENERATED_DIR = orig_codex_dir
+        gen_copilot.GENERATED_DIR = orig_copilot_dir
+
+
+def validate_copilot_frontmatter(tree_dir: Path) -> list[str]:
+    """Validate generated Copilot skill frontmatter and allowed-tools values."""
+    stale: list[str] = []
+    allowed = {"bash", "powershell", "view", "edit", "create", "glob", "grep", "web_fetch", "task", "ask_user"}
+    for skill_md in sorted(tree_dir.rglob("SKILL.md")):
+        rel = str(skill_md.relative_to(tree_dir.parent))
+        text = skill_md.read_text()
+        if not text.startswith("---\n"):
+            print(f"  Checking {rel} frontmatter... MISSING")
+            stale.append(rel)
+            continue
+        _, _, remainder = text.partition("---\n")
+        frontmatter, sep, _body = remainder.partition("\n---")
+        if not sep:
+            print(f"  Checking {rel} frontmatter... MALFORMED")
+            stale.append(rel)
+            continue
+        if "name:" not in frontmatter or "description:" not in frontmatter:
+            print(f"  Checking {rel} frontmatter... INCOMPLETE")
+            stale.append(rel)
+            continue
+        bad_tools = []
+        in_allowed_tools = False
+        for line in frontmatter.splitlines():
+            if line.startswith("allowed-tools:"):
+                in_allowed_tools = True
+                continue
+            if in_allowed_tools:
+                if not line.startswith("  - "):
+                    in_allowed_tools = False
+                    continue
+                tool = line.removeprefix("  - ").strip()
+                if tool not in allowed:
+                    bad_tools.append(tool)
+        if bad_tools:
+            print(f"  Checking {rel} allowed-tools... INVALID ({', '.join(bad_tools)})")
+            stale.append(rel)
+        else:
+            print(f"  Checking {rel} frontmatter... OK")
+    return stale
 
 
 def validate(*, fix: bool = False) -> int:
@@ -116,6 +163,26 @@ def validate(*, fix: bool = False) -> int:
                 "generated/codex",
             )
         )
+
+        stale.extend(
+            compare_trees(
+                tmp_dir / "generated" / "copilot",
+                REPO_ROOT / "generated" / "copilot",
+                "generated/copilot",
+            )
+        )
+
+        if (REPO_ROOT / "generated" / "copilot" / "skills").exists():
+            stale.extend(validate_copilot_frontmatter(REPO_ROOT / "generated" / "copilot" / "skills"))
+
+        if (REPO_ROOT / ".agents" / "skills").exists():
+            stale.extend(
+                compare_trees(
+                    REPO_ROOT / "generated" / "copilot" / "skills",
+                    REPO_ROOT / ".agents" / "skills",
+                    ".agents/skills",
+                )
+            )
 
         # Compare .claude-plugin/marketplace.json against generated/claude/marketplace.json
         claude_plugin_path = REPO_ROOT / ".claude-plugin" / "marketplace.json"
@@ -156,6 +223,7 @@ def run_fix() -> int:
     with contextlib.redirect_stdout(io.StringIO()):
         gen_marketplace.generate_claude(packages)
         gen_codex.generate_codex(packages)
+        gen_copilot.generate_copilot(packages)
 
     # Copy generated/claude/marketplace.json -> .claude-plugin/marketplace.json
     src = REPO_ROOT / "generated" / "claude" / "marketplace.json"
@@ -167,6 +235,7 @@ def run_fix() -> int:
     print("  generated/claude/marketplace.json")
     print("  generated/codex/marketplace.json")
     print("  generated/codex/plugins/*/")
+    print("  generated/copilot/skills/*/")
     print("  .claude-plugin/marketplace.json (copied from generated/claude/)")
     return 0
 

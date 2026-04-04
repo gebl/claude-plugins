@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anvil-plugin-registry"
+version = "0.1.0"
+description = "Harness-agnostic registry tooling for Claude Code, Codex, and Copilot CLI outputs."
+requires-python = ">=3.12"
+dependencies = [
+  "rich",
+]
+
+[project.scripts]
+anvil-assess-package = "anvil_registry.cli:assess_package"
+anvil-assess = "anvil_registry.cli:assess"
+anvil-backfill-catalog = "anvil_registry.cli:backfill_catalog"
+anvil-catalog = "anvil_registry.cli:catalog"
+anvil-generate-codex = "anvil_registry.cli:generate_codex"
+anvil-generate-copilot = "anvil_registry.cli:generate_copilot"
+anvil-generate-marketplace = "anvil_registry.cli:generate_marketplace"
+anvil-sync-check = "anvil_registry.cli:sync_check"
+anvil-sync-codex = "anvil_registry.cli:sync_codex"
+anvil-sync-copilot = "anvil_registry.cli:sync_copilot"
+anvil-validate-generated = "anvil_registry.cli:validate_generated"
+
+[tool.setuptools]
+packages = ["anvil_registry"]

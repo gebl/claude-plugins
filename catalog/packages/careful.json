@@ -37,18 +37,19 @@
   },
   "compatibility": {
     "assessment_version": "2026-04-03.2",
-    "portability_class": "adaptable",
+    "portability_class": "harness-specific",
     "supported_harnesses": [
-      "claude",
-      "codex"
+      "claude"
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "adapter"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "adapted"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "findings": [
       {
@@ -87,6 +88,13 @@
         "message": "References Claude tool names: Bash, Read"
       },
       {
+        "code": "INLINE_SKILL_HOOKS",
+        "kind": "harness",
+        "severity": "error",
+        "path": "skills/careful/SKILL.md",
+        "message": "Uses inline skill hooks/frontmatter not supported as a neutral portable skill feature"
+      },
+      {
         "code": "EXECUTABLE_CODE_PRESENT",
         "kind": "risk",
         "severity": "warn",
@@ -95,7 +103,8 @@
       }
     ],
     "adaptation_hints": [
-      "Map Claude tool names to neutral capabilities"
+      "Map Claude tool names to neutral capabilities",
+      "Inline skill hooks are harness-specific and should remain blocked outside Claude-style runtimes"
     ]
   },
   "generation": {
@@ -104,16 +113,13 @@
       "mode": "native"
     },
     "codex": {
-      "enabled": true,
-      "mode": "adapted",
-      "marketplace": {
-        "policy": {
-          "installation": "AVAILABLE",
-          "authentication": "ON_INSTALL"
-        },
-        "category": "Developer Tools"
-      },
+      "enabled": false,
+      "mode": "none",
       "transforms": []
+    },
+    "copilot": {
+      "enabled": false,
+      "mode": "none"
     }
   },
   "verification": {

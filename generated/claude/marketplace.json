@@ -29,7 +29,7 @@
     {
       "name": "careful",
       "version": "0.1.0",
-      "description": "",
+      "description": "Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE, force-push, git reset --hard, kubectl delete, and similar destructive operations. User can override each warning. Use when touching prod, debugging live systems, or working in a shared environment.",
       "source": "./plugins/careful"
     },
     {
@@ -99,7 +99,7 @@
     {
       "name": "investigate",
       "version": "1.0.0",
-      "description": "",
+      "description": "Systematic debugging with root cause investigation. Four phases: investigate, analyze, hypothesize, implement. Iron Law: no fixes without root cause. Use when asked to debug, fix a bug, or do root cause analysis.",
       "source": "./plugins/investigate"
     },
     {
@@ -116,13 +116,13 @@
     {
       "name": "office-hours",
       "version": "2.0.0",
-      "description": "",
+      "description": "YC Office Hours with two modes. Startup mode: six forcing questions that expose demand reality, status quo, desperate specificity, narrowest wedge, observation, and future-fit. Builder mode: design thinking brainstorming for side projects, hackathons, learning, and open source.",
       "source": "./plugins/office-hours"
     },
     {
       "name": "review",
       "version": "1.0.0",
-      "description": "",
+      "description": "Pre-landing PR review. Analyzes diff against the base branch for SQL safety, LLM trust boundary violations, conditional side effects, and other structural issues.",
       "source": "./plugins/review"
     },
     {
@@ -137,7 +137,7 @@
     {
       "name": "ship",
       "version": "1.0.0",
-      "description": "",
+      "description": "Ship workflow: detect and merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.",
       "source": "./plugins/ship"
     },
     {

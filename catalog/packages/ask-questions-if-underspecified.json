@@ -42,15 +42,18 @@
     "portability_class": "agnostic",
     "supported_harnesses": [
       "claude",
-      "codex"
+      "codex",
+      "copilot"
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "generated"
+      "codex": "generated",
+      "copilot": "generated"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "generated"
+      "codex": "generated",
+      "copilot": "generated"
     },
     "findings": [
       {
@@ -84,6 +87,13 @@
           "authentication": "ON_INSTALL"
         },
         "category": "Developer Tools"
+      }
+    },
+    "copilot": {
+      "enabled": true,
+      "mode": "generated",
+      "install": {
+        "target_dir": ".agents/skills"
       }
     }
   },

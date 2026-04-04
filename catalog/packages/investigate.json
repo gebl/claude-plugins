@@ -52,11 +52,13 @@
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "unsupported"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "unsupported"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "findings": [
       {
@@ -100,11 +102,19 @@
         "severity": "info",
         "path": "(multiple)",
         "message": "References Claude tool names: AskUserQuestion, Bash, Edit, Glob, Grep, Read, WebSearch, Write"
+      },
+      {
+        "code": "INLINE_SKILL_HOOKS",
+        "kind": "harness",
+        "severity": "error",
+        "path": "skills/investigate/SKILL.md",
+        "message": "Uses inline skill hooks/frontmatter not supported as a neutral portable skill feature"
       }
     ],
     "adaptation_hints": [
       "Map Claude tool names to neutral capabilities",
-      "Replace ~/.claude path references with harness-neutral config"
+      "Replace ~/.claude path references with harness-neutral config",
+      "Inline skill hooks are harness-specific and should remain blocked outside Claude-style runtimes"
     ]
   },
   "generation": {
@@ -113,6 +123,10 @@
       "mode": "native"
     },
     "codex": {
+      "enabled": false,
+      "mode": "none"
+    },
+    "copilot": {
       "enabled": false,
       "mode": "none"
     }

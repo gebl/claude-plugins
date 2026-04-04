@@ -24,8 +24,9 @@ def print_assessment(name: str, result, *, verbose: bool = False) -> None:
     compat = result.portability_class
     claude = result.status_by_harness.get("claude", "unknown")
     codex = result.status_by_harness.get("codex", "unknown")
+    copilot = result.status_by_harness.get("copilot", "unknown")
 
-    print(f"  {name}: {compat} (claude={claude}, codex={codex})")
+    print(f"  {name}: {compat} (claude={claude}, codex={codex}, copilot={copilot})")
 
     if verbose:
         unsuppressed = [f for f in result.findings if not f.suppressed]
@@ -66,7 +67,14 @@ def print_summary(results: dict) -> None:
         1 for r in results.values()
         if r.status_by_harness.get("codex") in ("generated", "adapted")
     )
-    print(f"\n  Total: {total} | Codex-ready: {codex_ready} | Codex-blocked/unsupported: {total - codex_ready}")
+    copilot_ready = sum(
+        1 for r in results.values()
+        if r.status_by_harness.get("copilot") in ("generated", "adapted")
+    )
+    print(
+        f"\n  Total: {total} | Codex-ready: {codex_ready} | "
+        f"Copilot-ready: {copilot_ready}"
+    )
 
 
 def main() -> None:

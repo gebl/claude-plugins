@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Generate harness-specific marketplace artifacts from the neutral catalog."""
+"""Generate harness-specific output artifacts from the neutral catalog."""
 
 import argparse
 import json
@@ -95,14 +95,19 @@ def generate_codex(_packages: list[dict]) -> None:
     print("Codex generation not yet implemented — use generate-codex.py")
 
 
+def generate_copilot(_packages: list[dict]) -> None:
+    """Stub for Copilot skill generation — use generate-copilot.py instead."""
+    print("Copilot generation not yet implemented here — use generate-copilot.py")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate harness-specific marketplace artifacts from the neutral catalog."
+        description="Generate harness-specific output artifacts from the neutral catalog."
     )
     parser.add_argument(
         "--harness",
         required=True,
-        choices=["claude", "codex"],
+        choices=["claude", "codex", "copilot"],
         help="Target harness to generate for",
     )
     args = parser.parse_args()
@@ -120,6 +125,8 @@ def main() -> None:
         generate_claude(packages)
     elif args.harness == "codex":
         generate_codex(packages)
+    elif args.harness == "copilot":
+        generate_copilot(packages)
 
 
 if __name__ == "__main__":

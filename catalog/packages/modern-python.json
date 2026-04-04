@@ -32,9 +32,7 @@
     "has_executable_code": true,
     "dependency_files": [],
     "tool_risk": {
-      "declared_tools": [
-        "Read"
-      ],
+      "declared_tools": [],
       "risk_level": "low",
       "reasons": []
     }
@@ -47,11 +45,13 @@
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "unsupported"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "unsupported"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "findings": [
       {
@@ -76,13 +76,6 @@
         "message": "Contains hook definitions"
       },
       {
-        "code": "CLAUDE_TOOL_NAME",
-        "kind": "harness",
-        "severity": "info",
-        "path": "(multiple)",
-        "message": "References Claude tool names: Read"
-      },
-      {
         "code": "EXECUTABLE_CODE_PRESENT",
         "kind": "risk",
         "severity": "warn",
@@ -91,7 +84,6 @@
       }
     ],
     "adaptation_hints": [
-      "Map Claude tool names to neutral capabilities",
       "Hooks require harness-specific lifecycle \u2014 consider forking for other harnesses"
     ]
   },
@@ -101,6 +93,10 @@
       "mode": "native"
     },
     "codex": {
+      "enabled": false,
+      "mode": "none"
+    },
+    "copilot": {
       "enabled": false,
       "mode": "none"
     }

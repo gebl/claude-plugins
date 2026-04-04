@@ -34,15 +34,11 @@
     "tool_risk": {
       "declared_tools": [
         "Bash",
-        "Read",
-        "WebFetch",
-        "WebSearch"
+        "Read"
       ],
       "risk_level": "medium",
       "reasons": [
-        "Bash: shell execution or file mutation",
-        "WebFetch: indirect mutation or external access",
-        "WebSearch: indirect mutation or external access"
+        "Bash: shell execution or file mutation"
       ]
     }
   },
@@ -54,11 +50,13 @@
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "unsupported"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "unsupported"
+      "codex": "unsupported",
+      "copilot": "unsupported"
     },
     "findings": [
       {
@@ -108,7 +106,7 @@
         "kind": "harness",
         "severity": "info",
         "path": "(multiple)",
-        "message": "References Claude tool names: Bash, Read, WebFetch, WebSearch"
+        "message": "References Claude tool names: Bash, Read"
       },
       {
         "code": "EXECUTABLE_CODE_PRESENT",
@@ -137,6 +135,10 @@
       "mode": "native"
     },
     "codex": {
+      "enabled": false,
+      "mode": "none"
+    },
+    "copilot": {
       "enabled": false,
       "mode": "none"
     }

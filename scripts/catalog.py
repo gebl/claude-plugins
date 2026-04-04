@@ -136,6 +136,7 @@ def cmd_list(args: argparse.Namespace) -> None:
     table.add_column("Class")
     table.add_column("Claude")
     table.add_column("Codex")
+    table.add_column("Copilot")
     table.add_column("Verified", justify="center")
 
     for pkg in filtered:
@@ -143,6 +144,7 @@ def cmd_list(args: argparse.Namespace) -> None:
         port_class = get_portability_class(pkg)
         claude_status = get_harness_status(pkg, "claude")
         codex_status = get_harness_status(pkg, "codex")
+        copilot_status = get_harness_status(pkg, "copilot")
         reviewed = pkg.get("verification", {}).get("reviewed", False)
 
         table.add_row(
@@ -150,6 +152,7 @@ def cmd_list(args: argparse.Namespace) -> None:
             style_class(port_class),
             style_status(claude_status),
             style_status(codex_status),
+            style_status(copilot_status),
             "[green]yes[/]" if reviewed else "[dim]no[/]",
         )
 
@@ -212,7 +215,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # list
     ls = subs.add_parser("list", help="List packages with optional filters")
-    ls.add_argument("--harness", help="Filter by supported harness (e.g. claude, codex)")
+    ls.add_argument("--harness", help="Filter by supported harness (e.g. claude, codex, copilot)")
     ls.add_argument("--class", dest="class", choices=["agnostic", "adaptable", "harness-specific", "unknown"],
                      help="Filter by portability class")
     ls.add_argument("--status", choices=["native", "generated", "adapted", "unsupported", "blocked", "unknown"],

@@ -13,10 +13,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 try:
-    from transforms import can_adapt_for_codex
+    from transforms import can_adapt_for_codex, can_adapt_for_copilot
 except ImportError:
 
     def can_adapt_for_codex(tool_refs: list[str]) -> tuple[bool, list[str]]:
+        """Fallback: always report blocked when transforms.py is unavailable."""
+        return (False, [])
+
+    def can_adapt_for_copilot(tool_refs: list[str]) -> tuple[bool, list[str]]:
         """Fallback: always report blocked when transforms.py is unavailable."""
         return (False, [])
 
@@ -188,6 +192,46 @@ def find_dependency_files(plugin_dir: Path) -> list[str]:
     )
 
 
+def extract_tool_references(text: str, tool_names: set[str]) -> set[str]:
+    """Extract likely tool references from skill text, avoiding generic prose false positives."""
+    refs: set[str] = set()
+    if not tool_names:
+        return refs
+
+    # Frontmatter allowed-tools list
+    if text.startswith("---\n"):
+        _, _, remainder = text.partition("---\n")
+        frontmatter, sep, body = remainder.partition("\n---")
+        if sep:
+            in_allowed_tools = False
+            for line in frontmatter.splitlines():
+                if line.startswith("allowed-tools:"):
+                    in_allowed_tools = True
+                    continue
+                if in_allowed_tools:
+                    if not line.startswith("  - "):
+                        in_allowed_tools = False
+                        continue
+                    tool = line.removeprefix("  - ").strip()
+                    if tool in tool_names:
+                        refs.add(tool)
+            text = body
+
+    patterns = [
+        r"`{tool}`",
+        r"\b(?:Use|Call|Run|Invoke)\s+`?{tool}`?\b",
+        r"\b`?{tool}`?\s+tool\b",
+        r"\btools?\s+(?:such as|like)\s+`?{tool}`?\b",
+    ]
+    for tool in tool_names:
+        for pattern in patterns:
+            if re.search(pattern.format(tool=re.escape(tool)), text):
+                refs.add(tool)
+                break
+
+    return refs
+
+
 def scan_harness_bindings(plugin_dir: Path, claude_rules: dict) -> tuple[list[Finding], int, list[str]]:
     """Pass 2: Detect harness-specific bindings using rules."""
     findings: list[Finding] = []
@@ -251,11 +295,9 @@ def scan_harness_bindings(plugin_dir: Path, claude_rules: dict) -> tuple[list[Fi
                 message="Uses ${CLAUDE_SKILL_DIR} variable",
             ))
 
-        # Claude tool names in markdown files
-        if f.name.endswith(".md") and tool_names:
-            for tool in tool_names:
-                if re.search(rf"\b{tool}\b", text):
-                    claude_tool_refs.add(tool)
+        # Only scan SKILL.md for tool references, and use stricter patterns than raw word matches.
+        if f.name == "SKILL.md" and tool_names:
+            claude_tool_refs.update(extract_tool_references(text, tool_names))
 
     if claude_tool_refs:
         findings.append(Finding(
@@ -267,6 +309,32 @@ def scan_harness_bindings(plugin_dir: Path, claude_rules: dict) -> tuple[list[Fi
         ))
 
     return findings, claude_home_count, sorted(claude_tool_refs)
+
+
+def scan_inline_skill_hooks(plugin_dir: Path) -> list[Finding]:
+    """Detect hook-like frontmatter embedded directly in SKILL.md files."""
+    findings: list[Finding] = []
+    for skill_md in plugin_dir.rglob("SKILL.md"):
+        try:
+            text = skill_md.read_text(errors="ignore")
+        except Exception:
+            continue
+        if not text.startswith("---\n"):
+            continue
+        _, _, remainder = text.partition("---\n")
+        frontmatter, sep, _body = remainder.partition("\n---")
+        if not sep:
+            continue
+        rel = str(skill_md.relative_to(plugin_dir))
+        if re.search(r"(?m)^hooks\s*:", frontmatter):
+            findings.append(Finding(
+                code="INLINE_SKILL_HOOKS",
+                kind="harness",
+                severity="error",
+                path=rel,
+                message="Uses inline skill hooks/frontmatter not supported as a neutral portable skill feature",
+            ))
+    return findings
 
 
 def build_packaging_findings(files: dict[str, bool]) -> list[Finding]:
@@ -317,19 +385,20 @@ def classify_portability(
     claude_tool_refs: list[str],
     has_commands: bool,
     has_agents: bool,
-) -> tuple[str, str, str]:
-    """Return (portability_class, claude_status, codex_status)."""
-    if has_hooks or claude_home_count > 0:
-        return "harness-specific", "native", "unsupported"
+    has_inline_hooks: bool,
+) -> tuple[str, str, str, str]:
+    """Return (portability_class, claude_status, codex_status, copilot_status)."""
+    if has_hooks or has_inline_hooks or claude_home_count > 0:
+        return "harness-specific", "native", "unsupported", "unsupported"
 
     if has_commands or has_agents or claude_tool_refs:
-        # Check whether all referenced tools have a Codex mapping
-        adaptable, _transforms = can_adapt_for_codex(claude_tool_refs)
-        if adaptable:
-            return "adaptable", "native", "adapted"
-        return "adaptable", "native", "blocked"
+        codex_adaptable, _codex_transforms = can_adapt_for_codex(claude_tool_refs)
+        copilot_adaptable, _copilot_transforms = can_adapt_for_copilot(claude_tool_refs)
+        codex_status = "adapted" if codex_adaptable else "blocked"
+        copilot_status = "adapted" if copilot_adaptable else "blocked"
+        return "adaptable", "native", codex_status, copilot_status
 
-    return "agnostic", "native", "generated"
+    return "agnostic", "native", "generated", "generated"
 
 
 def determine_package_type(files: dict[str, bool], has_deps: bool) -> str:
@@ -371,6 +440,7 @@ def build_adaptation_hints(
     has_hooks: bool,
     has_commands: bool,
     has_agents: bool,
+    has_inline_hooks: bool,
 ) -> list[str]:
     hints = []
     if claude_tool_refs:
@@ -379,6 +449,8 @@ def build_adaptation_hints(
         hints.append("Replace ~/.claude path references with harness-neutral config")
     if has_hooks:
         hints.append("Hooks require harness-specific lifecycle — consider forking for other harnesses")
+    if has_inline_hooks:
+        hints.append("Inline skill hooks are harness-specific and should remain blocked outside Claude-style runtimes")
     if has_commands:
         hints.append("Slash commands need harness-specific packaging adaptation")
     if has_agents:
@@ -405,21 +477,23 @@ def assess_package(name: str) -> AssessmentResult:
 
     # Pass 2: Detect harness-specific bindings
     harness_findings, claude_home_count, claude_tool_refs = scan_harness_bindings(plugin_dir, claude_rules)
+    inline_hook_findings = scan_inline_skill_hooks(plugin_dir)
     packaging_findings = build_packaging_findings(files)
     risk_findings = build_risk_findings(executables, dep_files)
 
-    all_findings = packaging_findings + harness_findings + risk_findings
+    all_findings = packaging_findings + harness_findings + inline_hook_findings + risk_findings
 
     # Apply external suppressions
     all_findings = apply_suppressions(all_findings, suppressions)
 
     # Pass 3: Resolve status per harness
-    portability_class, claude_status, codex_status = classify_portability(
+    portability_class, claude_status, codex_status, copilot_status = classify_portability(
         has_hooks=files["has_hooks"],
         claude_home_count=claude_home_count,
         claude_tool_refs=claude_tool_refs,
         has_commands=files["has_commands"],
         has_agents=files["has_agents"],
+        has_inline_hooks=bool(inline_hook_findings),
     )
 
     codex_basis = {
@@ -430,11 +504,18 @@ def assess_package(name: str) -> AssessmentResult:
     support_basis = {
         "claude": "convention",
         "codex": codex_basis.get(codex_status, "unknown"),
+        "copilot": {
+            "unsupported": "unsupported",
+            "adapted": "adapter",
+            "generated": "generated",
+        }.get(copilot_status, "unknown"),
     }
 
     supported = ["claude"]
     if codex_status in ("generated", "adapted"):
         supported.append("codex")
+    if copilot_status in ("generated", "adapted"):
+        supported.append("copilot")
 
     package_type = determine_package_type(files, bool(dep_files))
     tool_risk = compute_tool_risk(claude_tool_refs)
@@ -445,11 +526,12 @@ def assess_package(name: str) -> AssessmentResult:
         has_hooks=files["has_hooks"],
         has_commands=files["has_commands"],
         has_agents=files["has_agents"],
+        has_inline_hooks=bool(inline_hook_findings),
     )
 
     return AssessmentResult(
         portability_class=portability_class,
-        status_by_harness={"claude": claude_status, "codex": codex_status},
+        status_by_harness={"claude": claude_status, "codex": codex_status, "copilot": copilot_status},
         support_basis=support_basis,
         supported_harnesses=supported,
         findings=all_findings,
@@ -480,7 +562,12 @@ def update_package_record(name: str, result: AssessmentResult) -> dict:
     record["risk"] = result.risk
 
     # Update generation state based on new assessment
+    existing_generation = record.get("generation", {})
+    existing_codex = existing_generation.get("codex", {})
+    existing_copilot = existing_generation.get("copilot", {})
+
     codex_status = result.status_by_harness.get("codex", "unknown")
+    copilot_status = result.status_by_harness.get("copilot", "unknown")
     codex_gen = {
         "enabled": codex_status in ("generated", "adapted"),
         "mode": "none" if codex_status in ("unsupported", "blocked") else codex_status,
@@ -493,7 +580,24 @@ def update_package_record(name: str, result: AssessmentResult) -> dict:
     if codex_status == "adapted":
         _adaptable, transforms_used = can_adapt_for_codex(result.claude_tool_refs)
         codex_gen["transforms"] = transforms_used
+    elif "transforms" in existing_codex:
+        codex_gen["transforms"] = existing_codex["transforms"]
     record["generation"]["codex"] = codex_gen
+
+    copilot_gen = {
+        "enabled": copilot_status in ("generated", "adapted"),
+        "mode": "none" if copilot_status in ("unsupported", "blocked") else copilot_status,
+    }
+    if copilot_gen["enabled"]:
+        copilot_gen["install"] = {"target_dir": ".agents/skills"}
+    if copilot_status == "adapted":
+        _adaptable, transforms_used = can_adapt_for_copilot(result.claude_tool_refs)
+        copilot_gen["transforms"] = transforms_used
+    elif "transforms" in existing_copilot:
+        copilot_gen["transforms"] = existing_copilot["transforms"]
+    if "extra_files" in existing_copilot:
+        copilot_gen["extra_files"] = existing_copilot["extra_files"]
+    record["generation"]["copilot"] = copilot_gen
 
     pkg_path.write_text(json.dumps(record, indent=2) + "\n")
     return record

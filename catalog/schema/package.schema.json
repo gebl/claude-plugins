@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "package.schema.json",
   "title": "Package Record",
-  "description": "Neutral catalog entry for a single package in the harness-agnostic marketplace",
+  "description": "Neutral catalog entry for a single package in the harness-agnostic registry",
   "type": "object",
   "required": ["name", "version", "description", "upstream", "source_model", "package_type", "files", "risk", "compatibility", "generation", "verification"],
   "properties": {
@@ -151,6 +151,15 @@
           "marketplace": {
             "type": "object",
             "description": "Harness-specific marketplace overrides"
+          },
+          "install": {
+            "type": "object",
+            "description": "Harness-specific install or sync metadata"
+          },
+          "extra_files": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Additional files to copy into a generated harness output"
           }
         },
         "additionalProperties": false

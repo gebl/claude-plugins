@@ -1,11 +1,11 @@
 # Anvil Plugin Registry
 
-A harness-agnostic plugin registry that pulls skills, commands, agents, and hooks from the open-source ecosystem, catalogs them with compatibility metadata, and generates installable marketplaces for both **Claude Code** and **Codex**.
+A harness-agnostic registry that pulls skills, commands, agents, and hooks from the open-source ecosystem, catalogs them with compatibility metadata, and generates harness-specific outputs for **Claude Code**, **Codex**, and **GitHub Copilot CLI**.
 
 ## How It Works
 
 ```
-Upstream Repos                Neutral Catalog              Harness Marketplaces
+Upstream Repos                Neutral Catalog              Harness Outputs
 (GitHub, Forgejo)             (catalog/)                   (generated/)
                                                           
   trailofbits/skills ──┐                                  ┌─ Claude Code
@@ -15,12 +15,14 @@ Upstream Repos                Neutral Catalog              Harness Marketplaces
   ComposioHQ/* ────────┤     │  Risk assessment  │        ├─ Codex
   Internal repos ──────┘     │  Capability map   │────────>│   marketplace.json
                               └──────────────────┘         │   generated + syncable
+                                                           ├─ Copilot CLI
+                                                           │   skills/ + syncable
                                                            └─ (future harnesses)
 ```
 
 1. **Import** -- Plugins and raw skills are pulled from upstream repositories, scanned with Semgrep, and mirrored byte-for-byte into `plugins/`.
 2. **Catalog** -- Each package gets a neutral record in `catalog/packages/` with portability classification, risk assessment, and compatibility findings.
-3. **Generate** -- The catalog renders harness-specific marketplace files. Agnostic packages pass through unchanged. Adaptable packages get shallow transforms (tool name mapping, manifest rewriting). Harness-specific packages are included only where they work natively.
+3. **Generate** -- The catalog renders harness-specific output artifacts. Agnostic packages pass through unchanged. Adaptable packages get shallow transforms (tool name mapping, manifest rewriting, frontmatter normalization). Harness-specific packages are included only where they work natively.
 
 ## Registry
 
@@ -29,8 +31,8 @@ Upstream Repos                Neutral Catalog              Harness Marketplaces
 | Plugin | Version | Components | Source | Portability |
 |--------|---------|------------|--------|-------------|
 | [ask-questions-if-underspecified](#ask-questions-if-underspecified) | 1.0.1 | skill | [trailofbits/skills](https://github.com/trailofbits/skills) | Agnostic |
-| [avoid-ai-writing](#avoid-ai-writing) | 3.2.0 | skill | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) | Adaptable |
-| [careful](#careful) | 0.1.0 | skill | [garrytan/gstack](https://github.com/garrytan/gstack) | Adaptable |
+| [avoid-ai-writing](#avoid-ai-writing) | 3.2.0 | skill | [conorbronsdon/avoid-ai-writing](https://github.com/conorbronsdon/avoid-ai-writing) | Agnostic |
+| [careful](#careful) | 0.1.0 | skill | [garrytan/gstack](https://github.com/garrytan/gstack) | Harness-specific |
 | [claude-vis](#claude-vis) | 0.1.0 | skill, command, hooks | Internal | Harness-specific |
 | [devcontainer-setup](#devcontainer-setup) | 0.1.0 | skill | [trailofbits/skills](https://github.com/trailofbits/skills) | Harness-specific |
 | [differential-review](#differential-review) | 1.0.0 | skill, command | [trailofbits/skills](https://github.com/trailofbits/skills) | Harness-specific |
@@ -52,27 +54,27 @@ Upstream Repos                Neutral Catalog              Harness Marketplaces
 
 Each package is classified by how well it travels between harnesses:
 
-| Plugin | Claude Code | Codex | Why |
-|--------|:-----------:|:-----:|-----|
-| ask-questions-if-underspecified | native | generated | Pure markdown, no tool bindings |
-| avoid-ai-writing | native | adapted | Tool names remapped |
-| careful | native | adapted | Tool names remapped |
-| claude-vis | native | -- | Hook lifecycle + Python scripts |
-| devcontainer-setup | native | -- | `~/.claude` paths, executable scripts |
-| differential-review | native | -- | Complex multi-tool workflow |
-| file-organizer | native | generated | Pure markdown, no tool bindings |
-| git-cleanup | native | adapted | Tool names remapped |
-| grill-me | native | generated | Pure markdown, no tool bindings |
-| insecure-defaults | native | adapted | Bash tool remapped to shell |
-| investigate | native | -- | Interactive multi-phase workflow |
-| modern-python | native | -- | Hook lifecycle + PATH shim scripts |
-| office-hours | native | -- | Interactive brainstorm workflow |
-| review | native | -- | Complex multi-tool workflow |
-| semgrep-rule-creator | native | blocked | Semgrep dependencies, tool mappings |
-| ship | native | -- | Hook lifecycle + interactive steps |
-| variant-analysis | native | adapted | Tool names remapped |
-| workflow-skill-design | native | blocked | Teaching tool, agent definitions |
-| yt-transcript | native | adapted | Tool names remapped |
+| Plugin | Claude Code | Codex | Copilot CLI | Why |
+|--------|:-----------:|:-----:|:-----------:|-----|
+| ask-questions-if-underspecified | native | generated | generated | Pure markdown, no tool bindings |
+| avoid-ai-writing | native | generated | generated | Pure markdown skill with no runtime tool requirements |
+| careful | native | unsupported | unsupported | Inline hooks/frontmatter and command interception are harness-specific |
+| claude-vis | native | unsupported | unsupported | Hook lifecycle, commands, and Python scripts |
+| devcontainer-setup | native | unsupported | unsupported | `~/.claude` paths and executable scripts |
+| differential-review | native | unsupported | unsupported | Complex multi-tool workflow tied to Claude conventions |
+| file-organizer | native | generated | generated | Pure markdown, no tool bindings |
+| git-cleanup | native | adapted | adapted | Tool names remapped to documented Codex and Copilot tools |
+| grill-me | native | generated | generated | Pure markdown, no tool bindings |
+| insecure-defaults | native | adapted | adapted | Tool names remapped to documented Codex and Copilot tools |
+| investigate | native | unsupported | unsupported | Interactive multi-phase workflow |
+| modern-python | native | unsupported | unsupported | Hook lifecycle and PATH shim scripts |
+| office-hours | native | unsupported | unsupported | Interactive brainstorm workflow |
+| review | native | unsupported | unsupported | Complex multi-tool workflow |
+| semgrep-rule-creator | native | blocked | blocked | Semgrep dependency and runtime/tooling assumptions |
+| ship | native | unsupported | unsupported | Hook lifecycle and interactive release steps |
+| variant-analysis | native | adapted | adapted | Tool names remapped; skill body and bundled resources are portable |
+| workflow-skill-design | native | blocked | blocked | Teaching tool with agent definitions |
+| yt-transcript | native | adapted | adapted | Helper script is copied into the skill directory and invocation is normalized |
 
 **Legend:**
 - **native** -- runs as-is, no transforms needed
@@ -81,29 +83,29 @@ Each package is classified by how well it travels between harnesses:
 - **blocked** -- intentionally excluded (dependencies or features that don't translate)
 - **--** -- harness-specific, no adaptation possible (hooks, complex interactive workflows)
 
-**Summary:** Claude Code exposes all 19 packages. Codex support is generated from the neutral catalog and synced into `.agents/plugins/` for local testing; the exact plugin count comes from the current generated output.
+**Summary:** Claude Code exposes all 19 packages. Codex and Copilot CLI are both generated from the neutral catalog, synced into their repo-local install paths, and validated as first-class harness outputs in this repository.
 
 ### Portability Classes
 
 | Class | Count | Meaning |
 |-------|:-----:|---------|
-| **Agnostic** | 3 | Pure markdown skills with no harness bindings. Work everywhere unchanged. |
-| **Adaptable** | 8 | Use harness-specific tool names or conventions that can be mechanically remapped. |
-| **Harness-specific** | 8 | Depend on hook lifecycles, home directory paths, or interactive workflows unique to one harness. |
+| **Agnostic** | 4 | Pure markdown skills with no harness bindings. Work everywhere unchanged. |
+| **Adaptable** | 6 | Use harness-specific tool names or conventions that can be mechanically remapped. |
+| **Harness-specific** | 9 | Depend on hook lifecycles, home directory paths, or interactive workflows unique to one harness. |
 
 ### Capability Mappings
 
 When adapting plugins between harnesses, these tool equivalences are used:
 
-| Capability | Claude Code | Codex | Status |
-|------------|-------------|-------|--------|
-| Read files | `Read` | `read_file` | Exact |
-| Search files | `Grep`, `Glob` | `grep_search`, `file_search` | Exact |
-| Edit files | `Edit`, `Write` | `edit_file`, `write_file` | Exact |
-| Run shell | `Bash` | `shell` | Exact |
-| Browse web | `WebSearch`, `WebFetch` | -- | Unsupported in Codex |
-| Ask user | `AskUserQuestion` | `assistant_message` | Lossy (degrades to plain text) |
-| Spawn subagent | `Agent` | `spawn_agent` | Approximate |
+| Capability | Claude Code | Codex | Copilot CLI | Status |
+|------------|-------------|-------|-------------|--------|
+| Read files | `Read` | `read_file` | `view` | Exact |
+| Search files | `Grep`, `Glob` | `grep_search`, `file_search` | `grep`, `glob` | Exact |
+| Edit files | `Edit`, `Write` | `edit_file`, `write_file` | `edit`, `create` | Approximate |
+| Run shell | `Bash` | `shell` | `bash` | Exact |
+| Browse web | `WebSearch`, `WebFetch` | -- | `web_fetch` | Unsupported in this registry |
+| Ask user | `AskUserQuestion` | `assistant_message` | `ask_user` | Lossy |
+| Spawn subagent | `Agent` | `spawn_agent` | `task` | Approximate |
 
 ### Plugin Details
 
@@ -111,10 +113,10 @@ When adapting plugins between harnesses, these tool equivalences are used:
 Clarify ambiguous requirements by asking questions before implementing. Pure markdown skill -- no executable code.
 
 #### avoid-ai-writing
-Audit and rewrite content to remove AI writing patterns ("AI-isms"). Tool references remapped for Codex.
+Audit and rewrite content to remove AI writing patterns ("AI-isms"). Generated unchanged for Codex and Copilot.
 
 #### careful
-Safety guardrail that intercepts destructive bash commands (`rm -rf`, `DROP TABLE`, force push). Contains executable scripts for command interception.
+Safety guardrail that intercepts destructive bash commands (`rm -rf`, `DROP TABLE`, force push). Claude-only because it depends on inline hooks/frontmatter plus executable command-interception scripts.
 
 #### claude-vis
 Logs session activity, token usage, and cost to SQLite for analytics. Includes `/stats` command, Python hook scripts for `SessionStart`, `PostToolUse`, `Stop`, and `SessionEnd`. Claude Code only due to hook lifecycle dependency.
@@ -129,7 +131,7 @@ Security-focused differential review of code changes with blast radius estimatio
 Intelligently organizes files and folders -- finds duplicates, suggests structures, automates cleanup. Pure markdown skill.
 
 #### git-cleanup
-Safely analyzes and cleans up local git branches and worktrees. Tool references remapped for Codex.
+Safely analyzes and cleans up local git branches and worktrees. Tool references remapped for Codex and Copilot.
 
 #### grill-me
 Stress-test a plan or design through relentless questioning until reaching shared understanding. Pure markdown skill.
@@ -150,21 +152,41 @@ Two modes: startup validation (six forcing questions) and builder mode (design t
 Pre-landing PR review for structural issues, SQL safety, race conditions, and scope drift. Claude Code only.
 
 #### semgrep-rule-creator
-Create custom Semgrep rules for detecting bugs and security vulnerabilities. Includes `/semgrep-rule` command. Blocked on Codex due to Semgrep dependency requirements.
+Create custom Semgrep rules for detecting bugs and security vulnerabilities. Includes `/semgrep-rule` command. Blocked on Codex and Copilot due to Semgrep dependency and runtime assumptions.
 
 #### ship
 Automates pre-merge workflow: tests, review, version bump, changelog, PR creation. Claude Code only due to hook lifecycle and interactive steps.
 
 #### variant-analysis
-Find similar vulnerabilities across codebases using pattern-based analysis. Includes `/variants` command. Tool references remapped for Codex.
+Find similar vulnerabilities across codebases using pattern-based analysis. Includes `/variants` command. Tool references remapped for Codex and Copilot.
 
 #### workflow-skill-design
-Design patterns and review agent for workflow-based Claude Code skills. Includes `workflow-skill-reviewer` agent. Blocked on Codex due to agent definitions.
+Design patterns and review agent for workflow-based Claude Code skills. Includes `workflow-skill-reviewer` agent. Blocked on Codex and Copilot due to agent definitions.
 
 #### yt-transcript
-Fetch YouTube video transcripts and save as Markdown. Tool references remapped for Codex.
+Fetch YouTube video transcripts and save as Markdown. Tool references remapped for Codex and Copilot, with the helper script copied into the generated skill directory.
 
 ## Setup
+
+### Python Tooling
+
+This repo now has a root `pyproject.toml`, so you can install the registry tooling once and use console scripts instead of `uv run <script.py>`:
+
+```bash
+uv sync
+source .venv/bin/activate
+```
+
+That gives you commands such as:
+
+- `anvil-generate-codex`
+- `anvil-sync-codex`
+- `anvil-generate-copilot`
+- `anvil-sync-copilot`
+- `anvil-catalog`
+- `anvil-assess-package`
+
+If you do not want to activate the environment, you can call the installed entry points directly from `.venv/bin/`.
 
 ### Claude Code
 
@@ -185,7 +207,7 @@ This repo treats Codex setup as a two-step flow:
 1. Generate Codex artifacts from the neutral catalog:
 
 ```bash
-uv run scripts/generate-codex.py
+anvil-generate-codex
 ```
 
 This writes:
@@ -197,7 +219,7 @@ This writes:
 2. Sync the generated artifacts into Codex's repo-local path:
 
 ```bash
-uv run scripts/sync-codex.py
+anvil-sync-codex
 ```
 
 This writes:
@@ -208,7 +230,7 @@ This writes:
 If you want the repo-local Codex plugin tree to exactly match the generated marketplace, remove stale plugin directories during sync:
 
 ```bash
-uv run scripts/sync-codex.py --clean
+anvil-sync-codex --clean
 ```
 
 The generated marketplace uses local relative paths like `./plugins/<name>`, so the sync step preserves that layout under `.agents/plugins/`.
@@ -216,7 +238,7 @@ The generated marketplace uses local relative paths like `./plugins/<name>`, so 
 If `/plugins` in Codex shows marketplace entries but the detail view fails with messages such as `Failed to load plugin details` or `plugin/read failed in TUI`, the repo-local plugin tree is usually under-populated. The common cause is having `.agents/plugins/marketplace.json` without the corresponding `.agents/plugins/plugins/<name>/.codex-plugin/plugin.json` files. Re-run:
 
 ```bash
-uv run scripts/sync-codex.py --clean
+anvil-sync-codex --clean
 ```
 
 Then reopen `/plugins`. If Codex cached the earlier broken state, restart the session once.
@@ -224,7 +246,68 @@ Then reopen `/plugins`. If Codex cached the earlier broken state, restart the se
 For one-shot local setup:
 
 ```bash
-uv run scripts/generate-codex.py && uv run scripts/sync-codex.py --clean
+anvil-generate-codex && anvil-sync-codex --clean
+```
+
+### Copilot CLI
+
+GitHub Copilot CLI skills are generated as skill directories, not plugin manifests.
+
+1. Generate Copilot skill outputs from the neutral catalog:
+
+```bash
+anvil-generate-copilot
+```
+
+This writes:
+
+- `generated/copilot/skills/<name>/SKILL.md`
+- copied skill-local resources for enabled packages
+
+2. Sync the generated skills into the repo-local discovery path:
+
+```bash
+anvil-sync-copilot --clean
+```
+
+This writes:
+
+- `.agents/skills/<name>/...`
+
+This installs the full Copilot-ready set currently supported by the catalog:
+
+- `ask-questions-if-underspecified`
+- `avoid-ai-writing`
+- `file-organizer`
+- `git-cleanup`
+- `grill-me`
+- `insecure-defaults`
+- `variant-analysis`
+- `yt-transcript`
+
+Copilot reads skill directories that contain a `SKILL.md` file with YAML frontmatter. This repo generates those skill directories under `generated/copilot/skills/` and syncs them into `.agents/skills/` for repo-local use. If you want a personal install instead, copy the generated skill directories into one of Copilot's supported user paths such as `~/.copilot/skills/`, `~/.claude/skills/`, or `~/.agents/skills/`.
+
+### Copilot CLI Smoke Test
+
+Use this flow to verify the generated Copilot skills behave as expected:
+
+```bash
+anvil-generate-copilot
+anvil-sync-copilot --clean
+```
+
+Then in Copilot CLI:
+
+1. Run `/skills list` and confirm the generated skills appear.
+2. Run `/skills info` and confirm the installed path points at `.agents/skills/...`.
+3. Invoke a specific skill by name, for example `/grill-me` or `/git-cleanup`.
+4. If Copilot reports `missing or malformed YAML frontmatter`, inspect the installed `SKILL.md` and ensure it starts with:
+
+```yaml
+---
+name: skill-name
+description: Short description
+---
 ```
 
 ### Optional: Semgrep
@@ -244,7 +327,7 @@ All imports are automatically scanned with semgrep before anything is written to
 Fetches the plugin, scans it with semgrep, copies it into `plugins/`, and registers it in both `marketplace.json` and `sources.json`:
 
 ```bash
-uv run scripts/sync-check.py --add \
+anvil-sync-check --add \
   --repo https://github.com/org/repo.git \
   --path plugins/plugin-name
 ```
@@ -256,7 +339,7 @@ The plugin name is inferred from `--path` (here: `plugin-name`). Use `--name` to
 For repos with standalone `SKILL.md` files without plugin packaging (e.g., ComposioHQ/awesome-claude-skills). This auto-generates the plugin wrapper, copies all files, and registers everything:
 
 ```bash
-uv run scripts/sync-check.py --import-skill \
+anvil-sync-check --import-skill \
   --repo https://github.com/org/repo.git \
   --path skill-name
 ```
@@ -288,7 +371,7 @@ mkdir -p plugins/my-plugin/skills/my-skill
 
 Locally-authored plugins don't need a `sources.json` entry -- that's only for upstream forks.
 
-To include a plugin in Codex generation, also add `generation.codex` metadata to `catalog/packages/<name>.json`, including `enabled`, `mode`, and marketplace fields such as `policy` and `category`.
+To include a package in generated harness outputs, add per-harness metadata under `generation.<harness>` in `catalog/packages/<name>.json`. Codex uses marketplace fields such as `policy` and `category`; Copilot uses install metadata such as `target_dir`.
 
 ### External repos
 
@@ -309,9 +392,9 @@ Plugins don't have to live in this monorepo. Use a git URL in `marketplace.json`
 Check if upstream repos have new changes:
 
 ```bash
-uv run scripts/sync-check.py                # All tracked plugins
-uv run scripts/sync-check.py --plugin NAME   # One plugin
-uv run scripts/sync-check.py --diff          # Include full diffs
+anvil-sync-check                # All tracked plugins
+anvil-sync-check --plugin NAME   # One plugin
+anvil-sync-check --diff          # Include full diffs
 ```
 
 | Status | Meaning | Action |
@@ -324,7 +407,7 @@ uv run scripts/sync-check.py --diff          # Include full diffs
 After merging upstream changes, update the baseline:
 
 ```bash
-uv run scripts/sync-check.py --mark-synced --plugin NAME
+anvil-sync-check --mark-synced --plugin NAME
 ```
 
 ## Verification Workflow
@@ -340,17 +423,17 @@ Imported skills start unverified. The recommended workflow:
 
 ```bash
 # List unverified skills (rescans for executable code)
-uv run scripts/sync-check.py --pending
+anvil-sync-check --pending
 
 # Run semgrep security scan (auto + p/secrets + p/trailofbits rulesets)
-uv run scripts/sync-check.py --scan
-uv run scripts/sync-check.py --scan --plugin NAME
+anvil-sync-check --scan
+anvil-sync-check --scan --plugin NAME
 
 # Mark all skills in a plugin as reviewed after inspection
-uv run scripts/sync-check.py --mark-verified --plugin NAME
+anvil-sync-check --mark-verified --plugin NAME
 
 # Or mark one skill inside a plugin
-uv run scripts/sync-check.py --mark-verified --plugin NAME --skill SKILL_NAME
+anvil-sync-check --mark-verified --plugin NAME --skill SKILL_NAME
 ```
 
 ## Repository Structure
@@ -367,7 +450,11 @@ claude-plugins/
 │   └── security/suppressions/ # Semgrep finding suppressions
 ├── generated/
 │   ├── claude/marketplace.json  # Generated Claude Code marketplace
-│   └── codex/marketplace.json   # Generated Codex marketplace
+│   ├── codex/marketplace.json   # Generated Codex marketplace
+│   └── copilot/skills/          # Generated Copilot CLI skills
+├── .agents/
+│   ├── plugins/                 # Repo-local Codex install tree
+│   └── skills/                  # Repo-local Copilot CLI install tree
 ├── sources.json               # Upstream provenance tracking
 ├── scripts/
 │   └── sync-check.py          # Plugin management CLI
@@ -386,20 +473,20 @@ claude-plugins/
 
 ```bash
 # Importing (name inferred from --path, override with --name)
-uv run scripts/sync-check.py --add --repo URL --path P          # Fetch upstream plugin
-uv run scripts/sync-check.py --import-skill --repo URL --path P  # Import raw skill
+anvil-sync-check --add --repo URL --path P          # Fetch upstream plugin
+anvil-sync-check --import-skill --repo URL --path P  # Import raw skill
 #   Add --dry-run to validate without modifying files
 #   Add --skip-scan to bypass semgrep gate
 #   Add --force to ignore malformed SKILL.md frontmatter
 
 # Sync checking
-uv run scripts/sync-check.py                              # Check all
-uv run scripts/sync-check.py --diff --plugin NAME         # Full diff for one
-uv run scripts/sync-check.py --mark-synced --plugin NAME  # Record sync
+anvil-sync-check                              # Check all
+anvil-sync-check --diff --plugin NAME         # Full diff for one
+anvil-sync-check --mark-synced --plugin NAME  # Record sync
 
 # Verification
-uv run scripts/sync-check.py --pending                       # List unverified skills
-uv run scripts/sync-check.py --scan                          # Semgrep scan plugins with unverified skills
-uv run scripts/sync-check.py --mark-verified --plugin NAME   # Approve all skills in a plugin
-uv run scripts/sync-check.py --mark-verified --plugin NAME --skill SKILL_NAME
+anvil-sync-check --pending                       # List unverified skills
+anvil-sync-check --scan                          # Semgrep scan plugins with unverified skills
+anvil-sync-check --mark-verified --plugin NAME   # Approve all skills in a plugin
+anvil-sync-check --mark-verified --plugin NAME --skill SKILL_NAME
 ```

@@ -7,9 +7,6 @@
     "shortDescription": "Find similar vulnerabilities and bugs across codebases using pattern-based analysis",
     "longDescription": "Find similar vulnerabilities and bugs across codebases using pattern-based analysis",
     "category": "Developer Tools",
-    "developerName": "Axel Mierczuk",
-    "capabilities": [
-      "Shell"
-    ]
+    "developerName": "Axel Mierczuk"
   }
 }
