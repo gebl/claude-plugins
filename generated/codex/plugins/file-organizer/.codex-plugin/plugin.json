@@ -1,11 +1,12 @@
 {
   "name": "file-organizer",
-  "version": "0.1.0",
   "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
-  "skills": [
-    "./skills"
-  ],
+  "skills": "./skills",
   "interface": {
-    "displayName": "File Organizer"
+    "displayName": "File Organizer",
+    "shortDescription": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting ...",
+    "longDescription": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
+    "category": "Developer Tools",
+    "developerName": "ComposioHQ"
   }
 }

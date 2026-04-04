@@ -14,7 +14,7 @@ Upstream Repos                Neutral Catalog              Harness Marketplaces
   conorbronsdon/* ─────┤     │  Portability class │        │
   ComposioHQ/* ────────┤     │  Risk assessment  │        ├─ Codex
   Internal repos ──────┘     │  Capability map   │────────>│   marketplace.json
-                              └──────────────────┘         │   10 plugins
+                              └──────────────────┘         │   generated + syncable
                                                            └─ (future harnesses)
 ```
 
@@ -81,7 +81,7 @@ Each package is classified by how well it travels between harnesses:
 - **blocked** -- intentionally excluded (dependencies or features that don't translate)
 - **--** -- harness-specific, no adaptation possible (hooks, complex interactive workflows)
 
-**Summary:** 19 for Claude Code, 10 for Codex (3 generated + 5 adapted + 2 blocked = 10 attempted, 8 usable).
+**Summary:** Claude Code exposes all 19 packages. Codex support is generated from the neutral catalog and synced into `.agents/plugins/` for local testing; the exact plugin count comes from the current generated output.
 
 ### Portability Classes
 
@@ -178,7 +178,54 @@ Browse and install plugins with `/plugin`. All 19 plugins are available.
 
 ### Codex
 
-The generated Codex marketplace is at `generated/codex/marketplace.json` with 10 compatible plugins. Codex plugin manifests are generated under `generated/codex/plugins/`.
+Codex reads a repo-local marketplace from `.agents/plugins/marketplace.json`, and each installed plugin needs its own `.codex-plugin/plugin.json`.
+
+This repo treats Codex setup as a two-step flow:
+
+1. Generate Codex artifacts from the neutral catalog:
+
+```bash
+uv run scripts/generate-codex.py
+```
+
+This writes:
+
+- `generated/codex/marketplace.json`
+- `generated/codex/plugins/<name>/.codex-plugin/plugin.json`
+- transformed `skills/` trees for adapted plugins
+
+2. Sync the generated artifacts into Codex's repo-local path:
+
+```bash
+uv run scripts/sync-codex.py
+```
+
+This writes:
+
+- `.agents/plugins/marketplace.json`
+- `.agents/plugins/plugins/<name>/...`
+
+If you want the repo-local Codex plugin tree to exactly match the generated marketplace, remove stale plugin directories during sync:
+
+```bash
+uv run scripts/sync-codex.py --clean
+```
+
+The generated marketplace uses local relative paths like `./plugins/<name>`, so the sync step preserves that layout under `.agents/plugins/`.
+
+If `/plugins` in Codex shows marketplace entries but the detail view fails with messages such as `Failed to load plugin details` or `plugin/read failed in TUI`, the repo-local plugin tree is usually under-populated. The common cause is having `.agents/plugins/marketplace.json` without the corresponding `.agents/plugins/plugins/<name>/.codex-plugin/plugin.json` files. Re-run:
+
+```bash
+uv run scripts/sync-codex.py --clean
+```
+
+Then reopen `/plugins`. If Codex cached the earlier broken state, restart the session once.
+
+For one-shot local setup:
+
+```bash
+uv run scripts/generate-codex.py && uv run scripts/sync-codex.py --clean
+```
 
 ### Optional: Semgrep
 
@@ -240,6 +287,8 @@ mkdir -p plugins/my-plugin/skills/my-skill
 4. Register in `.claude-plugin/marketplace.json` and commit.
 
 Locally-authored plugins don't need a `sources.json` entry -- that's only for upstream forks.
+
+To include a plugin in Codex generation, also add `generation.codex` metadata to `catalog/packages/<name>.json`, including `enabled`, `mode`, and marketplace fields such as `policy` and `category`.
 
 ### External repos
 

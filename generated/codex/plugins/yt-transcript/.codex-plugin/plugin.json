@@ -1,11 +1,15 @@
 {
   "name": "yt-transcript",
-  "version": "0.1.0",
   "description": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
-  "skills": [
-    "./skills"
-  ],
+  "skills": "./skills",
   "interface": {
-    "displayName": "Yt Transcript"
+    "displayName": "YT Transcript",
+    "shortDescription": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
+    "longDescription": "Fetch YouTube video transcripts and save them as clean Markdown notes.",
+    "category": "Developer Tools",
+    "developerName": "Gabriel Lawrence",
+    "capabilities": [
+      "Shell"
+    ]
   }
 }

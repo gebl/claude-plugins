@@ -1,11 +1,12 @@
 {
   "name": "grill-me",
-  "version": "0.1.0",
   "description": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\".",
-  "skills": [
-    "./skills"
-  ],
+  "skills": "./skills",
   "interface": {
-    "displayName": "Grill Me"
+    "displayName": "Grill Me",
+    "shortDescription": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the deci...",
+    "longDescription": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\".",
+    "category": "Developer Tools",
+    "developerName": "Matt Pocock"
   }
 }

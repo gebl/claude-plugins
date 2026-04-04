@@ -32,22 +32,23 @@ gen_marketplace = _import_from_file("gen_marketplace", SCRIPTS_DIR / "generate-m
 gen_codex = _import_from_file("gen_codex", SCRIPTS_DIR / "generate-codex.py")
 
 
-def collect_json_files(directory: Path) -> dict[str, dict]:
-    """Recursively collect all JSON files under a directory, keyed by relative path."""
+def collect_tree(directory: Path) -> dict[str, bytes]:
+    """Recursively collect all files under a directory, keyed by relative path."""
     results = {}
     if not directory.exists():
         return results
-    for path in sorted(directory.rglob("*.json")):
+    for path in sorted(directory.rglob("*")):
+        if not path.is_file():
+            continue
         rel = str(path.relative_to(directory))
-        with path.open() as f:
-            results[rel] = json.load(f)
+        results[rel] = path.read_bytes()
     return results
 
 
 def compare_trees(expected_dir: Path, actual_dir: Path, label: str) -> list[str]:
-    """Compare two directory trees of JSON files. Return list of stale display paths."""
-    expected = collect_json_files(expected_dir)
-    actual = collect_json_files(actual_dir)
+    """Compare two directory trees. Return list of stale display paths."""
+    expected = collect_tree(expected_dir)
+    actual = collect_tree(actual_dir)
     stale = []
 
     all_keys = sorted(set(expected) | set(actual))

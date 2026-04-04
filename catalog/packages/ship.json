@@ -1,7 +1,7 @@
 {
   "name": "ship",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ship workflow: detect and merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.",
   "upstream": {
     "repo": "https://github.com/garrytan/gstack.git",
     "path": "ship",

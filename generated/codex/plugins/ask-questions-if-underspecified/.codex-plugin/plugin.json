@@ -1,11 +1,12 @@
 {
   "name": "ask-questions-if-underspecified",
-  "version": "1.0.1",
   "description": "Clarify ambiguous requirements by asking questions before implementing. Only when invoked explicitly.",
-  "skills": [
-    "./skills"
-  ],
+  "skills": "./skills",
   "interface": {
-    "displayName": "Ask Questions If Underspecified"
+    "displayName": "Ask Questions If Underspecified",
+    "shortDescription": "Clarify ambiguous requirements by asking questions before implementing.",
+    "longDescription": "Clarify ambiguous requirements by asking questions before implementing. Only when invoked explicitly.",
+    "category": "Developer Tools",
+    "developerName": "Kevin Valerio"
   }
 }

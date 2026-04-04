@@ -1,7 +1,7 @@
 {
   "name": "office-hours",
   "version": "2.0.0",
-  "description": "",
+  "description": "YC Office Hours with two modes. Startup mode: six forcing questions that expose demand reality, status quo, desperate specificity, narrowest wedge, observation, and future-fit. Builder mode: design thinking brainstorming for side projects, hackathons, learning, and open source.",
   "upstream": {
     "repo": "https://github.com/garrytan/gstack.git",
     "path": "office-hours",

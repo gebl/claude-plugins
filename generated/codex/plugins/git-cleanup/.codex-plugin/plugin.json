@@ -1,11 +1,16 @@
 {
   "name": "git-cleanup",
-  "version": "1.0.0",
   "description": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work.",
-  "skills": [
-    "./skills"
-  ],
+  "skills": "./skills",
   "interface": {
-    "displayName": "Git Cleanup"
+    "displayName": "Git Cleanup",
+    "shortDescription": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or ...",
+    "longDescription": "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work.",
+    "category": "Developer Tools",
+    "developerName": "Henrik Brodin",
+    "capabilities": [
+      "Shell",
+      "Interactive"
+    ]
   }
 }

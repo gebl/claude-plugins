@@ -1,11 +1,15 @@
 {
   "name": "careful",
-  "version": "0.1.0",
-  "description": "",
-  "skills": [
-    "./skills"
-  ],
+  "description": "Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE, force-push, git reset --hard, kubectl delete, and similar destructive operations. User can override each warning. Use when touching prod, debugging live systems, or working in a shared environment.",
+  "skills": "./skills",
   "interface": {
-    "displayName": "Careful"
+    "displayName": "Careful",
+    "shortDescription": "Safety guardrails for destructive commands.",
+    "longDescription": "Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE, force-push, git reset --hard, kubectl delete, and similar destructive operations. User can override each warning. Use when touching prod, debugging live systems, or working in a shared environment.",
+    "category": "Developer Tools",
+    "developerName": "Garry Tan",
+    "capabilities": [
+      "Shell"
+    ]
   }
 }
