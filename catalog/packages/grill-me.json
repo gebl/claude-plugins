@@ -39,7 +39,7 @@
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "unknown"
+      "codex": "generated"
     },
     "status_by_harness": {
       "claude": "native",

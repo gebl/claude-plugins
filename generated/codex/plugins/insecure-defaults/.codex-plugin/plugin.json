@@ -1,0 +1,11 @@
+{
+  "name": "insecure-defaults",
+  "version": "1.0.0",
+  "description": "Detects insecure default configurations including hardcoded credentials, fallback secrets, weak authentication defaults, and dangerous values in production",
+  "skills": [
+    "./skills"
+  ],
+  "interface": {
+    "displayName": "Insecure Defaults"
+  }
+}

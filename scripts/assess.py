@@ -12,6 +12,14 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+try:
+    from transforms import can_adapt_for_codex
+except ImportError:
+
+    def can_adapt_for_codex(tool_refs: list[str]) -> tuple[bool, list[str]]:
+        """Fallback: always report blocked when transforms.py is unavailable."""
+        return (False, [])
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGINS_DIR = REPO_ROOT / "plugins"
 RULES_DIR = REPO_ROOT / "catalog" / "rules"
@@ -315,6 +323,10 @@ def classify_portability(
         return "harness-specific", "native", "unsupported"
 
     if has_commands or has_agents or claude_tool_refs:
+        # Check whether all referenced tools have a Codex mapping
+        adaptable, _transforms = can_adapt_for_codex(claude_tool_refs)
+        if adaptable:
+            return "adaptable", "native", "adapted"
         return "adaptable", "native", "blocked"
 
     return "agnostic", "native", "generated"
@@ -410,9 +422,14 @@ def assess_package(name: str) -> AssessmentResult:
         has_agents=files["has_agents"],
     )
 
+    codex_basis = {
+        "unsupported": "unsupported",
+        "adapted": "adapter",
+        "generated": "generated",
+    }
     support_basis = {
         "claude": "convention",
-        "codex": "unsupported" if codex_status == "unsupported" else "unknown",
+        "codex": codex_basis.get(codex_status, "unknown"),
     }
 
     supported = ["claude"]
@@ -473,6 +490,9 @@ def update_package_record(name: str, result: AssessmentResult) -> dict:
             "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
             "category": "Developer Tools",
         }
+    if codex_status == "adapted":
+        _adaptable, transforms_used = can_adapt_for_codex(result.claude_tool_refs)
+        codex_gen["transforms"] = transforms_used
     record["generation"]["codex"] = codex_gen
 
     pkg_path.write_text(json.dumps(record, indent=2) + "\n")

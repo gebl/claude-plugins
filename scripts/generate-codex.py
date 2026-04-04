@@ -7,6 +7,10 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from transforms import transform_plugin_for_codex
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_DIR = REPO_ROOT / "catalog" / "packages"
 GENERATED_DIR = REPO_ROOT / "generated" / "codex"
@@ -74,7 +78,8 @@ def generate_codex(packages: list[dict]) -> None:
         json.dump(marketplace, f, indent=2)
         f.write("\n")
 
-    # Generate per-plugin .codex-plugin/plugin.json manifests
+    # Generate per-plugin .codex-plugin/plugin.json manifests and apply transforms
+    transformed_counts: dict[str, int] = {}
     for pkg in included:
         has_skill = pkg.get("files", {}).get("has_skill", False)
         skills = ["./skills"] if has_skill else []
@@ -89,12 +94,19 @@ def generate_codex(packages: list[dict]) -> None:
             },
         }
 
-        plugin_dir = GENERATED_DIR / "plugins" / pkg["name"] / ".codex-plugin"
-        plugin_dir.mkdir(parents=True, exist_ok=True)
-        manifest_path = plugin_dir / "plugin.json"
+        plugin_out = GENERATED_DIR / "plugins" / pkg["name"]
+        codex_manifest_dir = plugin_out / ".codex-plugin"
+        codex_manifest_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = codex_manifest_dir / "plugin.json"
         with manifest_path.open("w") as f:
             json.dump(manifest, f, indent=2)
             f.write("\n")
+
+        # Apply skill transforms for adapted packages
+        codex_mode = pkg.get("generation", {}).get("codex", {}).get("mode", "")
+        if codex_mode == "adapted" and has_skill:
+            transformed = transform_plugin_for_codex(pkg["name"], plugin_out)
+            transformed_counts[pkg["name"]] = len(transformed)
 
     # Summary
     print(f"Generated {marketplace_path}")
@@ -104,8 +116,10 @@ def generate_codex(packages: list[dict]) -> None:
 
     print("Included plugins:")
     for pkg in included:
-        manifest_rel = f"generated/codex/plugins/{pkg['name']}/.codex-plugin/plugin.json"
-        print(f"  + {pkg['name']} v{pkg['version']}  ({manifest_rel})")
+        mode = pkg.get("generation", {}).get("codex", {}).get("mode", "")
+        tc = transformed_counts.get(pkg["name"], 0)
+        suffix = f"  (adapted, {tc} files transformed)" if tc else ""
+        print(f"  + {pkg['name']} v{pkg['version']} [{mode}]{suffix}")
 
     if excluded:
         print()

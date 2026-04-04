@@ -48,15 +48,16 @@
     "assessment_version": "2026-04-03.2",
     "portability_class": "adaptable",
     "supported_harnesses": [
-      "claude"
+      "claude",
+      "codex"
     ],
     "support_basis": {
       "claude": "convention",
-      "codex": "unknown"
+      "codex": "adapter"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "blocked"
+      "codex": "adapted"
     },
     "findings": [
       {
@@ -91,8 +92,16 @@
       "mode": "native"
     },
     "codex": {
-      "enabled": false,
-      "mode": "none"
+      "enabled": true,
+      "mode": "adapted",
+      "marketplace": {
+        "policy": {
+          "installation": "AVAILABLE",
+          "authentication": "ON_INSTALL"
+        },
+        "category": "Developer Tools"
+      },
+      "transforms": []
     }
   },
   "verification": {
