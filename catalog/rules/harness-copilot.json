@@ -6,7 +6,7 @@
     {
       "code": "COPILOT_SKILLS_DIR",
       "description": "Contains a Copilot-compatible skills directory",
-      "file_patterns": [".agents/skills/*/SKILL.md", ".github/skills/*/SKILL.md", ".claude/skills/*/SKILL.md"]
+      "file_patterns": [".github/skills/*/SKILL.md", ".claude/skills/*/SKILL.md", "~/.copilot/skills/*/SKILL.md", "~/.claude/skills/*/SKILL.md"]
     },
     {
       "code": "COPILOT_SKILL_FILE",
@@ -23,8 +23,9 @@
     "SKILL.md with YAML frontmatter",
     "name and description frontmatter fields",
     "optional allowed-tools frontmatter",
-    ".agents/skills/",
     ".github/skills/",
+    ".claude/skills/",
+    "~/.claude/skills/",
     "~/.copilot/skills"
   ]
 }

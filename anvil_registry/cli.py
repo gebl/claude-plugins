@@ -29,6 +29,10 @@ def catalog() -> None:
     _run("catalog.py")
 
 
+def generate_claude() -> None:
+    _run("generate-claude.py")
+
+
 def generate_codex() -> None:
     _run("generate-codex.py")
 
@@ -43,6 +47,10 @@ def generate_marketplace() -> None:
 
 def sync_check() -> None:
     _run("sync-check.py")
+
+
+def sync_claude() -> None:
+    _run("sync-claude.py")
 
 
 def sync_codex() -> None:

@@ -3,10 +3,10 @@ name: git-cleanup
 description: "Safely analyzes and cleans up local git branches and worktrees by categorizing them as merged, squash-merged, superseded, or active work."
 disable-model-invocation: true
 allowed-tools:
-  - shell
-  - read_file
-  - grep_search
-  - assistant_message
+  - Bash
+  - Read
+  - Grep
+  - AskUserQuestion
 ---
 
 # Git Cleanup
@@ -270,7 +270,7 @@ Recommendation: Delete all 4 (work is in main)
 Which would you like to clean up?
 ```
 
-Use assistant_message with clear options:
+Use AskUserQuestion with clear options:
 - Delete all recommended (groups + merged + squash-merged)
 - Delete specific groups/categories
 - Let me pick individual branches

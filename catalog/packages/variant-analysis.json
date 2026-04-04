@@ -30,28 +30,33 @@
     "has_executable_code": false,
     "dependency_files": [],
     "tool_risk": {
-      "declared_tools": [],
-      "risk_level": "low",
-      "reasons": []
+      "declared_tools": [
+        "Bash",
+        "Glob",
+        "Grep",
+        "Read"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Bash: shell execution or file mutation"
+      ]
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "adaptable",
     "supported_harnesses": [
-      "claude",
-      "codex",
-      "copilot"
+      "claude"
     ],
     "support_basis": {
-      "claude": "convention",
-      "codex": "adapter",
-      "copilot": "adapter"
+      "claude": "native",
+      "codex": "unknown",
+      "copilot": "unknown"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "adapted",
-      "copilot": "adapted"
+      "codex": "blocked",
+      "copilot": "blocked"
     },
     "findings": [
       {
@@ -74,9 +79,17 @@
         "severity": "info",
         "path": "commands/",
         "message": "Contains slash command definitions"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Bash, Glob, Grep, Read"
       }
     ],
     "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities",
       "Slash commands need harness-specific packaging adaptation"
     ]
   },
@@ -86,24 +99,12 @@
       "mode": "native"
     },
     "codex": {
-      "enabled": true,
-      "mode": "adapted",
-      "marketplace": {
-        "policy": {
-          "installation": "AVAILABLE",
-          "authentication": "ON_INSTALL"
-        },
-        "category": "Developer Tools"
-      },
-      "transforms": []
+      "enabled": false,
+      "mode": "none"
     },
     "copilot": {
-      "enabled": true,
-      "mode": "adapted",
-      "install": {
-        "target_dir": ".agents/skills"
-      },
-      "transforms": []
+      "enabled": false,
+      "mode": "none"
     }
   },
   "verification": {

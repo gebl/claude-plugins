@@ -22,7 +22,7 @@ from transforms import transform_plugin_for_copilot
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_DIR = REPO_ROOT / "catalog" / "packages"
-PLUGINS_DIR = REPO_ROOT / "plugins"
+PLUGINS_DIR = REPO_ROOT / "plugins-claude"
 GENERATED_DIR = REPO_ROOT / "generated" / "copilot"
 
 
@@ -34,8 +34,8 @@ def load_catalog() -> list[dict]:
     return packages
 
 
-def copy_skill_tree(plugin_name: str, output_dir: Path) -> int:
-    src = PLUGINS_DIR / plugin_name / "skills" / plugin_name
+def copy_skill_tree(plugin_name: str, output_dir: Path, source_harness: str = "claude") -> int:
+    src = REPO_ROOT / f"plugins-{source_harness}" / plugin_name / "skills" / plugin_name
     dst = output_dir / plugin_name
     if not src.is_dir():
         return 0
@@ -48,7 +48,8 @@ def copy_extra_files(pkg: dict) -> int:
     if not extra_files:
         return 0
 
-    plugin_dir = PLUGINS_DIR / pkg["name"]
+    source_harness = pkg.get("canonical_harness", "claude")
+    plugin_dir = REPO_ROOT / f"plugins-{source_harness}" / pkg["name"]
     skill_dir = GENERATED_DIR / "skills" / pkg["name"]
     copied = 0
     for rel in extra_files:
@@ -62,11 +63,17 @@ def copy_extra_files(pkg: dict) -> int:
 
 def generate_skill(pkg: dict) -> int:
     copilot_mode = pkg.get("generation", {}).get("copilot", {}).get("mode", "")
+    source_harness = pkg.get("canonical_harness", "claude")
 
     if copilot_mode == "adapted":
-        transformed = len(transform_plugin_for_copilot(pkg["name"], GENERATED_DIR))
+        transformed = len(
+            transform_plugin_for_copilot(pkg["name"], GENERATED_DIR, source_harness=source_harness)
+        )
         return transformed + copy_extra_files(pkg)
-    return copy_skill_tree(pkg["name"], GENERATED_DIR / "skills") + copy_extra_files(pkg)
+    return (
+        copy_skill_tree(pkg["name"], GENERATED_DIR / "skills", source_harness)
+        + copy_extra_files(pkg)
+    )
 
 
 def generate_copilot(packages: list[dict]) -> None:

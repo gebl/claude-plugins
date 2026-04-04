@@ -36,13 +36,13 @@
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "harness-specific",
     "supported_harnesses": [
       "claude"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "unsupported",
       "copilot": "unsupported"
     },
@@ -114,8 +114,7 @@
     },
     "codex": {
       "enabled": false,
-      "mode": "none",
-      "transforms": []
+      "mode": "none"
     },
     "copilot": {
       "enabled": false,

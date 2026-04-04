@@ -77,18 +77,6 @@
       "category": "Developer Tools"
     },
     {
-      "name": "variant-analysis",
-      "source": {
-        "source": "local",
-        "path": "./plugins/variant-analysis"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Developer Tools"
-    },
-    {
       "name": "yt-transcript",
       "source": {
         "source": "local",

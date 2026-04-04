@@ -31,7 +31,7 @@ from transforms import transform_plugin_for_codex
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG_DIR = REPO_ROOT / "catalog" / "packages"
-PLUGINS_DIR = REPO_ROOT / "plugins"
+PLUGINS_DIR = REPO_ROOT / "plugins-claude"
 GENERATED_DIR = REPO_ROOT / "generated" / "codex"
 
 # Words that should stay uppercased in display names
@@ -87,7 +87,11 @@ def short_description(pkg: dict) -> str:
 
 def developer_name(pkg: dict) -> str | None:
     """Resolve developer name from the Claude plugin manifest or upstream metadata."""
-    claude_manifest = PLUGINS_DIR / pkg["name"] / ".claude-plugin" / "plugin.json"
+    source_harness = pkg.get("canonical_harness", "claude")
+    manifest_path = (
+        REPO_ROOT / f"plugins-{source_harness}" / pkg["name"] / ".claude-plugin" / "plugin.json"
+    )
+    claude_manifest = manifest_path
     if claude_manifest.is_file():
         data = json.loads(claude_manifest.read_text())
         author = data.get("author")
@@ -122,9 +126,9 @@ def infer_capabilities(pkg: dict) -> list[str]:
     return caps
 
 
-def copy_skills_tree(plugin_name: str, output_dir: Path) -> int:
+def copy_skills_tree(plugin_name: str, output_dir: Path, source_harness: str = "claude") -> int:
     """Copy a plugin's raw skills tree into the generated Codex output."""
-    src = PLUGINS_DIR / plugin_name / "skills"
+    src = REPO_ROOT / f"plugins-{source_harness}" / plugin_name / "skills"
     dst = output_dir / "skills"
     if not src.is_dir():
         return 0
@@ -206,10 +210,14 @@ def generate_plugin(pkg: dict) -> int:
         f.write("\n")
 
     if has_skill and codex_mode != "adapted":
-        copy_skills_tree(pkg["name"], plugin_out)
+        source_harness = pkg.get("canonical_harness", "claude")
+        copy_skills_tree(pkg["name"], plugin_out, source_harness)
 
     if codex_mode == "adapted" and has_skill:
-        return len(transform_plugin_for_codex(pkg["name"], plugin_out))
+        source_harness = pkg.get("canonical_harness", "claude")
+        return len(
+            transform_plugin_for_codex(pkg["name"], plugin_out, source_harness=source_harness)
+        )
 
     return 0
 

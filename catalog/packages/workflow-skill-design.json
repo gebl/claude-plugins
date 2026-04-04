@@ -33,24 +33,40 @@
     "dependency_files": [],
     "tool_risk": {
       "declared_tools": [
+        "Agent",
+        "AskUserQuestion",
+        "Bash",
+        "Edit",
         "Glob",
         "Grep",
         "Read",
+        "TaskCreate",
+        "TaskUpdate",
         "TodoRead",
-        "TodoWrite"
+        "TodoWrite",
+        "WebFetch",
+        "WebSearch",
+        "Write"
       ],
-      "risk_level": "low",
-      "reasons": []
+      "risk_level": "high",
+      "reasons": [
+        "Agent: indirect mutation or external access",
+        "Bash: shell execution or file mutation",
+        "Edit: indirect mutation or external access",
+        "WebFetch: indirect mutation or external access",
+        "WebSearch: indirect mutation or external access",
+        "Write: shell execution or file mutation"
+      ]
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "unknown",
       "copilot": "unknown"
     },
@@ -86,7 +102,7 @@
         "kind": "harness",
         "severity": "info",
         "path": "(multiple)",
-        "message": "References Claude tool names: Glob, Grep, Read, TodoRead, TodoWrite"
+        "message": "References Claude tool names: Agent, AskUserQuestion, Bash, Edit, Glob, Grep, Read, TaskCreate, TaskUpdate, TodoRead, TodoWrite, WebFetch, WebSearch, Write"
       }
     ],
     "adaptation_hints": [

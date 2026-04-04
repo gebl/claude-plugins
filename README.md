@@ -20,7 +20,7 @@ Upstream Repos                Neutral Catalog              Harness Outputs
                                                            └─ (future harnesses)
 ```
 
-1. **Import** -- Plugins and raw skills are pulled from upstream repositories, scanned with Semgrep, and mirrored byte-for-byte into `plugins/`.
+1. **Import** -- Plugins and raw skills are pulled from upstream repositories, scanned with Semgrep, and mirrored byte-for-byte into `plugins-claude/` (or `plugins-codex/` / `plugins-copilot/` for non-Claude-native skills).
 2. **Catalog** -- Each package gets a neutral record in `catalog/packages/` with portability classification, risk assessment, and compatibility findings.
 3. **Generate** -- The catalog renders harness-specific output artifacts. Agnostic packages pass through unchanged. Adaptable packages get shallow transforms (tool name mapping, manifest rewriting, frontmatter normalization). Harness-specific packages are included only where they work natively.
 
@@ -264,7 +264,7 @@ This writes:
 - `generated/copilot/skills/<name>/SKILL.md`
 - copied skill-local resources for enabled packages
 
-2. Sync the generated skills into the repo-local discovery path:
+2. Sync the generated skills into the default repo-local Copilot discovery path:
 
 ```bash
 anvil-sync-copilot --clean
@@ -272,7 +272,8 @@ anvil-sync-copilot --clean
 
 This writes:
 
-- `.agents/skills/<name>/...`
+- `.github/skills/<name>/...`
+- `.github/skills/.anvil-managed.json`
 
 This installs the full Copilot-ready set currently supported by the catalog:
 
@@ -285,7 +286,15 @@ This installs the full Copilot-ready set currently supported by the catalog:
 - `variant-analysis`
 - `yt-transcript`
 
-Copilot reads skill directories that contain a `SKILL.md` file with YAML frontmatter. This repo generates those skill directories under `generated/copilot/skills/` and syncs them into `.agents/skills/` for repo-local use. If you want a personal install instead, copy the generated skill directories into one of Copilot's supported user paths such as `~/.copilot/skills/`, `~/.claude/skills/`, or `~/.agents/skills/`.
+Copilot reads project skills from `.github/skills/` or `.claude/skills/`, and personal skills from paths such as `~/.copilot/skills/` or `~/.claude/skills/`. This repo generates skill directories under `generated/copilot/skills/` and syncs them into `.github/skills/` by default. The sync command writes `.github/skills/.anvil-managed.json` so `--clean` only removes Anvil-managed skills and leaves unrelated custom skills alone.
+
+If you want a user-level install instead of a project-level one:
+
+```bash
+anvil-sync-copilot --user --clean
+```
+
+That installs the same generated skills into `~/.copilot/skills/`.
 
 ### Copilot CLI Smoke Test
 
@@ -299,7 +308,7 @@ anvil-sync-copilot --clean
 Then in Copilot CLI:
 
 1. Run `/skills list` and confirm the generated skills appear.
-2. Run `/skills info` and confirm the installed path points at `.agents/skills/...`.
+2. Run `/skills info` and confirm the installed path points at `.github/skills/...` for project installs, or `~/.copilot/skills/...` for `--user` installs.
 3. Invoke a specific skill by name, for example `/grill-me` or `/git-cleanup`.
 4. If Copilot reports `missing or malformed YAML frontmatter`, inspect the installed `SKILL.md` and ensure it starts with:
 
@@ -324,7 +333,7 @@ All imports are automatically scanned with semgrep before anything is written to
 
 ### From an upstream plugin repo
 
-Fetches the plugin, scans it with semgrep, copies it into `plugins/`, and registers it in both `marketplace.json` and `sources.json`:
+Fetches the plugin, scans it with semgrep, copies it into `plugins-claude/`, and registers it in both `marketplace.json` and `sources.json`:
 
 ```bash
 anvil-sync-check --add \
@@ -351,11 +360,11 @@ Use `--force` if the `SKILL.md` frontmatter is malformed or missing required fie
 1. Create the directory structure:
 
 ```bash
-mkdir -p plugins/my-plugin/.claude-plugin
-mkdir -p plugins/my-plugin/skills/my-skill
+mkdir -p plugins-claude/my-plugin/.claude-plugin
+mkdir -p plugins-claude/my-plugin/skills/my-skill
 ```
 
-2. Add `plugins/my-plugin/.claude-plugin/plugin.json`:
+2. Add `plugins-claude/my-plugin/.claude-plugin/plugin.json`:
 
 ```json
 {
@@ -371,7 +380,7 @@ mkdir -p plugins/my-plugin/skills/my-skill
 
 Locally-authored plugins don't need a `sources.json` entry -- that's only for upstream forks.
 
-To include a package in generated harness outputs, add per-harness metadata under `generation.<harness>` in `catalog/packages/<name>.json`. Codex uses marketplace fields such as `policy` and `category`; Copilot uses install metadata such as `target_dir`.
+To include a package in generated harness outputs, add per-harness metadata under `generation.<harness>` in `catalog/packages/<name>.json`. Codex uses marketplace fields such as `policy` and `category`; Copilot uses install metadata such as `target_dir` and currently syncs to `.github/skills` by default.
 
 ### External repos
 
@@ -459,7 +468,7 @@ claude-plugins/
 ├── scripts/
 │   └── sync-check.py          # Plugin management CLI
 ├── docs/plans/                # Design documents
-└── plugins/                   # 19 plugin directories (byte-for-byte upstream mirrors)
+└── plugins-claude/              # 19 plugin directories (byte-for-byte upstream mirrors)
     └── <plugin-name>/
         ├── .claude-plugin/
         │   └── plugin.json
@@ -468,6 +477,8 @@ claude-plugins/
         ├── commands/
         └── hooks/
 ```
+
+Codex- and Copilot-native skills live in `plugins-codex/` and `plugins-copilot/` respectively.
 
 ## Quick Reference
 

@@ -31,7 +31,7 @@
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "agnostic",
     "supported_harnesses": [
       "claude",
@@ -39,7 +39,7 @@
       "copilot"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "generated",
       "copilot": "generated"
     },
@@ -86,7 +86,7 @@
       "enabled": true,
       "mode": "generated",
       "install": {
-        "target_dir": ".agents/skills"
+        "target_dir": ".github/skills"
       }
     }
   },

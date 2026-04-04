@@ -15,6 +15,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
+COPILOT_INSTALL_DIR = REPO_ROOT / ".github" / "skills"
+COPILOT_MANIFEST = COPILOT_INSTALL_DIR / ".anvil-managed.json"
 
 
 def _import_from_file(name: str, filepath: Path):
@@ -29,6 +31,7 @@ def _import_from_file(name: str, filepath: Path):
 
 
 gen_marketplace = _import_from_file("gen_marketplace", SCRIPTS_DIR / "generate-marketplace.py")
+gen_claude = _import_from_file("gen_claude", SCRIPTS_DIR / "generate-claude.py")
 gen_codex = _import_from_file("gen_codex", SCRIPTS_DIR / "generate-codex.py")
 gen_copilot = _import_from_file("gen_copilot", SCRIPTS_DIR / "generate-copilot.py")
 
@@ -70,6 +73,15 @@ def compare_trees(expected_dir: Path, actual_dir: Path, label: str) -> list[str]
     return stale
 
 
+def compare_selected_skill_trees(expected_dir: Path, install_dir: Path, label: str) -> list[str]:
+    """Compare generated skill dirs against installed managed skill dirs only."""
+    stale: list[str] = []
+    expected_names = sorted(path.name for path in expected_dir.iterdir() if path.is_dir())
+    for name in expected_names:
+        stale.extend(compare_trees(expected_dir / name, install_dir / name, f"{label}/{name}"))
+    return stale
+
+
 def generate_to_temp(tmp: Path) -> None:
     """Run both generators, writing output to a temp directory tree."""
     packages = gen_marketplace.load_catalog()
@@ -78,6 +90,9 @@ def generate_to_temp(tmp: Path) -> None:
     orig_claude_dir = gen_marketplace.GENERATED_DIR
     gen_marketplace.GENERATED_DIR = tmp / "generated"
 
+    orig_gen_claude_dir = gen_claude.GENERATED_DIR
+    gen_claude.GENERATED_DIR = tmp / "generated" / "claude"
+
     orig_codex_dir = gen_codex.GENERATED_DIR
     gen_codex.GENERATED_DIR = tmp / "generated" / "codex"
     orig_copilot_dir = gen_copilot.GENERATED_DIR
@@ -85,11 +100,12 @@ def generate_to_temp(tmp: Path) -> None:
 
     try:
         with contextlib.redirect_stdout(io.StringIO()):
-            gen_marketplace.generate_claude(packages)
+            gen_claude.generate_claude(packages)
             gen_codex.generate_codex(packages)
             gen_copilot.generate_copilot(packages)
     finally:
         gen_marketplace.GENERATED_DIR = orig_claude_dir
+        gen_claude.GENERATED_DIR = orig_gen_claude_dir
         gen_codex.GENERATED_DIR = orig_codex_dir
         gen_copilot.GENERATED_DIR = orig_copilot_dir
 
@@ -175,14 +191,19 @@ def validate(*, fix: bool = False) -> int:
         if (REPO_ROOT / "generated" / "copilot" / "skills").exists():
             stale.extend(validate_copilot_frontmatter(REPO_ROOT / "generated" / "copilot" / "skills"))
 
-        if (REPO_ROOT / ".agents" / "skills").exists():
+        if COPILOT_INSTALL_DIR.exists():
             stale.extend(
-                compare_trees(
+                compare_selected_skill_trees(
                     REPO_ROOT / "generated" / "copilot" / "skills",
-                    REPO_ROOT / ".agents" / "skills",
-                    ".agents/skills",
+                    COPILOT_INSTALL_DIR,
+                    ".github/skills",
                 )
             )
+            if not COPILOT_MANIFEST.is_file():
+                print("  Checking .github/skills/.anvil-managed.json... MISSING")
+                stale.append(".github/skills/.anvil-managed.json")
+            else:
+                print("  Checking .github/skills/.anvil-managed.json... OK")
 
         # Compare .claude-plugin/marketplace.json against generated/claude/marketplace.json
         claude_plugin_path = REPO_ROOT / ".claude-plugin" / "marketplace.json"
@@ -221,7 +242,7 @@ def run_fix() -> int:
     packages = gen_marketplace.load_catalog()
 
     with contextlib.redirect_stdout(io.StringIO()):
-        gen_marketplace.generate_claude(packages)
+        gen_claude.generate_claude(packages)
         gen_codex.generate_codex(packages)
         gen_copilot.generate_copilot(packages)
 
@@ -233,6 +254,7 @@ def run_fix() -> int:
 
     print("Regenerated all marketplace artifacts.")
     print("  generated/claude/marketplace.json")
+    print("  generated/claude/skills/*/")
     print("  generated/codex/marketplace.json")
     print("  generated/codex/plugins/*/")
     print("  generated/copilot/skills/*/")

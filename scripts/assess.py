@@ -25,7 +25,7 @@ except ImportError:
         return (False, [])
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = REPO_ROOT / "plugins"
+PLUGINS_DIR = REPO_ROOT / "plugins-claude"
 RULES_DIR = REPO_ROOT / "catalog" / "rules"
 SUPPRESSIONS_DIR = REPO_ROOT / "catalog" / "security" / "suppressions"
 
@@ -589,7 +589,7 @@ def update_package_record(name: str, result: AssessmentResult) -> dict:
         "mode": "none" if copilot_status in ("unsupported", "blocked") else copilot_status,
     }
     if copilot_gen["enabled"]:
-        copilot_gen["install"] = {"target_dir": ".agents/skills"}
+        copilot_gen["install"] = {"target_dir": ".github/skills"}
     if copilot_status == "adapted":
         _adaptable, transforms_used = can_adapt_for_copilot(result.claude_tool_refs)
         copilot_gen["transforms"] = transforms_used

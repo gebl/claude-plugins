@@ -1,0 +1,5 @@
+[project]
+name = "claude-vis"
+version = "0.1.0"
+description = "Claude Code session activity and cost logger"
+requires-python = ">=3.12"

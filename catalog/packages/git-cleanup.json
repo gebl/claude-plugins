@@ -45,7 +45,7 @@
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude",
@@ -53,14 +53,14 @@
       "copilot"
     ],
     "support_basis": {
-      "claude": "convention",
-      "codex": "adapter",
-      "copilot": "adapter"
+      "claude": "native",
+      "codex": "generated",
+      "copilot": "generated"
     },
     "status_by_harness": {
       "claude": "native",
-      "codex": "adapted",
-      "copilot": "adapted"
+      "codex": "generated",
+      "copilot": "generated"
     },
     "findings": [
       {
@@ -96,23 +96,21 @@
     },
     "codex": {
       "enabled": true,
-      "mode": "adapted",
+      "mode": "generated",
       "marketplace": {
         "policy": {
           "installation": "AVAILABLE",
           "authentication": "ON_INSTALL"
         },
         "category": "Developer Tools"
-      },
-      "transforms": []
+      }
     },
     "copilot": {
       "enabled": true,
-      "mode": "adapted",
+      "mode": "generated",
       "install": {
-        "target_dir": ".agents/skills"
-      },
-      "transforms": []
+        "target_dir": ".github/skills"
+      }
     }
   },
   "verification": {

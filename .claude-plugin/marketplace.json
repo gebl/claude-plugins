@@ -18,19 +18,19 @@
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/ask-questions-if-underspecified"
+      "source": "./plugins-claude/ask-questions-if-underspecified"
     },
     {
       "name": "avoid-ai-writing",
       "version": "3.2.0",
       "description": "Audit and rewrite content to remove AI writing patterns (\"AI-isms\"). Use this skill when asked to \"remove AI-isms,\" \"clean up AI writing,\" \"edit writing for AI patterns,\" \"audit writing for AI tells,\" or \"make this sound less like AI.\" Supports a detection-only mode that flags patterns without rewriting.",
-      "source": "./plugins/avoid-ai-writing"
+      "source": "./plugins-claude/avoid-ai-writing"
     },
     {
       "name": "careful",
       "version": "0.1.0",
       "description": "Safety guardrails for destructive commands. Warns before rm -rf, DROP TABLE, force-push, git reset --hard, kubectl delete, and similar destructive operations. User can override each warning. Use when touching prod, debugging live systems, or working in a shared environment.",
-      "source": "./plugins/careful"
+      "source": "./plugins-claude/careful"
     },
     {
       "name": "claude-vis",
@@ -39,7 +39,7 @@
       "author": {
         "name": "Gabe"
       },
-      "source": "./plugins/claude-vis"
+      "source": "./plugins-claude/claude-vis"
     },
     {
       "name": "devcontainer-setup",
@@ -49,7 +49,7 @@
         "name": "Alexis Challande",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/devcontainer-setup"
+      "source": "./plugins-claude/devcontainer-setup"
     },
     {
       "name": "differential-review",
@@ -60,13 +60,13 @@
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/differential-review"
+      "source": "./plugins-claude/differential-review"
     },
     {
       "name": "file-organizer",
       "version": "0.1.0",
       "description": "Intelligently organizes your files and folders across your computer by understanding context, finding duplicates, suggesting better structures, and automating cleanup tasks. Reduces cognitive load and keeps your digital workspace tidy without manual effort.",
-      "source": "./plugins/file-organizer"
+      "source": "./plugins-claude/file-organizer"
     },
     {
       "name": "git-cleanup",
@@ -77,13 +77,13 @@
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/git-cleanup"
+      "source": "./plugins-claude/git-cleanup"
     },
     {
       "name": "grill-me",
       "version": "0.1.0",
       "description": "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\".",
-      "source": "./plugins/grill-me"
+      "source": "./plugins-claude/grill-me"
     },
     {
       "name": "insecure-defaults",
@@ -94,13 +94,13 @@
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/insecure-defaults"
+      "source": "./plugins-claude/insecure-defaults"
     },
     {
       "name": "investigate",
       "version": "1.0.0",
       "description": "Systematic debugging with root cause investigation. Four phases: investigate, analyze, hypothesize, implement. Iron Law: no fixes without root cause. Use when asked to debug, fix a bug, or do root cause analysis.",
-      "source": "./plugins/investigate"
+      "source": "./plugins-claude/investigate"
     },
     {
       "name": "modern-python",
@@ -111,19 +111,19 @@
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/modern-python"
+      "source": "./plugins-claude/modern-python"
     },
     {
       "name": "office-hours",
       "version": "2.0.0",
       "description": "YC Office Hours with two modes. Startup mode: six forcing questions that expose demand reality, status quo, desperate specificity, narrowest wedge, observation, and future-fit. Builder mode: design thinking brainstorming for side projects, hackathons, learning, and open source.",
-      "source": "./plugins/office-hours"
+      "source": "./plugins-claude/office-hours"
     },
     {
       "name": "review",
       "version": "1.0.0",
       "description": "Pre-landing PR review. Analyzes diff against the base branch for SQL safety, LLM trust boundary violations, conditional side effects, and other structural issues.",
-      "source": "./plugins/review"
+      "source": "./plugins-claude/review"
     },
     {
       "name": "semgrep-rule-creator",
@@ -132,13 +132,13 @@
       "author": {
         "name": "Maciej Domanski"
       },
-      "source": "./plugins/semgrep-rule-creator"
+      "source": "./plugins-claude/semgrep-rule-creator"
     },
     {
       "name": "ship",
       "version": "1.0.0",
       "description": "Ship workflow: detect and merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.",
-      "source": "./plugins/ship"
+      "source": "./plugins-claude/ship"
     },
     {
       "name": "variant-analysis",
@@ -147,7 +147,7 @@
       "author": {
         "name": "Axel Mierczuk"
       },
-      "source": "./plugins/variant-analysis"
+      "source": "./plugins-claude/variant-analysis"
     },
     {
       "name": "workflow-skill-design",
@@ -158,7 +158,7 @@
         "email": "opensource@trailofbits.com",
         "url": "https://github.com/trailofbits"
       },
-      "source": "./plugins/workflow-skill-design"
+      "source": "./plugins-claude/workflow-skill-design"
     },
     {
       "name": "yt-transcript",
@@ -168,7 +168,7 @@
         "name": "Gabriel Lawrence",
         "email": "gabriel.lawrence@gmail.com"
       },
-      "source": "./plugins/yt-transcript"
+      "source": "./plugins-claude/yt-transcript"
     }
   ]
 }

@@ -2,24 +2,69 @@
 
 import json
 import re
+import sys
+import warnings
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = REPO_ROOT / "plugins"
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+from transforms import can_adapt_for_harness  # noqa: E402
+
 CATALOG_DIR = REPO_ROOT / "catalog" / "packages"
 
 ASSESSMENT_VERSION = "2026-04-03.1"
 
-# Claude tool names that indicate harness coupling
-CLAUDE_TOOLS = {
-    "Read", "Write", "Edit", "Bash", "Grep", "Glob", "Agent",
-    "AskUserQuestion", "WebSearch", "WebFetch", "TodoRead", "TodoWrite",
-    "NotebookEdit", "TaskCreate", "TaskUpdate", "EnterPlanMode",
+NATIVE_HARNESSES = frozenset({"claude", "codex", "copilot"})
+DEFAULT_NATIVE_HARNESS = "claude"
+
+# Tool names recognised as harness-coupled, keyed by harness
+HARNESS_TOOLS: dict[str, set[str]] = {
+    "claude": {
+        "Read", "Write", "Edit", "Bash", "Grep", "Glob", "Agent",
+        "AskUserQuestion", "WebSearch", "WebFetch", "TodoRead", "TodoWrite",
+        "NotebookEdit", "TaskCreate", "TaskUpdate", "EnterPlanMode",
+    },
+    "codex": {
+        "read_file", "write_file", "edit_file", "shell",
+        "grep_search", "file_search", "spawn_agent", "assistant_message",
+    },
+    "copilot": {
+        "view", "edit", "create", "bash", "grep", "glob", "task", "ask_user",
+    },
 }
 
-CLAUDE_HOME_RE = re.compile(r"~/\.claude\b")
-CLAUDE_PLUGIN_ROOT_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}")
-CLAUDE_SKILL_DIR_RE = re.compile(r"\$\{CLAUDE_SKILL_DIR\}")
+# Regexes for harness-specific home-directory paths
+HARNESS_HOME_RE: dict[str, re.Pattern] = {
+    "claude":  re.compile(r"~/\.claude\b"),
+    "codex":   re.compile(r"~/\.codex\b"),
+    "copilot": re.compile(r"~/\.github\b"),
+}
+
+HARNESS_HOME_LABEL: dict[str, str] = {
+    "claude":  "~/.claude",
+    "codex":   "~/.codex",
+    "copilot": "~/.github",
+}
+
+# Regexes for harness path-variable conventions
+HARNESS_PATH_VAR_RES: dict[str, list[re.Pattern]] = {
+    "claude":  [re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}"), re.compile(r"\$\{CLAUDE_SKILL_DIR\}")],
+    "codex":   [re.compile(r"\$\{CODEX_PLUGIN_ROOT\}"),  re.compile(r"\$\{CODEX_SKILL_DIR\}")],
+    "copilot": [re.compile(r"\$\{COPILOT_SKILL_ROOT\}"), re.compile(r"\$\{COPILOT_SKILL_DIR\}")],
+}
+
+HARNESS_PATH_VAR_LABELS: dict[str, list[str]] = {
+    "claude":  ["${CLAUDE_PLUGIN_ROOT}", "${CLAUDE_SKILL_DIR}"],
+    "codex":   ["${CODEX_PLUGIN_ROOT}", "${CODEX_SKILL_DIR}"],
+    "copilot": ["${COPILOT_SKILL_ROOT}", "${COPILOT_SKILL_DIR}"],
+}
+
+# Keep old name as alias for backward compatibility within this file
+CLAUDE_TOOLS = HARNESS_TOOLS["claude"]
+CLAUDE_HOME_RE = HARNESS_HOME_RE["claude"]
+CLAUDE_PLUGIN_ROOT_RE = HARNESS_PATH_VAR_RES["claude"][0]
+CLAUDE_SKILL_DIR_RE = HARNESS_PATH_VAR_RES["claude"][1]
 
 EXECUTABLE_EXTENSIONS = {".py", ".sh", ".js", ".ts", ".rb", ".pl"}
 DEPENDENCY_FILES = {"requirements.txt", "pyproject.toml", "package.json", "go.mod", "Cargo.toml"}
@@ -45,11 +90,24 @@ def find_dependency_files(plugin_dir: Path) -> list[str]:
     return sorted(results)
 
 
-def scan_text_files(plugin_dir: Path) -> dict:
-    """Scan all text files for harness-specific references."""
+def scan_text_files(plugin_dir: Path, native_harness: str = DEFAULT_NATIVE_HARNESS) -> dict:
+    """Scan all text files for harness-specific references.
+
+    Returns findings plus ``native_tool_refs`` and ``home_path_count`` keyed
+    to the declared *native_harness* so that callers remain harness-agnostic.
+    Legacy keys ``claude_tool_refs`` / ``claude_home_count`` are also included
+    for backward compatibility when ``native_harness`` is ``"claude"``.
+    """
     findings = []
-    claude_home_count = 0
-    claude_tool_refs = set()
+    home_path_count = 0
+    native_tool_refs: set[str] = set()
+
+    home_re = HARNESS_HOME_RE[native_harness]
+    path_var_res = HARNESS_PATH_VAR_RES[native_harness]
+    path_var_labels = HARNESS_PATH_VAR_LABELS[native_harness]
+    tool_names = HARNESS_TOOLS[native_harness]
+
+    harness_upper = native_harness.upper()
 
     for f in plugin_dir.rglob("*"):
         if not f.is_file():
@@ -67,60 +125,56 @@ def scan_text_files(plugin_dir: Path) -> dict:
 
         rel = str(f.relative_to(plugin_dir))
 
-        # Check ~/.claude paths
-        matches = CLAUDE_HOME_RE.findall(text)
+        # Check harness-specific home paths (e.g. ~/.claude, ~/.codex)
+        matches = home_re.findall(text)
         if matches:
-            claude_home_count += len(matches)
+            home_path_count += len(matches)
+            label = HARNESS_HOME_LABEL[native_harness]
             findings.append({
-                "code": "CLAUDE_HOME_PATH",
+                "code": f"{harness_upper}_HOME_PATH",
                 "kind": "harness",
                 "severity": "error",
                 "path": rel,
-                "message": f"References ~/.claude paths ({len(matches)} occurrences)",
+                "message": f"References {label} paths ({len(matches)} occurrences)",
             })
 
-        # Check ${CLAUDE_PLUGIN_ROOT}
-        if CLAUDE_PLUGIN_ROOT_RE.search(text):
-            findings.append({
-                "code": "CLAUDE_PLUGIN_CONVENTION",
-                "kind": "harness",
-                "severity": "warn",
-                "path": rel,
-                "message": "Uses ${CLAUDE_PLUGIN_ROOT} variable",
-            })
+        # Check harness path-variable conventions
+        for pv_re, pv_label in zip(path_var_res, path_var_labels, strict=True):
+            if pv_re.search(text):
+                findings.append({
+                    "code": f"{harness_upper}_PLUGIN_CONVENTION",
+                    "kind": "harness",
+                    "severity": "warn",
+                    "path": rel,
+                    "message": f"Uses {pv_label} variable",
+                })
 
-        # Check ${CLAUDE_SKILL_DIR}
-        if CLAUDE_SKILL_DIR_RE.search(text):
-            findings.append({
-                "code": "CLAUDE_PLUGIN_CONVENTION",
-                "kind": "harness",
-                "severity": "warn",
-                "path": rel,
-                "message": "Uses ${CLAUDE_SKILL_DIR} variable",
-            })
-
-        # Check for Claude tool names in SKILL.md frontmatter or body
+        # Check for harness tool names in skill files
         if f.name.endswith(".md"):
-            for tool in CLAUDE_TOOLS:
-                # Match tool names that look like tool references, not prose
-                pattern = rf"\b{tool}\b"
-                if re.search(pattern, text):
-                    claude_tool_refs.add(tool)
+            for tool in tool_names:
+                if re.search(rf"\b{re.escape(tool)}\b", text):
+                    native_tool_refs.add(tool)
 
-    if claude_tool_refs:
+    if native_tool_refs:
+        harness_label = f"{native_harness.title()} tool"
         findings.append({
-            "code": "CLAUDE_TOOL_NAME",
+            "code": f"{harness_upper}_TOOL_NAME",
             "kind": "harness",
             "severity": "info",
             "path": "(multiple)",
-            "message": f"References Claude tool names: {', '.join(sorted(claude_tool_refs))}",
+            "message": f"References {harness_label} names: {', '.join(sorted(native_tool_refs))}",
         })
 
-    return {
+    result = {
         "findings": findings,
-        "claude_home_count": claude_home_count,
-        "claude_tool_refs": sorted(claude_tool_refs),
+        "home_path_count": home_path_count,
+        "native_tool_refs": sorted(native_tool_refs),
     }
+    # Legacy aliases for callers that haven't been updated
+    if native_harness == "claude":
+        result["claude_home_count"] = home_path_count
+        result["claude_tool_refs"] = result["native_tool_refs"]
+    return result
 
 
 def extract_tool_references(text: str, tool_names: set[str]) -> set[str]:
@@ -162,34 +216,110 @@ def extract_tool_references(text: str, tool_names: set[str]) -> set[str]:
     return refs
 
 
+def detect_native_harness(plugin_dir: Path, declared: str | None = None) -> str:
+    """Determine the native harness for a plugin.
+
+    Priority: declared (from sources.json) > content signals > default ("claude").
+    Emits a warning when falling back to the default.
+    """
+    if declared and declared in NATIVE_HARNESSES:
+        return declared
+    if declared and declared not in NATIVE_HARNESSES:
+        warnings.warn(
+            f"{plugin_dir.name}: unknown native_harness {declared!r}; "
+            f"falling back to {DEFAULT_NATIVE_HARNESS!r}",
+            stacklevel=2,
+        )
+
+    # Content-signal detection: only use path vars and home paths — strong,
+    # unambiguous signals. Tool names are too generic (especially copilot's
+    # lowercase names like "edit", "view", "bash") and cause false positives.
+    scores: dict[str, int] = dict.fromkeys(NATIVE_HARNESSES, 0)
+
+    for f in plugin_dir.rglob("*"):
+        if not f.is_file():
+            continue
+        if f.suffix in {".json", ".png", ".jpg", ".gif", ".ico", ".db", ".sqlite"}:
+            continue
+        if f.name.upper().startswith("README"):
+            continue
+        try:
+            text = f.read_text(errors="ignore")
+        except Exception:
+            continue
+
+        for harness in NATIVE_HARNESSES:
+            # Path vars are strong signals
+            for pv_re in HARNESS_PATH_VAR_RES[harness]:
+                if pv_re.search(text):
+                    scores[harness] += 5
+
+            # Home paths are strong signals
+            if HARNESS_HOME_RE[harness].search(text):
+                scores[harness] += 5
+
+    # Find harness with highest score, requiring at least one signal
+    best, best_score = max(scores.items(), key=lambda kv: kv[1])
+    if best_score > 0 and best != DEFAULT_NATIVE_HARNESS:
+        return best
+
+    if best_score == 0:
+        warnings.warn(
+            f"{plugin_dir.name}: no native harness signals found; "
+            f"defaulting to {DEFAULT_NATIVE_HARNESS!r}",
+            stacklevel=2,
+        )
+    return DEFAULT_NATIVE_HARNESS
+
+
 def classify_package(
     *,
+    native_harness: str = DEFAULT_NATIVE_HARNESS,
     has_hooks: bool,
-    claude_home_count: int,
-    claude_tool_refs: list[str],
+    home_path_count: int,
+    native_tool_refs: list[str],
     has_commands: bool,
     has_agents: bool,
     has_inline_hooks: bool,
 ) -> tuple[str, str, str, str]:
-    """Return (portability_class, claude_status, codex_status, copilot_status)."""
-    # Hook-driven or has ~/.claude paths -> harness-specific
-    if has_hooks or has_inline_hooks or claude_home_count > 0:
-        return "harness-specific", "native", "unsupported", "unsupported"
+    """Return (portability_class, claude_status, codex_status, copilot_status).
 
-    # Has commands or agents (Claude-specific packaging concepts)
+    ``native_tool_refs`` contains tool names in the *native_harness* format.
+    For claude-native skills these are Claude tool names; for codex-native they
+    are codex tool names, etc.
+    """
+    all_harnesses = ["claude", "codex", "copilot"]
+    other_harnesses = [h for h in all_harnesses if h != native_harness]
+
+    # Hooks, inline hooks, and home-path references make a skill harness-specific
+    # (these are currently modelled only for claude-native skills)
+    if has_hooks or has_inline_hooks or home_path_count > 0:
+        statuses = {native_harness: "native"}
+        for h in other_harnesses:
+            statuses[h] = "unsupported"
+        return ("harness-specific", statuses["claude"], statuses["codex"], statuses["copilot"])
+
+    # Commands/agents exist in both harnesses conceptually but packaging differs
     if has_commands or has_agents:
-        # Commands/agents exist in both harnesses conceptually, but
-        # the packaging format differs. Adaptable if no other blockers.
-        if not claude_tool_refs:
-            return "adaptable", "native", "blocked", "blocked"
-        return "adaptable", "native", "blocked", "blocked"
+        statuses = {native_harness: "native"}
+        for h in other_harnesses:
+            statuses[h] = "blocked"
+        return ("adaptable", statuses["claude"], statuses["codex"], statuses["copilot"])
 
-    # Pure skill with Claude tool names -> adaptable (tool names can be mapped)
-    if claude_tool_refs:
-        return "adaptable", "native", "blocked", "blocked"
+    if native_tool_refs:
+        statuses = {native_harness: "native"}
+        for h in other_harnesses:
+            adaptable, _ = can_adapt_for_harness(
+                native_tool_refs, source_harness=native_harness, target_harness=h,
+            )
+            statuses[h] = "generated" if adaptable else "blocked"
+        return ("adaptable", statuses["claude"], statuses["codex"], statuses["copilot"])
 
     # Pure markdown skill, no harness coupling -> agnostic
-    return "agnostic", "native", "generated", "generated"
+    statuses = {native_harness: "native"}
+    for h in other_harnesses:
+        statuses[h] = "generated"
+    return ("agnostic", statuses["claude"], statuses["codex"], statuses["copilot"])
 
 
 def determine_package_type(
@@ -232,8 +362,9 @@ def build_package_record(
     source_info: dict,
     marketplace_entry: dict,
     plugin_manifest: dict,
+    native_harness: str = DEFAULT_NATIVE_HARNESS,
 ) -> dict:
-    plugin_dir = PLUGINS_DIR / name
+    plugin_dir = REPO_ROOT / f"plugins-{native_harness}" / name
 
     # File structure detection
     has_skill = (plugin_dir / "skills").is_dir()
@@ -245,7 +376,7 @@ def build_package_record(
 
     executables = find_executable_files(plugin_dir)
     dep_files = find_dependency_files(plugin_dir)
-    scan = scan_text_files(plugin_dir)
+    scan = scan_text_files(plugin_dir, native_harness)
 
     has_inline_hooks = False
     for skill_md in plugin_dir.rglob("SKILL.md"):
@@ -267,16 +398,17 @@ def build_package_record(
                 })
 
     portability_class, claude_status, codex_status, copilot_status = classify_package(
+        native_harness=native_harness,
         has_hooks=has_hooks,
-        claude_home_count=scan["claude_home_count"],
-        claude_tool_refs=scan["claude_tool_refs"],
+        home_path_count=scan["home_path_count"],
+        native_tool_refs=scan["native_tool_refs"],
         has_commands=has_commands,
         has_agents=has_agents,
         has_inline_hooks=has_inline_hooks,
     )
 
     package_type = determine_package_type(has_hooks, has_commands, has_agents, bool(dep_files))
-    tool_risk = compute_tool_risk(scan["claude_tool_refs"])
+    tool_risk = compute_tool_risk(scan["native_tool_refs"])
 
     # Determine upstream type
     upstream_type = source_info.get("upstream_type", "plugin")
@@ -306,37 +438,53 @@ def build_package_record(
     verification_data = source_info.get("verification", {})
     skills_verified = verification_data.get("skills", {})
 
-    # Support basis
+    # Support basis — native harness is always "native", others depend on status
+    def _support_basis(harness: str, status: str) -> str:
+        if harness == native_harness:
+            return "native"
+        if status == "generated":
+            return "generated"
+        if status == "unsupported":
+            return "unsupported"
+        if harness == "claude":
+            return "convention"
+        return "unknown"
+
     support_basis = {
-        "claude": "convention",  # .claude-plugin is convention-only per plan
-        "codex": "unsupported" if codex_status == "unsupported" else "unknown",
-        "copilot": "generated" if copilot_status == "generated" else "unsupported" if copilot_status == "unsupported" else "unknown",
+        "claude": _support_basis("claude", claude_status),
+        "codex": _support_basis("codex", codex_status),
+        "copilot": _support_basis("copilot", copilot_status),
     }
 
-    # Codex generation config
-    codex_gen = {
-        "enabled": codex_status in ("generated", "adapted"),
-        "mode": "none" if codex_status in ("unsupported", "blocked") else codex_status,
-    }
-    if codex_gen["enabled"]:
-        codex_gen["marketplace"] = {
-            "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-            "category": "Developer Tools",
+    def _gen_config(harness: str, status: str) -> dict:
+        if harness == native_harness:
+            return {"enabled": True, "mode": "native"}
+        enabled = status in ("generated", "adapted")
+        cfg: dict = {
+            "enabled": enabled,
+            "mode": "none" if status in ("unsupported", "blocked") else status,
         }
+        if enabled:
+            if harness == "codex":
+                cfg["marketplace"] = {
+                    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+                    "category": "Developer Tools",
+                }
+            elif harness == "copilot":
+                cfg["install"] = {"target_dir": ".github/skills"}
+        return cfg
 
-    copilot_gen = {
-        "enabled": copilot_status in ("generated", "adapted"),
-        "mode": "none" if copilot_status in ("unsupported", "blocked") else copilot_status,
-    }
-    if copilot_gen["enabled"]:
-        copilot_gen["install"] = {"target_dir": ".agents/skills"}
+    codex_gen = _gen_config("codex", codex_status)
+    copilot_gen = _gen_config("copilot", copilot_status)
+    claude_gen = _gen_config("claude", claude_status)
 
     # Adaptation hints
     hints = []
-    if scan["claude_tool_refs"]:
-        hints.append("Map Claude tool names to neutral capabilities")
-    if scan["claude_home_count"] > 0:
-        hints.append("Replace ~/.claude path references with harness-neutral config")
+    if scan["native_tool_refs"]:
+        hints.append(f"Map {native_harness.title()} tool names to neutral capabilities")
+    if scan["home_path_count"] > 0:
+        label = HARNESS_HOME_LABEL[native_harness]
+        hints.append(f"Replace {label} path references with harness-neutral config")
     if has_hooks:
         hints.append("Hooks require harness-specific lifecycle — consider forking for other harnesses")
     if has_inline_hooks:
@@ -347,10 +495,12 @@ def build_package_record(
         hints.append("Agent definitions need harness-specific format adaptation")
 
     # Supported harnesses list
-    supported = ["claude"]
-    if codex_status in ("generated", "adapted"):
+    supported = [native_harness]
+    if native_harness != "claude" and claude_status in ("generated", "adapted", "native"):
+        supported.append("claude")
+    if native_harness != "codex" and codex_status in ("generated", "adapted"):
         supported.append("codex")
-    if copilot_status in ("generated", "adapted"):
+    if native_harness != "copilot" and copilot_status in ("generated", "adapted"):
         supported.append("copilot")
 
     # Findings for packaging
@@ -412,7 +562,7 @@ def build_package_record(
             "last_checked": source_info["last_checked"],
         },
         "source_model": "upstream-mirror",
-        "canonical_harness": "claude",
+        "canonical_harness": native_harness,
         "package_type": package_type,
         "files": {
             "has_skill": has_skill,
@@ -441,10 +591,7 @@ def build_package_record(
             "adaptation_hints": hints if hints else [],
         },
         "generation": {
-            "claude": {
-                "enabled": True,
-                "mode": "native",
-            },
+            "claude": claude_gen,
             "codex": codex_gen,
             "copilot": copilot_gen,
         },
@@ -464,14 +611,17 @@ def main() -> None:
     for entry in marketplace.get("plugins", []):
         mp_by_name[entry["name"]] = entry
 
-    # Index plugin manifests
+    # Index plugin manifests from all harness-partitioned plugin dirs
     manifests = {}
-    for plugin_dir in PLUGINS_DIR.iterdir():
-        if not plugin_dir.is_dir():
+    for plugins_dir in REPO_ROOT.glob("plugins-*"):
+        if not plugins_dir.is_dir():
             continue
-        manifest_path = plugin_dir / ".claude-plugin" / "plugin.json"
-        if manifest_path.is_file():
-            manifests[plugin_dir.name] = load_json(manifest_path)
+        for plugin_dir in plugins_dir.iterdir():
+            if not plugin_dir.is_dir():
+                continue
+            manifest_path = plugin_dir / ".claude-plugin" / "plugin.json"
+            if manifest_path.is_file():
+                manifests[plugin_dir.name] = load_json(manifest_path)
 
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -480,7 +630,25 @@ def main() -> None:
         mp_entry = mp_by_name.get(name, {})
         manifest = manifests.get(name, {})
 
-        record = build_package_record(name, info, mp_entry, manifest)
+        # Determine native harness:
+        # 1. Declared in sources.json wins
+        # 2. Infer from which plugins-{harness}/ dir the plugin lives in
+        # 3. Content detection (path vars, home paths) as final fallback
+        declared = info.get("native_harness")
+        dir_implied: str | None = None
+        plugin_dir: Path | None = None
+        for h in NATIVE_HARNESSES:
+            candidate = REPO_ROOT / f"plugins-{h}" / name
+            if candidate.is_dir():
+                plugin_dir = candidate
+                dir_implied = h
+                break
+        if plugin_dir is None:
+            plugin_dir = REPO_ROOT / f"plugins-{DEFAULT_NATIVE_HARNESS}" / name
+            dir_implied = DEFAULT_NATIVE_HARNESS
+        native_harness = detect_native_harness(plugin_dir, declared or dir_implied)
+
+        record = build_package_record(name, info, mp_entry, manifest, native_harness)
 
         # Remove None authors
         if record["authors"] is None:

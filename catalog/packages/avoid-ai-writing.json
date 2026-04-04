@@ -25,21 +25,28 @@
     "has_executable_code": false,
     "dependency_files": [],
     "tool_risk": {
-      "declared_tools": [],
-      "risk_level": "low",
-      "reasons": []
+      "declared_tools": [
+        "Agent",
+        "Edit",
+        "Read"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Agent: indirect mutation or external access",
+        "Edit: indirect mutation or external access"
+      ]
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
-    "portability_class": "agnostic",
+    "assessment_version": "2026-04-03.1",
+    "portability_class": "adaptable",
     "supported_harnesses": [
       "claude",
       "codex",
       "copilot"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "generated",
       "copilot": "generated"
     },
@@ -62,9 +69,18 @@
         "severity": "info",
         "path": ".claude-plugin/plugin.json",
         "message": "Has Claude plugin manifest (convention)"
+      },
+      {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Agent, Edit, Read"
       }
     ],
-    "adaptation_hints": []
+    "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities"
+    ]
   },
   "generation": {
     "claude": {
@@ -80,14 +96,13 @@
           "authentication": "ON_INSTALL"
         },
         "category": "Developer Tools"
-      },
-      "transforms": []
+      }
     },
     "copilot": {
       "enabled": true,
       "mode": "generated",
       "install": {
-        "target_dir": ".agents/skills"
+        "target_dir": ".github/skills"
       }
     }
   },

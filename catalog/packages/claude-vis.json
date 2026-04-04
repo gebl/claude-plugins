@@ -34,22 +34,26 @@
     "tool_risk": {
       "declared_tools": [
         "Bash",
-        "Read"
+        "Read",
+        "WebFetch",
+        "WebSearch"
       ],
       "risk_level": "medium",
       "reasons": [
-        "Bash: shell execution or file mutation"
+        "Bash: shell execution or file mutation",
+        "WebFetch: indirect mutation or external access",
+        "WebSearch: indirect mutation or external access"
       ]
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "harness-specific",
     "supported_harnesses": [
       "claude"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "unsupported",
       "copilot": "unsupported"
     },
@@ -106,7 +110,7 @@
         "kind": "harness",
         "severity": "info",
         "path": "(multiple)",
-        "message": "References Claude tool names: Bash, Read"
+        "message": "References Claude tool names: Bash, Read, WebFetch, WebSearch"
       },
       {
         "code": "EXECUTABLE_CODE_PRESENT",

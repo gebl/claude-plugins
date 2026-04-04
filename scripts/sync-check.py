@@ -246,9 +246,23 @@ def detect_dependencies(directory: Path) -> list[str]:
     )
 
 
-def discover_plugin_skills(plugin_name: str) -> list[str]:
+NATIVE_HARNESSES = ("claude", "codex", "copilot")
+DEFAULT_NATIVE_HARNESS = "claude"
+
+
+def get_plugin_dir(plugin_name: str, info: dict | None = None, native_harness: str | None = None) -> Path:
+    """Return the plugins-{harness}/ directory for a plugin.
+
+    Precedence: explicit native_harness arg > info["native_harness"] > DEFAULT_NATIVE_HARNESS.
+    """
+    if native_harness is None:
+        native_harness = (info or {}).get("native_harness", DEFAULT_NATIVE_HARNESS)
+    return REPO_ROOT / f"plugins-{native_harness}" / plugin_name
+
+
+def discover_plugin_skills(plugin_name: str, info: dict | None = None) -> list[str]:
     """Return skill names for a plugin, or the plugin name if none exist yet."""
-    skills_dir = REPO_ROOT / "plugins" / plugin_name / "skills"
+    skills_dir = get_plugin_dir(plugin_name, info) / "skills"
     if not skills_dir.exists():
         return [plugin_name]
 
@@ -261,7 +275,7 @@ def _normalize_verification_state(plugin_name: str, info: dict) -> None:
     legacy_verified = bool(info.pop("verified", False))
     existing = info.get("verification", {})
     existing_skills = existing.get("skills", {})
-    skill_names = discover_plugin_skills(plugin_name)
+    skill_names = discover_plugin_skills(plugin_name, info)
 
     normalized_skills = {
         skill_name: bool(existing_skills.get(skill_name, legacy_verified))
@@ -389,11 +403,11 @@ def _resolve_frontmatter(
     return frontmatter
 
 
-def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict) -> None:
+def _build_plugin_structure(name: str, source_dir: Path, frontmatter: dict, native_harness: str = DEFAULT_NATIVE_HARNESS) -> None:
     """Create plugin directory with wrapper and copy skill files."""
-    plugin_dir = REPO_ROOT / "plugins" / name
+    plugin_dir = get_plugin_dir(name, native_harness=native_harness)
     if plugin_dir.exists():
-        print(f"Error: Directory plugins/{name} already exists", file=sys.stderr)
+        print(f"Error: Directory plugins-{native_harness}/{name} already exists", file=sys.stderr)
         sys.exit(1)
 
     plugin_meta_dir = plugin_dir / ".claude-plugin"
@@ -473,12 +487,14 @@ def import_skill(args: argparse.Namespace) -> None:
         _gate_scan(source_dir, args.name, skip_scan=args.skip_scan, dry_run=dry_run)
 
         if dry_run:
+            native_harness = getattr(args, "native_harness", DEFAULT_NATIVE_HARNESS)
             _print_dry_run_summary(
                 sources_entry={
                     "upstream_repo": args.repo,
                     "upstream_path": args.path,
                     "upstream_ref": args.ref,
                     "upstream_type": UPSTREAM_TYPE_RAW_SKILL,
+                    "native_harness": native_harness,
                     "last_synced_commit": head,
                     "has_executable_code": bool(executables),
                     "verification": {"skills": {args.name: False}},
@@ -487,15 +503,17 @@ def import_skill(args: argparse.Namespace) -> None:
                     "name": args.name,
                     "version": frontmatter.get("version", "0.1.0"),
                     "description": frontmatter.get("description", ""),
-                    "source": f"./plugins/{args.name}",
+                    "source": f"./plugins-{native_harness}/{args.name}",
                 },
             )
             print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
             return
 
         # Build plugin structure and register
-        _build_plugin_structure(args.name, source_dir, frontmatter)
+        native_harness = getattr(args, "native_harness", DEFAULT_NATIVE_HARNESS)
+        _build_plugin_structure(args.name, source_dir, frontmatter, native_harness)
 
+    native_harness = getattr(args, "native_harness", DEFAULT_NATIVE_HARNESS)
     description = frontmatter.get("description", "")
     version = frontmatter.get("version", "0.1.0")
     now = datetime.now(UTC).isoformat()
@@ -504,6 +522,7 @@ def import_skill(args: argparse.Namespace) -> None:
         "upstream_path": args.path,
         "upstream_ref": args.ref,
         "upstream_type": UPSTREAM_TYPE_RAW_SKILL,
+        "native_harness": native_harness,
         "last_synced_commit": head,
         "last_checked": now,
         "local_modifications": False,
@@ -518,7 +537,7 @@ def import_skill(args: argparse.Namespace) -> None:
             "name": args.name,
             "version": version,
             "description": description,
-            "source": f"./plugins/{args.name}",
+            "source": f"./plugins-{native_harness}/{args.name}",
         }
     )
     save_marketplace(marketplace)
@@ -566,9 +585,10 @@ def add_plugin(args: argparse.Namespace) -> None:
         print(f"Error: Plugin '{args.name}' already tracked", file=sys.stderr)
         sys.exit(1)
 
-    plugin_dir = REPO_ROOT / "plugins" / args.name
+    native_harness = getattr(args, "native_harness", DEFAULT_NATIVE_HARNESS)
+    plugin_dir = get_plugin_dir(args.name, native_harness=native_harness)
     if plugin_dir.exists() and not dry_run:
-        print(f"Error: Directory plugins/{args.name} already exists", file=sys.stderr)
+        print(f"Error: Directory plugins-{native_harness}/{args.name} already exists", file=sys.stderr)
         sys.exit(1)
 
     if dry_run:
@@ -600,6 +620,7 @@ def add_plugin(args: argparse.Namespace) -> None:
                     "upstream_path": args.path,
                     "upstream_ref": args.ref,
                     "upstream_type": UPSTREAM_TYPE_PLUGIN,
+                    "native_harness": native_harness,
                     "last_synced_commit": head,
                     "has_executable_code": bool(executables),
                     "verification": {
@@ -610,13 +631,13 @@ def add_plugin(args: argparse.Namespace) -> None:
                     "name": args.name,
                     "version": metadata["version"],
                     "description": metadata["description"],
-                    "source": f"./plugins/{args.name}",
+                    "source": f"./plugins-{native_harness}/{args.name}",
                 },
             )
             print(f"\n[dry-run] '{args.name}' validation complete. No files were modified.")
             return
 
-        # Copy plugin into plugins/
+        # Copy plugin into plugins-{native_harness}/
         shutil.copytree(source_dir, plugin_dir)
 
     # Register in sources.json
@@ -626,6 +647,7 @@ def add_plugin(args: argparse.Namespace) -> None:
         "upstream_path": args.path,
         "upstream_ref": args.ref,
         "upstream_type": UPSTREAM_TYPE_PLUGIN,
+        "native_harness": native_harness,
         "last_synced_commit": head,
         "last_checked": now,
         "local_modifications": False,
@@ -643,7 +665,7 @@ def add_plugin(args: argparse.Namespace) -> None:
             "name": args.name,
             "version": metadata["version"],
             "description": metadata["description"],
-            "source": f"./plugins/{args.name}",
+            "source": f"./plugins-{native_harness}/{args.name}",
         }
     )
     save_marketplace(marketplace)
@@ -665,7 +687,7 @@ def _replace_plugin_files(name: str, info: dict, source_dir: Path) -> None:
     For plugin imports, replaces the full plugin directory.
     """
     upstream_type = info.get("upstream_type", UPSTREAM_TYPE_PLUGIN)
-    plugin_dir = REPO_ROOT / "plugins" / name
+    plugin_dir = get_plugin_dir(name, info)
 
     if upstream_type == UPSTREAM_TYPE_RAW_SKILL:
         target = plugin_dir / "skills" / name
@@ -705,7 +727,7 @@ def _sync_single_plugin(  # noqa: PLR0913
     dry_run: bool = False,
 ) -> str:
     """Sync a single plugin from upstream. Returns status: 'synced', 'up-to-date', or 'skipped'."""
-    plugin_dir = REPO_ROOT / "plugins" / name
+    plugin_dir = get_plugin_dir(name, info)
     if not plugin_dir.exists():
         print("  SKIP: plugin directory not found")
         return "skipped"
@@ -830,11 +852,12 @@ def get_local_diff(plugin_name: str, info: dict) -> str | None:
         )
 
         upstream_dir = str(Path(extractdir) / upstream_path)
+        plugin_dir = get_plugin_dir(plugin_name, info)
 
         if upstream_type == UPSTREAM_TYPE_RAW_SKILL:
-            local_dir = str(REPO_ROOT / "plugins" / plugin_name / "skills" / plugin_name)
+            local_dir = str(plugin_dir / "skills" / plugin_name)
         else:
-            local_dir = str(REPO_ROOT / "plugins" / plugin_name)
+            local_dir = str(plugin_dir)
 
         result = subprocess.run(
             ["diff", "-ruN", upstream_dir, local_dir],
@@ -850,7 +873,7 @@ def has_local_modifications(plugin_name: str, info: dict) -> tuple[bool, str]:
 
     Returns (modified, diff_output) tuple to avoid cloning twice.
     """
-    plugin_dir = REPO_ROOT / "plugins" / plugin_name
+    plugin_dir = get_plugin_dir(plugin_name, info)
     if not plugin_dir.exists():
         return False, ""
     # Check for uncommitted changes first
@@ -1048,16 +1071,16 @@ def remove_plugin(args: argparse.Namespace) -> None:
         print(f"Error: Plugin '{args.plugin}' not tracked", file=sys.stderr)
         sys.exit(1)
 
-    plugin_dir = REPO_ROOT / "plugins" / args.plugin
+    plugin_dir = get_plugin_dir(args.plugin, data["plugins"].get(args.plugin, {}))
 
     if args.dry_run:
         print(f"[dry-run] Would remove plugin '{args.plugin}':")
         print("  Remove from sources.json")
         print("  Remove from marketplace.json")
         if plugin_dir.exists():
-            print(f"  Delete directory: plugins/{args.plugin}/")
+            print(f"  Delete directory: {plugin_dir.relative_to(REPO_ROOT)}/")
         else:
-            print(f"  Directory plugins/{args.plugin}/ does not exist (skip)")
+            print(f"  Directory {plugin_dir.relative_to(REPO_ROOT)}/ does not exist (skip)")
         return
 
     # Remove from sources.json
@@ -1087,7 +1110,7 @@ def list_pending(_args: argparse.Namespace) -> None:
 
     for name, info in data["plugins"].items():
         # Rescan executable code on every --pending run
-        plugin_dir = REPO_ROOT / "plugins" / name
+        plugin_dir = get_plugin_dir(name, info)
         executables = detect_executable_code(plugin_dir)
         has_exec = bool(executables)
         if info.get("has_executable_code") != has_exec:
@@ -1282,7 +1305,7 @@ def scan_plugins(args: argparse.Namespace) -> None:
 
     total_findings = 0
     for name, info in targets.items():
-        plugin_dir = REPO_ROOT / "plugins" / name
+        plugin_dir = get_plugin_dir(name, info)
         if not plugin_dir.exists():
             print(f"{name}: SKIP (directory not found)")
             continue
@@ -1356,6 +1379,15 @@ def main() -> None:
         help="Run semgrep security scan on plugins with unverified skills",
     )
 
+    parser.add_argument(
+        "--native-harness",
+        choices=list(NATIVE_HARNESSES),
+        default=DEFAULT_NATIVE_HARNESS,
+        help=(
+            "Native harness for the imported plugin (default: claude). "
+            "Determines which plugins-{harness}/ directory the plugin is stored in."
+        ),
+    )
     parser.add_argument("--name", help="Plugin name (default: last component of --path)")
     parser.add_argument("--repo", help="Upstream git repo URL (for --add/--import-skill)")
     parser.add_argument("--path", help="Path within upstream repo (for --add/--import-skill)")

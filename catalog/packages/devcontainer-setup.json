@@ -31,19 +31,23 @@
     "has_executable_code": true,
     "dependency_files": [],
     "tool_risk": {
-      "declared_tools": [],
-      "risk_level": "low",
-      "reasons": []
+      "declared_tools": [
+        "Write"
+      ],
+      "risk_level": "medium",
+      "reasons": [
+        "Write: shell execution or file mutation"
+      ]
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "harness-specific",
     "supported_harnesses": [
       "claude"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "unsupported",
       "copilot": "unsupported"
     },
@@ -75,6 +79,13 @@
         "message": "References ~/.claude paths (2 occurrences)"
       },
       {
+        "code": "CLAUDE_TOOL_NAME",
+        "kind": "harness",
+        "severity": "info",
+        "path": "(multiple)",
+        "message": "References Claude tool names: Write"
+      },
+      {
         "code": "EXECUTABLE_CODE_PRESENT",
         "kind": "risk",
         "severity": "warn",
@@ -83,6 +94,7 @@
       }
     ],
     "adaptation_hints": [
+      "Map Claude tool names to neutral capabilities",
       "Replace ~/.claude path references with harness-neutral config"
     ]
   },

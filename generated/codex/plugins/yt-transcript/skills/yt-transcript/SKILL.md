@@ -2,7 +2,7 @@
 name: yt-transcript
 description: "Fetch a YouTube video transcript and save it as a Markdown file. Use when the user shares a YouTube URL and wants the transcript, or asks to transcribe/capture/grab a YouTube video."
 allowed-tools:
-  - shell
+  - Bash
 ---
 
 # YouTube Transcript
@@ -17,10 +17,10 @@ Fetch a YouTube video's transcript and save it as a clean Markdown document.
 
 ## How to Run
 
-Use the CLI script at `${CODEX_PLUGIN_ROOT}/yt_transcript.py`. Run it with `uv run` from the plugin directory:
+Use the CLI script at `${CLAUDE_PLUGIN_ROOT}/yt_transcript.py`. Run it with `uv run` from the plugin directory:
 
 ```bash
-cd "${CODEX_PLUGIN_ROOT}" && uv run python yt_transcript.py [OPTIONS] URL OUTPUT
+cd "${CLAUDE_PLUGIN_ROOT}" && uv run python yt_transcript.py [OPTIONS] URL OUTPUT
 ```
 
 ### Arguments
@@ -45,12 +45,12 @@ cd "${CODEX_PLUGIN_ROOT}" && uv run python yt_transcript.py [OPTIONS] URL OUTPUT
 ## Example
 
 ```bash
-cd "${CODEX_PLUGIN_ROOT}" && uv run python yt_transcript.py --no-timestamps "https://www.youtube.com/watch?v=dQw4w9WgXcQ" ~/notes/rick-roll.md
+cd "${CLAUDE_PLUGIN_ROOT}" && uv run python yt_transcript.py --no-timestamps "https://www.youtube.com/watch?v=dQw4w9WgXcQ" ~/notes/rick-roll.md
 ```
 
 ## After Running
 
-- read_file the saved file and provide a brief summary (title, key points) if the user asked for one.
+- Read the saved file and provide a brief summary (title, key points) if the user asked for one.
 - Report the saved file path, title, channel, and approximate word count.
 
 ## Error Handling

@@ -49,13 +49,13 @@
     }
   },
   "compatibility": {
-    "assessment_version": "2026-04-03.2",
+    "assessment_version": "2026-04-03.1",
     "portability_class": "adaptable",
     "supported_harnesses": [
       "claude"
     ],
     "support_basis": {
-      "claude": "convention",
+      "claude": "native",
       "codex": "unknown",
       "copilot": "unknown"
     },
