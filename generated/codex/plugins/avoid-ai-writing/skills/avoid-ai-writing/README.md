@@ -69,7 +69,7 @@ description: Audit and rewrite content to remove AI writing patterns
 
 $ARGUMENTS
 
-Read and follow the instructions in ~/.claude/skills/avoid-ai-writing/SKILL.md
+read_file and follow the instructions in ~/.claude/skills/avoid-ai-writing/SKILL.md
 ```
 
 Then use `/clean-ai-writing <your text>` in Claude Code.
@@ -145,7 +145,7 @@ Trigger detect mode with: "detect," "flag only," "audit only," "just flag," "sca
 | 16 | **Sentence structure** | "It's not X, it's Y" + hollow intensifiers + hedging | Direct positive statements |
 | 17 | **Structural issues** | Uniform paragraphs, formulaic openings, too-clean grammar | Varied length, lead with the point |
 | 18 | **Transition phrases** | "Moreover," "Furthermore," "In today's [X]" | "and," "also," or restructure |
-| 19 | **Inline-header lists** | "**Speed:** Speed improved by..." | Write the point directly |
+| 19 | **Inline-header lists** | "**Speed:** Speed improved by..." | write_file the point directly |
 | 20 | **Title case headings** | "Strategic Negotiations And Partnerships" | "Strategic negotiations and partnerships" |
 | 21 | **Numbered list inflation** | "Here are 7 reasons why..." | Cut to the 2-3 that matter |
 | 22 | **False concession** | "While X has limitations, it's still remarkable" | State the real tradeoff |

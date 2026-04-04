@@ -56,7 +56,7 @@ def generate_claude(packages: list[dict]) -> None:
             if author:
                 entry["author"] = author
 
-        entry["source"] = f"./plugins-claude/{pkg['name']}"
+        entry["source"] = f"./plugins-{pkg.get('canonical_harness', 'claude')}/{pkg['name']}"
         plugins.append(entry)
 
     marketplace = {

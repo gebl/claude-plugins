@@ -159,6 +159,29 @@ def _build_tool_pattern(tool_map: dict[str, str]) -> re.Pattern[str]:
     return re.compile(rf"(?<![a-zA-Z0-9_])({alternatives})(?![a-zA-Z0-9_])")
 
 
+def _remap_frontmatter_allowed_tools(frontmatter: str, tool_map: dict[str, str]) -> str:
+    """Remap tool names in the allowed-tools YAML list within a frontmatter block."""
+    lines = frontmatter.splitlines(keepends=True)
+    in_allowed_tools = False
+    result = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("allowed-tools:"):
+            in_allowed_tools = True
+            result.append(line)
+            continue
+        if in_allowed_tools:
+            if stripped.startswith("- "):
+                tool_name = stripped[2:].strip()
+                if tool_name in tool_map:
+                    result.append(line.replace(tool_name, tool_map[tool_name], 1))
+                    continue
+            elif stripped and not stripped.startswith("#"):
+                in_allowed_tools = False
+        result.append(line)
+    return "".join(result)
+
+
 def transform_skill_content(
     content: str,
     tool_map: dict[str, str],
@@ -170,12 +193,22 @@ def transform_skill_content(
 
     Handles patterns like "the Read tool", "`Bash`", "Use Agent", etc.
     Does NOT replace partial matches (e.g. "Read" won't match "Reading" or "README").
+    Also remaps tool names in the YAML `allowed-tools:` frontmatter block.
 
     When target_harness="copilot", additional Copilot-specific content rewrites are applied.
     """
     if not tool_map:
         result = content
     else:
+        # Remap allowed-tools list in frontmatter before body substitution.
+        if content.startswith("---"):
+            _after_open = content[3:]
+            _close_idx = _after_open.find("\n---")
+            if _close_idx != -1:
+                frontmatter = _after_open[:_close_idx]
+                body_tail = _after_open[_close_idx:]
+                content = "---" + _remap_frontmatter_allowed_tools(frontmatter, tool_map) + body_tail
+
         pattern = _build_tool_pattern(tool_map)
 
         def _replace_tool(match: re.Match[str]) -> str:

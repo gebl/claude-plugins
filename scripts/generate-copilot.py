@@ -65,7 +65,7 @@ def generate_skill(pkg: dict) -> int:
     copilot_mode = pkg.get("generation", {}).get("copilot", {}).get("mode", "")
     source_harness = pkg.get("canonical_harness", "claude")
 
-    if copilot_mode == "adapted":
+    if copilot_mode in ("adapted", "generated") and source_harness != "copilot":
         transformed = len(
             transform_plugin_for_copilot(pkg["name"], GENERATED_DIR, source_harness=source_harness)
         )

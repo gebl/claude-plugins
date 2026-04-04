@@ -1,9 +1,0 @@
-{
-  "name": "claude-vis",
-  "version": "0.1.0",
-  "description": "Logs session activity, token usage, and cost to SQLite for analytics and visualization",
-  "author": {
-    "name": "Gabe"
-  },
-  "keywords": ["analytics", "logging", "cost-tracking", "sessions"]
-}

@@ -209,15 +209,13 @@ def generate_plugin(pkg: dict) -> int:
         json.dump(manifest, f, indent=2)
         f.write("\n")
 
-    if has_skill and codex_mode != "adapted":
+    if has_skill:
         source_harness = pkg.get("canonical_harness", "claude")
+        if codex_mode in ("adapted", "generated") and source_harness != "codex":
+            return len(
+                transform_plugin_for_codex(pkg["name"], plugin_out, source_harness=source_harness)
+            )
         copy_skills_tree(pkg["name"], plugin_out, source_harness)
-
-    if codex_mode == "adapted" and has_skill:
-        source_harness = pkg.get("canonical_harness", "claude")
-        return len(
-            transform_plugin_for_codex(pkg["name"], plugin_out, source_harness=source_harness)
-        )
 
     return 0
 

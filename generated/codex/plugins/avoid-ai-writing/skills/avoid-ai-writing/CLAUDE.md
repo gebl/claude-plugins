@@ -14,7 +14,7 @@ A single-file writing skill (`SKILL.md`) that audits and rewrites content to rem
 
 ## How to make changes
 
-Edit `SKILL.md` directly. There's nothing to build or test. When making changes:
+edit_file `SKILL.md` directly. There's nothing to build or test. When making changes:
 
 - Bump the version in the SKILL.md frontmatter (`version: X.Y.Z`)
 - Add a dated entry to CHANGELOG.md
